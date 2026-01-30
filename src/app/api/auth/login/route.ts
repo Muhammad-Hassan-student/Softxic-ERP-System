@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import User from '@/models/User';
 import { generateToken } from '@/lib/auth/jwt';
+import dns from 'node:dns';
+
+// Is line ko connection se pehle lazmi likhein
+dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +18,6 @@ export async function POST(request: NextRequest) {
     let query = {};
     
     if (loginType === 'employee') {
-      // Employee login: rollNo + fullName + cnic + password
       const { rollNo, fullName, cnic } = body;
       
       if (!rollNo || !fullName || !cnic || !password) {
@@ -26,7 +29,6 @@ export async function POST(request: NextRequest) {
       
       query = { rollNo, fullName, cnic, role: 'employee' };
     } else if (loginType === 'hr') {
-      // HR login: email + password
       const { email } = body;
       
       if (!email || !password) {
@@ -38,7 +40,6 @@ export async function POST(request: NextRequest) {
       
       query = { email, role: 'hr' };
     } else if (loginType === 'admin') {
-      // Admin login: email + password
       const { email } = body;
       
       if (!email || !password) {
@@ -89,50 +90,72 @@ export async function POST(request: NextRequest) {
     // Generate token
     const token = generateToken(user._id.toString(), user.role);
 
-    // Prepare response based on role
-    let userResponse: any = {
+    // Prepare response
+    const userResponse = {
       id: user._id,
       fullName: user.fullName,
       role: user.role,
       department: user.department,
       profilePhoto: user.profilePhoto,
       lastLogin: user.lastLogin,
-    };
-
-    // Add role-specific fields
-    if (user.role === 'employee') {
-      userResponse = {
-        ...userResponse,
+      ...(user.role === 'employee' ? {
         rollNo: user.rollNo,
         cnic: user.cnic,
         jobTitle: user.jobTitle,
-        salary: user.salary,
-        status: user.status,
-      };
-    } else if (user.role === 'hr' || user.role === 'admin') {
-      userResponse = {
-        ...userResponse,
+      } : {
         email: user.email,
         mobile: user.mobile,
-      };
-    }
+      }),
+    };
 
-    return NextResponse.json({
+    // Create response with cookie
+    const response = NextResponse.json({
       success: true,
       message: 'Login successful',
       data: userResponse,
-      token,
+      token, // Also return token for client-side storage if needed
     });
+
+    // Set token as HTTP-only cookie (FIXED)
+    response.cookies.set({
+      name: 'token',
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // Changed from 'strict' to 'lax' for better compatibility
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
+    });
+
+    // Also set user role in cookie for quick access
+    response.cookies.set({
+      name: 'userRole',
+      value: user.role,
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    });
+
+    // Set user data in cookie (optional)
+    response.cookies.set({
+      name: 'userData',
+      value: JSON.stringify(userResponse),
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    });
+
+    return response;
 
   } catch (error: any) {
     console.error('Login error:', error);
-  return NextResponse.json(
-    {
-      success: false,
-      message: 'Server error',
-      error: error instanceof Error ? error.message : String(error),
-    },
-    { status: 500 }
-  );
+    return NextResponse.json(
+      { success: false, message: 'Server error', error: error.message },
+      { status: 500 }
+    );
   }
 }

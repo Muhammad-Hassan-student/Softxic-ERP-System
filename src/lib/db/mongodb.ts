@@ -1,9 +1,17 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
+import "dotenv/config";
+import dns from 'node:dns';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/erp-system';
+// Is line ko connection se pehle lazmi likhein
+dns.setServers(['8.8.8.8', '1.1.1.1']);
+
+
+const MONGODB_URI = "mongodb+srv://ERP:hassanERP123@cluster0.jfihz67.mongodb.net/?appName=Cluster0";
+
+console.log("🧪 Mongo URI:", MONGODB_URI);
 
 if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable');
+  throw new Error("Please define MONGODB_URI in .env");
 }
 
 interface MongooseCache {
@@ -15,33 +23,24 @@ declare global {
   var mongoose: MongooseCache;
 }
 
-let cached: MongooseCache = global.mongoose || { conn: null, promise: null };
+let cached = global.mongoose || { conn: null, promise: null };
 
 if (!global.mongoose) {
   global.mongoose = cached;
 }
 
 export async function connectDB() {
-  if (cached.conn) {
-    return cached.conn;
-  }
+  if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
-    const opts = {
+    cached.promise = mongoose.connect("mongodb+srv://erp_db:erpDb123@cluster0.vouqoco.mongodb.net/erp", {
+       family: 4, // Force IPv4
+  retryWrites: true,
+  connectTimeoutMS: 10000, //
       bufferCommands: false,
-    };
-
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      return mongoose;
     });
   }
 
-  try {
-    cached.conn = await cached.promise;
-  } catch (e) {
-    cached.promise = null;
-    throw e;
-  }
-
+  cached.conn = await cached.promise;
   return cached.conn;
 }

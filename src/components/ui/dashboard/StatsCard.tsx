@@ -20,6 +20,7 @@ import {
   Wallet,
   CreditCard,
   TrendingDown,
+  Clock,
 } from 'lucide-react';
 
 const iconMap: Record<string, LucideIcon> = {
@@ -37,7 +38,8 @@ const iconMap: Record<string, LucideIcon> = {
   pieChart : PieChart,
    wallet:     Wallet,
     creditCard :CreditCard,
-    trendingDown: TrendingDown
+    trendingDown: TrendingDown,
+    clock: Clock,
   
 }
 

@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Sidebar } from '@/components/ui/sidebar/Sidebar';
+import { RoleBasedSidebar } from '@/components/ui/sidebar/RoleBasedSidebar';
+import { RoleBasedMobileSidebar } from '@/components/ui/sidebar/RoleBasedMobileSidebar';
 import Header  from '@/components/ui/header/Header';
-import { MobileSidebar } from '@/components/ui/sidebar/MobileSidebar';
+import { cn } from '@/lib/utils';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -15,16 +16,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Desktop Sidebar */}
+      {/* Desktop Role-Based Sidebar */}
       <div className="hidden lg:block">
-        <Sidebar
+        <RoleBasedSidebar
           isCollapsed={isSidebarCollapsed}
           setIsCollapsed={setIsSidebarCollapsed}
         />
       </div>
 
-      {/* Mobile Sidebar */}
-      <MobileSidebar
+      {/* Mobile Role-Based Sidebar */}
+      <RoleBasedMobileSidebar
         isOpen={isMobileSidebarOpen}
         onClose={() => setIsMobileSidebarOpen(false)}
       />
@@ -38,12 +39,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         )}
       >
         <Header toggleMobileSidebar={() => setIsMobileSidebarOpen(true)} />
-        <main className="p-6">{children}</main>
+        <main className="p-4 md:p-6">{children}</main>
       </div>
     </div>
   );
 };
-
-function cn(...classes: (string | boolean)[]) {
-  return classes.filter(Boolean).join(' ');
-}
