@@ -2,7 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 
-import { EmployeeFilters, EmployeeTable } from "@/components/employee-management/EmployeeTable";
+import {
+  EmployeeFilters,
+  EmployeeTable,
+} from "@/components/employee-management/EmployeeTable";
 import { PaymentDialog } from "@/components/employee-management/PaymentDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +42,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 // Types
 interface Employee {
@@ -84,7 +88,9 @@ export default function EmployeeManagementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalEmployees, setTotalEmployees] = useState(0);
-  const [viewMode, setViewMode] = useState<"all" | "hr" | "employee" | "payment">("all");
+  const [viewMode, setViewMode] = useState<
+    "all" | "hr" | "employee" | "payment"
+  >("all");
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(true);
   const [filters, setFilters] = useState({
@@ -96,44 +102,74 @@ export default function EmployeeManagementPage() {
     dateRange: "All Time",
     sortBy: "",
   });
+  const router = useRouter();
 
   // Mock data initialization
   useEffect(() => {
     const loadEmployees = () => {
       const mockEmployees: Employee[] = Array.from({ length: 50 }, (_, i) => {
-        const departments = ["HR", "Finance", "Sales", "Marketing", "IT", "Engineering", "Operations", "Admin", "Support", "Management"];
+        const departments = [
+          "HR",
+          "Finance",
+          "Sales",
+          "Marketing",
+          "IT",
+          "Engineering",
+          "Operations",
+          "Admin",
+          "Support",
+          "Management",
+        ];
         const roles = ["employee", "hr", "admin", "manager"];
         const statuses = ["active", "inactive", "terminated", "on-leave"];
-        
+
         return {
-          id: `EMP${String(i + 1).padStart(4, '0')}`,
-          rollNo: `ROLL${String(i + 1).padStart(3, '0')}`,
-          fullName: `Employee ${i + 1} ${['Khan', 'Ali', 'Ahmed', 'Raza', 'Hassan'][i % 5]}`,
-          cnic: `42101-${String(Math.floor(Math.random() * 10000000)).padStart(7, '0')}-${String(Math.floor(Math.random() * 10))}`,
+          id: `EMP${String(i + 1).padStart(4, "0")}`,
+          rollNo: `ROLL${String(i + 1).padStart(3, "0")}`,
+          fullName: `Employee ${i + 1} ${["Khan", "Ali", "Ahmed", "Raza", "Hassan"][i % 5]}`,
+          cnic: `42101-${String(Math.floor(Math.random() * 10000000)).padStart(7, "0")}-${String(Math.floor(Math.random() * 10))}`,
           mobile: `03${String(Math.floor(Math.random() * 90000000) + 10000000)}`,
           jobTitle: [
-            "Software Engineer", "HR Manager", "Sales Executive", 
-            "Accountant", "Marketing Specialist", "Project Manager",
-            "System Administrator", "Business Analyst", "Customer Support",
-            "Operations Manager"
+            "Software Engineer",
+            "HR Manager",
+            "Sales Executive",
+            "Accountant",
+            "Marketing Specialist",
+            "Project Manager",
+            "System Administrator",
+            "Business Analyst",
+            "Customer Support",
+            "Operations Manager",
           ][i % 10],
           department: departments[i % departments.length],
           salary: Math.floor(Math.random() * 100000) + 50000,
           incentive: Math.floor(Math.random() * 20000),
           taxAmount: Math.floor(Math.random() * 15000),
           status: statuses[i % statuses.length] as any,
-          dateOfJoining: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
+          dateOfJoining: new Date(
+            Date.now() - Math.random() * 10000000000,
+          ).toISOString(),
           createdAt: new Date().toISOString(),
           role: roles[i % roles.length] as any,
           email: `employee${i + 1}@company.com`,
           fatherName: `Father ${i + 1}`,
           address: `House #${i + 1}, Street ${i + 1}, City`,
-          timing: ["9:00 AM - 5:00 PM", "10:00 AM - 6:00 PM", "8:00 AM - 4:00 PM"][i % 3],
+          timing: [
+            "9:00 AM - 5:00 PM",
+            "10:00 AM - 6:00 PM",
+            "8:00 AM - 4:00 PM",
+          ][i % 3],
           qualification: {
             academic: ["Bachelor's Degree", "Master's Degree", "PhD"][i % 3],
-            other: ["Certified Professional", "Technical Certification", "Diploma"][i % 3],
+            other: [
+              "Certified Professional",
+              "Technical Certification",
+              "Diploma",
+            ][i % 3],
           },
-          lastPaymentDate: new Date(Date.now() - Math.random() * 3000000000).toISOString(),
+          lastPaymentDate: new Date(
+            Date.now() - Math.random() * 3000000000,
+          ).toISOString(),
           totalEarnings: Math.floor(Math.random() * 1000000) + 500000,
           attendance: {
             present: Math.floor(Math.random() * 22) + 18,
@@ -162,58 +198,59 @@ export default function EmployeeManagementPage() {
     // Apply search filter
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase();
-      result = result.filter(emp =>
-        emp.fullName.toLowerCase().includes(searchTerm) ||
-        emp.rollNo.toLowerCase().includes(searchTerm) ||
-        emp.mobile.includes(searchTerm) ||
-        emp.email?.toLowerCase().includes(searchTerm)
+      result = result.filter(
+        (emp) =>
+          emp.fullName.toLowerCase().includes(searchTerm) ||
+          emp.rollNo.toLowerCase().includes(searchTerm) ||
+          emp.mobile.includes(searchTerm) ||
+          emp.email?.toLowerCase().includes(searchTerm),
       );
     }
 
     // Apply department filter
     if (filters.department !== "All Departments") {
-      result = result.filter(emp => emp.department === filters.department);
+      result = result.filter((emp) => emp.department === filters.department);
     }
 
     // Apply status filter
     if (filters.status !== "All Status") {
-      result = result.filter(emp => emp.status === filters.status);
+      result = result.filter((emp) => emp.status === filters.status);
     }
 
     // Apply role filter
     if (filters.role !== "All Roles") {
-      result = result.filter(emp => emp.role === filters.role);
+      result = result.filter((emp) => emp.role === filters.role);
     }
 
     // Apply view mode filter
     if (viewMode !== "all") {
-      result = result.filter(emp => emp.role === viewMode);
+      result = result.filter((emp) => emp.role === viewMode);
     }
 
     // Apply sorting
     if (filters.sortBy) {
-      const [key, direction] = filters.sortBy.split('-');
+      const [key, direction] = filters.sortBy.split("-");
       result.sort((a, b) => {
         let aValue: any, bValue: any;
-        
+
         switch (key) {
-          case 'name':
+          case "name":
             aValue = a.fullName;
             bValue = b.fullName;
             break;
-          case 'salary':
+          case "salary":
             aValue = a.salary + a.incentive - a.taxAmount;
             bValue = b.salary + b.incentive - b.taxAmount;
             break;
-          case 'date':
+          case "date":
             aValue = new Date(a.dateOfJoining).getTime();
             bValue = new Date(b.dateOfJoining).getTime();
             break;
-          case 'performance':
+          case "performance":
             aValue = a.performance || 0;
             bValue = b.performance || 0;
             break;
-          case 'department':
+          case "department":
             aValue = a.department;
             bValue = b.department;
             break;
@@ -221,14 +258,14 @@ export default function EmployeeManagementPage() {
             return 0;
         }
 
-        if (direction === 'desc') {
+        if (direction === "desc") {
           [aValue, bValue] = [bValue, aValue];
         }
 
-        if (typeof aValue === 'string' && typeof bValue === 'string') {
+        if (typeof aValue === "string" && typeof bValue === "string") {
           return aValue.localeCompare(bValue);
         }
-        return (aValue < bValue ? -1 : (aValue > bValue ? 1 : 0));
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
       });
     }
 
@@ -276,7 +313,7 @@ export default function EmployeeManagementPage() {
   };
 
   const handleDelete = (id: string) => {
-    setEmployees(prev => prev.filter(emp => emp.id !== id));
+    setEmployees((prev) => prev.filter((emp) => emp.id !== id));
     toast.success("Employee deleted successfully", {
       icon: "🗑️",
     });
@@ -289,18 +326,18 @@ export default function EmployeeManagementPage() {
   };
 
   const handleTerminate = (employee: Employee) => {
-    setEmployees(prev => prev.map(emp =>
-      emp.id === employee.id ? { ...emp, status: "terminated" } : emp
-    ));
+    setEmployees((prev) =>
+      prev.map((emp) =>
+        emp.id === employee.id ? { ...emp, status: "terminated" } : emp,
+      ),
+    );
     toast.success(`${employee.fullName} has been terminated`, {
       icon: "👋",
     });
   };
 
   const handleViewProfile = (employee: Employee) => {
-    toast.success(`Opening profile for ${employee.fullName}`, {
-      icon: "👤",
-    });
+    router.push(`/admin/profile/${employee.id}`);
   };
 
   const handlePrint = (employee: Employee) => {
@@ -364,8 +401,8 @@ export default function EmployeeManagementPage() {
       ["Status", employee.status],
       ["Joining Date", new Date(employee.dateOfJoining).toLocaleDateString()],
     ];
-    
-    const csvContent = data.map(row => row.join(",")).join("\n");
+
+    const csvContent = data.map((row) => row.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -375,7 +412,7 @@ export default function EmployeeManagementPage() {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-    
+
     toast.success("Employee data exported successfully!", {
       icon: "📥",
     });
@@ -386,9 +423,12 @@ export default function EmployeeManagementPage() {
       toast.error("Please select employees first");
       return;
     }
-    toast.success(`Processing bulk payment for ${selectedRows.length} employees`, {
-      icon: "💳",
-    });
+    toast.success(
+      `Processing bulk payment for ${selectedRows.length} employees`,
+      {
+        icon: "💳",
+      },
+    );
   };
 
   const handleBulkExport = () => {
@@ -432,11 +472,11 @@ export default function EmployeeManagementPage() {
   };
 
   // Statistics
-  const totalActive = employees.filter(e => e.status === "active").length;
-  const totalHR = employees.filter(e => e.role === "hr").length;
-  const totalManagers = employees.filter(e => e.role === "manager").length;
-  const totalRegular = employees.filter(e => e.role === "employee").length;
-  const totalOnLeave = employees.filter(e => e.status === "on-leave").length;
+  const totalActive = employees.filter((e) => e.status === "active").length;
+  const totalHR = employees.filter((e) => e.role === "hr").length;
+  const totalManagers = employees.filter((e) => e.role === "manager").length;
+  const totalRegular = employees.filter((e) => e.role === "employee").length;
+  const totalOnLeave = employees.filter((e) => e.status === "on-leave").length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30 p-4 md:p-6">
@@ -492,7 +532,9 @@ export default function EmployeeManagementPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Total Employees</p>
-                  <p className="text-2xl font-bold text-gray-900">{totalEmployees}</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {totalEmployees}
+                  </p>
                 </div>
                 <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                   <Users className="h-5 w-5 text-blue-600" />
@@ -506,7 +548,9 @@ export default function EmployeeManagementPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Active</p>
-                  <p className="text-2xl font-bold text-green-700">{totalActive}</p>
+                  <p className="text-2xl font-bold text-green-700">
+                    {totalActive}
+                  </p>
                 </div>
                 <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
                   <CheckCircle className="h-5 w-5 text-green-600" />
@@ -520,7 +564,9 @@ export default function EmployeeManagementPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">HR Staff</p>
-                  <p className="text-2xl font-bold text-purple-700">{totalHR}</p>
+                  <p className="text-2xl font-bold text-purple-700">
+                    {totalHR}
+                  </p>
                 </div>
                 <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
                   <Shield className="h-5 w-5 text-purple-600" />
@@ -534,7 +580,9 @@ export default function EmployeeManagementPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Managers</p>
-                  <p className="text-2xl font-bold text-orange-700">{totalManagers}</p>
+                  <p className="text-2xl font-bold text-orange-700">
+                    {totalManagers}
+                  </p>
                 </div>
                 <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
                   <Award className="h-5 w-5 text-orange-600" />
@@ -548,7 +596,9 @@ export default function EmployeeManagementPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">On Leave</p>
-                  <p className="text-2xl font-bold text-yellow-700">{totalOnLeave}</p>
+                  <p className="text-2xl font-bold text-yellow-700">
+                    {totalOnLeave}
+                  </p>
                 </div>
                 <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
                   <Calendar className="h-5 w-5 text-yellow-600" />
@@ -648,19 +698,31 @@ export default function EmployeeManagementPage() {
       {/* Custom Toast Styling */}
       <style jsx global>{`
         .toast-success {
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+          background: linear-gradient(
+            135deg,
+            #10b981 0%,
+            #059669 100%
+          ) !important;
           color: white !important;
           border-radius: 10px !important;
           box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3) !important;
         }
         .toast-error {
-          background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+          background: linear-gradient(
+            135deg,
+            #ef4444 0%,
+            #dc2626 100%
+          ) !important;
           color: white !important;
           border-radius: 10px !important;
           box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3) !important;
         }
         .toast-info {
-          background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+          background: linear-gradient(
+            135deg,
+            #3b82f6 0%,
+            #1d4ed8 100%
+          ) !important;
           color: white !important;
           border-radius: 10px !important;
           box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3) !important;

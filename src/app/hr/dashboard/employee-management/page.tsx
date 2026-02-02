@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { EmployeeTable } from '@/components/employee-management/EmployeeTable';
-import { EmployeeForm } from '@/components/employee-management/EmployeeForm';
-import { PaymentDialog } from '@/components/employee-management/PaymentDialog';
-import { useAuth } from '@/context/AuthContext';
-import { apiRequest } from '@/lib/api-request';
-import { Plus, Download, RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { EmployeeTable } from "@/components/employee-management/EmployeeTable";
+import { EmployeeForm } from "@/components/employee-management/EmployeeForm";
+import { PaymentDialog } from "@/components/employee-management/PaymentDialog";
+import { useAuth } from "@/context/AuthContext";
+import { apiRequest } from "@/lib/api-request";
+import { Plus, Download, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
 interface Employee {
   id: string;
@@ -24,7 +24,7 @@ interface Employee {
   salary: number;
   incentive: number;
   taxAmount: number;
-  status: 'active' | 'inactive' | 'terminated';
+  status: "active" | "inactive" | "terminated";
   dateOfJoining: string;
   createdAt: string;
 }
@@ -32,50 +32,54 @@ interface Employee {
 export default function HREmployeeManagementPage() {
   const router = useRouter();
   const { user } = useAuth();
-  
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  
+
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
+    null,
+  );
   const [filters, setFilters] = useState({
-    search: '',
-    department: 'all',
-    status: 'all',
-    paymentStatus: 'all',
+    search: "",
+    department: "all",
+    status: "all",
+    paymentStatus: "all",
   });
 
   // Fetch employees
   const fetchEmployees = async (page = 1) => {
     try {
       setLoading(true);
-      
+
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '10',
+        limit: "10",
         ...(filters.search && { search: filters.search }),
-        ...(filters.department !== 'all' && { department: filters.department }),
-        ...(filters.status !== 'all' && { status: filters.status }),
-        ...(filters.paymentStatus !== 'all' && { paymentStatus: filters.paymentStatus }),
+        ...(filters.department !== "all" && { department: filters.department }),
+        ...(filters.status !== "all" && { status: filters.status }),
+        ...(filters.paymentStatus !== "all" && {
+          paymentStatus: filters.paymentStatus,
+        }),
       });
 
       const response = await apiRequest(`/api/employees?${params}`);
-      
+
       if (response.success) {
         setEmployees(response.data);
         setTotal(response.pagination!.total);
         setTotalPages(response.pagination!.totalPages);
         setCurrentPage(response.pagination!.page);
       } else {
-        toast.error(response.message || 'Failed to fetch employees');
+        toast.error(response.message || "Failed to fetch employees");
       }
     } catch (error) {
-      console.error('Error fetching employees:', error);
-      toast.error('Failed to fetch employees');
+      console.error("Error fetching employees:", error);
+      toast.error("Failed to fetch employees");
     } finally {
       setLoading(false);
     }
@@ -95,7 +99,7 @@ export default function HREmployeeManagementPage() {
   };
 
   const handleDelete = async (id: string) => {
-    toast.error('HR cannot delete employees. Please contact admin.');
+    toast.error("HR cannot delete employees. Please contact admin.");
   };
 
   const handlePayment = (employee: Employee) => {
@@ -104,7 +108,7 @@ export default function HREmployeeManagementPage() {
   };
 
   const handleTerminate = async (employee: Employee) => {
-    toast.error('HR cannot terminate employees. Please contact admin.');
+    toast.error("HR cannot terminate employees. Please contact admin.");
   };
 
   const handleViewProfile = (employee: Employee) => {
@@ -113,26 +117,26 @@ export default function HREmployeeManagementPage() {
 
   const handleExport = async () => {
     try {
-      const response = await apiRequest('/api/employees/export', {
-        method: 'GET',
+      const response = await apiRequest("/api/employees/export", {
+        method: "GET",
       });
 
       if (response.success && response.data) {
-        const blob = new Blob([response.data], { type: 'text/csv' });
+        const blob = new Blob([response.data], { type: "text/csv" });
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
-        a.download = `employees_${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `employees_${new Date().toISOString().split("T")[0]}.csv`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
 
-        toast.success('Employee data exported successfully');
+        toast.success("Employee data exported successfully");
       }
     } catch (error) {
-      console.error('Error exporting employees:', error);
-      toast.error('Failed to export employees');
+      console.error("Error exporting employees:", error);
+      toast.error("Failed to export employees");
     }
   };
 
@@ -155,7 +159,9 @@ export default function HREmployeeManagementPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Employee Management</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Employee Management
+          </h1>
           <p className="text-gray-600 mt-1">
             View and manage employee details and payments
           </p>
@@ -190,7 +196,7 @@ export default function HREmployeeManagementPage() {
         </div>
       </div>
 
-      <Card>
+      {/* <Card>
         <CardContent className="p-0">
           <EmployeeTable
             employees={employees}
@@ -205,7 +211,7 @@ export default function HREmployeeManagementPage() {
             onViewProfile={handleViewProfile}
           />
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Employee Form Dialog (HR limited version) */}
       {showEmployeeForm && (
