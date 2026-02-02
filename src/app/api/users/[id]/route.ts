@@ -1,37 +1,50 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db/mongodb';
-import User from '@/models/User';
-import { verifyToken } from '@/lib/auth/jwt';
-import bcrypt from 'bcryptjs';
+import { NextRequest, NextResponse } from "next/server";
+import { connectDB } from "@/lib/db/mongodb";
+import User from "@/models/User";
+import { verifyToken } from "@/lib/auth/jwt";
+
+// Helper to get token from request
+function getTokenFromRequest(request: NextRequest): string | null {
+  // First try Authorization header
+  const authHeader = request.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    return authHeader.split(" ")[1];
+  }
+
+  // Then try cookies
+  const token = request.cookies.get("token")?.value;
+  if (token) return token;
+
+  return null;
+}
 
 /* =========================
    GET user profile
 ========================= */
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
 
     const { id } = await context.params;
 
-    // Verify authentication
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Get token from request
+    const token = getTokenFromRequest(request);
+    if (!token) {
       return NextResponse.json(
-        { success: false, message: 'Authentication required' },
-        { status: 401 }
+        { success: false, message: "Authentication required" },
+        { status: 401 },
       );
     }
 
-    const token = authHeader.split(' ')[1];
+    // Verify token
     const decoded = verifyToken(token);
-
     if (!decoded) {
       return NextResponse.json(
-        { success: false, message: 'Invalid token' },
-        { status: 401 }
+        { success: false, message: "Invalid token" },
+        { status: 401 },
       );
     }
 
@@ -39,8 +52,8 @@ export async function GET(
     const requestingUser = await User.findById(decoded.userId);
     if (!requestingUser) {
       return NextResponse.json(
-        { success: false, message: 'User not found' },
-        { status: 404 }
+        { success: false, message: "User not found" },
+        { status: 404 },
       );
     }
 
@@ -48,21 +61,21 @@ export async function GET(
     const targetUser = await User.findById(id);
     if (!targetUser) {
       return NextResponse.json(
-        { success: false, message: 'Target user not found' },
-        { status: 404 }
+        { success: false, message: "Target user not found" },
+        { status: 404 },
       );
     }
 
     // Check permissions
     const canView =
-      requestingUser.role === 'admin' ||
-      (requestingUser.role === 'hr' && targetUser.role === 'employee') ||
+      requestingUser.role === "admin" ||
+      (requestingUser.role === "hr" && targetUser.role === "employee") ||
       requestingUser._id.toString() === id;
 
     if (!canView) {
       return NextResponse.json(
-        { success: false, message: 'Access denied' },
-        { status: 403 }
+        { success: false, message: "Access denied" },
+        { status: 403 },
       );
     }
 
@@ -77,7 +90,7 @@ export async function GET(
       createdAt: targetUser.createdAt,
     };
 
-    if (targetUser.role === 'employee') {
+    if (targetUser.role === "employee") {
       userData = {
         ...userData,
         rollNo: targetUser.rollNo,
@@ -102,8 +115,8 @@ export async function GET(
     }
 
     if (
-      requestingUser.role === 'admin' ||
-      requestingUser.role === 'hr' ||
+      requestingUser.role === "admin" ||
+      requestingUser.role === "hr" ||
       requestingUser._id.toString() === id
     ) {
       userData.email = targetUser.email;
@@ -115,12 +128,11 @@ export async function GET(
       success: true,
       data: userData,
     });
-
   } catch (error: any) {
-    console.error('Get user error:', error);
+    console.error("Get user error:", error);
     return NextResponse.json(
-      { success: false, message: 'Server error', error: error.message },
-      { status: 500 }
+      { success: false, message: "Server error", error: error.message },
+      { status: 500 },
     );
   }
 }
@@ -130,29 +142,28 @@ export async function GET(
 ========================= */
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
 
     const { id } = await context.params;
 
-    // Verify authentication
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Get token from request
+    const token = getTokenFromRequest(request);
+    if (!token) {
       return NextResponse.json(
-        { success: false, message: 'Authentication required' },
-        { status: 401 }
+        { success: false, message: "Authentication required" },
+        { status: 401 },
       );
     }
 
-    const token = authHeader.split(' ')[1];
+    // Verify token
     const decoded = verifyToken(token);
-
     if (!decoded) {
       return NextResponse.json(
-        { success: false, message: 'Invalid token' },
-        { status: 401 }
+        { success: false, message: "Invalid token" },
+        { status: 401 },
       );
     }
 
@@ -161,70 +172,70 @@ export async function PUT(
     const requestingUser = await User.findById(decoded.userId);
     if (!requestingUser) {
       return NextResponse.json(
-        { success: false, message: 'User not found' },
-        { status: 404 }
+        { success: false, message: "User not found" },
+        { status: 404 },
       );
     }
 
     const targetUser = await User.findById(id);
     if (!targetUser) {
       return NextResponse.json(
-        { success: false, message: 'Target user not found' },
-        { status: 404 }
+        { success: false, message: "Target user not found" },
+        { status: 404 },
       );
     }
 
     const canUpdate =
-      requestingUser.role === 'admin' ||
-      (requestingUser.role === 'hr' && targetUser.role === 'employee') ||
+      requestingUser.role === "admin" ||
+      (requestingUser.role === "hr" && targetUser.role === "employee") ||
       requestingUser._id.toString() === id;
 
     if (!canUpdate) {
       return NextResponse.json(
-        { success: false, message: 'Access denied' },
-        { status: 403 }
+        { success: false, message: "Access denied" },
+        { status: 403 },
       );
     }
 
     let allowedFields: string[] = [];
 
     if (requestingUser._id.toString() === id) {
-      allowedFields = ['fullName', 'mobile', 'alternateMobile', 'address'];
+      allowedFields = ["fullName", "mobile", "alternateMobile", "address"];
     }
 
-    if (requestingUser.role === 'hr' && targetUser.role === 'employee') {
+    if (requestingUser.role === "hr" && targetUser.role === "employee") {
       allowedFields.push(
-        'jobTitle',
-        'department',
-        'responsibility',
-        'timing',
-        'monthOff',
-        'salary',
-        'incentive'
+        "jobTitle",
+        "department",
+        "responsibility",
+        "timing",
+        "monthOff",
+        "salary",
+        "incentive",
       );
     }
 
-    if (requestingUser.role === 'admin') {
+    if (requestingUser.role === "admin") {
       allowedFields = [
-        'fullName',
-        'email',
-        'mobile',
-        'alternateMobile',
-        'address',
-        'jobTitle',
-        'department',
-        'responsibility',
-        'timing',
-        'monthOff',
-        'salary',
-        'incentive',
-        'taxDeduction',
-        'taxAmount',
+        "fullName",
+        "email",
+        "mobile",
+        "alternateMobile",
+        "address",
+        "jobTitle",
+        "department",
+        "responsibility",
+        "timing",
+        "monthOff",
+        "salary",
+        "incentive",
+        "taxDeduction",
+        "taxAmount",
       ];
     }
 
     const filteredUpdates: any = {};
-    Object.keys(body).forEach(key => {
+    Object.keys(body).forEach((key) => {
       if (allowedFields.includes(key)) {
         filteredUpdates[key] = body[key];
       }
@@ -235,18 +246,17 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      message: 'Profile updated successfully',
+      message: "Profile updated successfully",
       data: {
         id: targetUser._id,
         ...filteredUpdates,
       },
     });
-
   } catch (error: any) {
-    console.error('Update user error:', error);
+    console.error("Update user error:", error);
     return NextResponse.json(
-      { success: false, message: 'Server error', error: error.message },
-      { status: 500 }
+      { success: false, message: "Server error", error: error.message },
+      { status: 500 },
     );
   }
 }

@@ -18,7 +18,6 @@ export interface ApiResponse<T = any> {
 interface ApiRequestOptions extends RequestInit {
   body?: any;
   headers?: Record<string, string>;
-  // New: Add auth option
   requireAuth?: boolean;
 }
 
@@ -39,27 +38,6 @@ export async function apiRequest<T = any>(
       headers["Content-Type"] = "application/json";
     }
 
-    // IMPORTANT FIX: Don't add Authorization header for auth endpoints
-    // Let cookies handle authentication for auth APIs
-    if (requireAuth && !endpoint.includes("/api/auth/")) {
-      // Try to get token from cookies
-      const token = getTokenFromCookies();
-
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      } else {
-        // If no token and auth required, check if we should redirect
-        console.warn("No token found for authenticated request");
-
-        // Don't automatically redirect, let the component handle it
-        return {
-          success: false,
-          message: "Authentication required",
-          error: "NO_TOKEN",
-        };
-      }
-    }
-
     // Prepare body
     let body = fetchOptions.body;
     if (body && !(body instanceof FormData)) {
@@ -67,13 +45,15 @@ export async function apiRequest<T = any>(
     }
 
     console.log(`🔍 API Request: ${endpoint}`);
-    console.log(`📋 Headers:`, headers);
+    console.log(`📋 Method: ${fetchOptions.method || 'GET'}`);
 
+    // IMPORTANT: For authenticated requests, just include cookies
+    // Don't add Authorization header if backend expects cookies
     const response = await fetch(endpoint, {
       ...fetchOptions,
       headers,
       body,
-      credentials: "include", // IMPORTANT: Include cookies
+      credentials: "include", // This is KEY - sends cookies automatically
     });
 
     console.log(`📊 Response Status: ${response.status} for ${endpoint}`);
@@ -82,22 +62,37 @@ export async function apiRequest<T = any>(
     if (!response.ok) {
       if (response.status === 401) {
         // Token expired or invalid
-        console.log("🔴 401 Unauthorized - Clearing auth data");
-        clearAuthData();
+        console.log("🔴 401 Unauthorized");
+        
+        // Try to get error message
+        let errorMessage = "Session expired. Please login again.";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // Ignore JSON parsing errors
+        }
 
-        // Don't redirect automatically, return error
         return {
           success: false,
-          message: "Session expired. Please login again.",
+          message: errorMessage,
           error: "UNAUTHORIZED",
           status: 401,
         };
       }
 
       if (response.status === 403) {
+        let errorMessage = "Access denied. You do not have permission.";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // Ignore JSON parsing errors
+        }
+
         return {
           success: false,
-          message: "Access denied. You do not have permission.",
+          message: errorMessage,
           error: "FORBIDDEN",
           status: 403,
         };
@@ -131,7 +126,7 @@ export async function apiRequest<T = any>(
 
     // Parse successful response
     const data = await response.json();
-    console.log(`✅ API Success: ${endpoint}`);
+    console.log(`✅ API Success: ${endpoint}`, data);
 
     return {
       success: true,
@@ -140,70 +135,21 @@ export async function apiRequest<T = any>(
   } catch (error: any) {
     console.error("❌ API Request Error:", error);
 
+    // Check for network errors
+    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+      return {
+        success: false,
+        message: "Network error. Please check your internet connection.",
+        error: "NETWORK_ERROR",
+      };
+    }
+
     // Return structured error response
     return {
       success: false,
-      message:
-        error.message ||
-        "Network error occurred. Please check your connection.",
-      error: "NETWORK_ERROR",
+      message: error.message || "An unexpected error occurred.",
+      error: "REQUEST_ERROR",
     };
-  }
-}
-
-// FIXED: Get token from cookies properly
-function getTokenFromCookies(): string | null {
-  if (typeof window === "undefined") return null;
-
-  try {
-    const cookies = document.cookie.split(";");
-    for (const cookie of cookies) {
-      const [name, ...valueParts] = cookie.trim().split("=");
-      const value = valueParts.join("="); // Handle = in value
-
-      if (name === "token") {
-        // Decode URI component
-        const decodedValue = decodeURIComponent(value);
-
-        // Validate it's a JWT token (starts with header)
-        if (decodedValue && decodedValue.split(".").length === 3) {
-          console.log("✅ Token found in cookies");
-          return decodedValue;
-        }
-      }
-    }
-
-    console.log("⚠️ No valid token found in cookies");
-    return null;
-  } catch (error) {
-    console.error("Error reading cookies:", error);
-    return null;
-  }
-}
-
-// FIXED: Clear auth data
-function clearAuthData(): void {
-  if (typeof window === "undefined") return;
-
-  try {
-    // Clear cookies
-    document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie =
-      "userRole=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "userId=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie =
-      "userData=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-
-    // Clear localStorage
-    localStorage.removeItem("token");
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userData");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("lastAuthCheck");
-
-    console.log("🧹 Auth data cleared");
-  } catch (error) {
-    console.error("Error clearing auth data:", error);
   }
 }
 
@@ -229,14 +175,14 @@ export async function checkAuthStatus(): Promise<boolean> {
   }
 }
 
-// Helper for auth endpoints (no Authorization header needed)
+// Helper for auth endpoints
 export async function authRequest<T = any>(
   endpoint: string,
   options: ApiRequestOptions = {},
 ): Promise<ApiResponse<T>> {
   return apiRequest<T>(endpoint, {
     ...options,
-    requireAuth: false, // Auth APIs don't need Authorization header
+    requireAuth: false,
   });
 }
 
@@ -305,4 +251,53 @@ export function debugCookies(): Record<string, string> {
 
   console.log("🍪 Current cookies:", cookies);
   return cookies;
+}
+
+// Set auth cookies (for login/signup)
+export function setAuthCookies(token: string, userData: any): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    // Set secure cookies with proper attributes
+    const cookieOptions = [
+      `path=/`,
+      `max-age=${7 * 24 * 60 * 60}`, // 7 days
+      `SameSite=Strict`,
+      `Secure=${window.location.protocol === 'https:'}`
+    ].join('; ');
+
+    document.cookie = `token=${encodeURIComponent(token)}; ${cookieOptions}`;
+    document.cookie = `userData=${encodeURIComponent(JSON.stringify(userData))}; ${cookieOptions}`;
+    document.cookie = `userId=${encodeURIComponent(userData.id || '')}; ${cookieOptions}`;
+    document.cookie = `userRole=${encodeURIComponent(userData.role || '')}; ${cookieOptions}`;
+    
+    console.log("✅ Auth cookies set");
+  } catch (error) {
+    console.error("Error setting cookies:", error);
+  }
+}
+
+// Clear auth cookies (for logout)
+export function clearAuthCookies(): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    const pastDate = 'Thu, 01 Jan 1970 00:00:00 UTC';
+    const path = 'path=/';
+    
+    document.cookie = `token=; expires=${pastDate}; ${path}`;
+    document.cookie = `userData=; expires=${pastDate}; ${path}`;
+    document.cookie = `userId=; expires=${pastDate}; ${path}`;
+    document.cookie = `userRole=; expires=${pastDate}; ${path}`;
+    
+    // Clear localStorage too
+    localStorage.removeItem("token");
+    localStorage.removeItem("userData");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("userRole");
+    
+    console.log("🧹 Auth cookies cleared");
+  } catch (error) {
+    console.error("Error clearing cookies:", error);
+  }
 }
