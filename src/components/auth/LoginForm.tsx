@@ -20,7 +20,7 @@ import {
   AlertCircle,
   Loader2
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -29,7 +29,7 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [activeTab, setActiveTab] = useState<'employee' | 'admin'>('employee');
+  const [activeTab, setActiveTab] = useState<'employee' | 'admin' | 'hr'>('employee');
   
   // Get redirect path from URL if any
   const redirectPath = searchParams.get('redirect') || '';
@@ -53,36 +53,55 @@ export default function LoginForm() {
     e.preventDefault();
     
     if (!employeeData.rollNo || !employeeData.fullName || !employeeData.cnic || !employeeData.password) {
-    toast.error('Please fill all required fields')
+      toast.error('Please fill all required fields');
       return;
     }
     
-    await handleLogin('employee', {
+    await handleLogin({
       ...employeeData,
       loginType: 'employee'
     });
   };
   
-  // Handle HR/Admin Login
-  const handleAdminHrLogin = async (e: React.FormEvent) => {
+  // Handle Admin Login
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!adminHrData.email || !adminHrData.password) {
-      toast.error('Please fill all required fields')
+      toast.error('Please fill all required fields');
       return;
     }
     
-    await handleLogin('admin', {
+    await handleLogin({
       email: adminHrData.email,
       password: adminHrData.password,
-      loginType: 'admin' // Will be determined by server
+      loginType: 'admin'
+    });
+  };
+  
+  // Handle HR Login
+  const handleHrLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!adminHrData.email || !adminHrData.password) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+    
+    await handleLogin({
+      email: adminHrData.email,
+      password: adminHrData.password,
+      loginType: 'hr'
     });
   };
   
   // Generic Login Handler
-  const handleLogin = async (type: 'employee' | 'admin' | 'hr', data: any) => {
+  const handleLogin = async (data: any) => {
     try {
       setLoading(true);
+      toast.loading('Signing in...');
+      
+      console.log('Sending login request:', { ...data, password: '***' });
       
       const response = await fetch('/api/auth/login', {
         method: 'POST',
@@ -90,71 +109,60 @@ export default function LoginForm() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
-        credentials: 'include',
+        credentials: 'include', // IMPORTANT: Include cookies
       });
       
       const result = await response.json();
       
-      if (!response.ok) {
+      console.log('Login response:', result);
+      
+      if (!response.ok || !result.success) {
         throw new Error(result.message || 'Login failed');
       }
       
-      if (!result.success) {
-        throw new Error(result.message || 'Login failed');
-      }
+      toast.dismiss();
+      toast.success(`Welcome back, ${result.data.fullName}!`);
       
-      // Store user data
+      // Store user data in localStorage for immediate UI update
       localStorage.setItem('user', JSON.stringify(result.data));
       
       // Remember me option
       if (rememberMe) {
         localStorage.setItem('rememberedUser', JSON.stringify({
-          type,
-          ...(type === 'employee' ? { rollNo: employeeData.rollNo } : { email: adminHrData.email })
+          type: data.loginType,
+          ...(data.loginType === 'employee' ? { 
+            rollNo: employeeData.rollNo 
+          } : { 
+            email: adminHrData.email 
+          })
         }));
       } else {
         localStorage.removeItem('rememberedUser');
       }
       
-    toast.success( `Welcome back, ${result.data.fullName}!`)
-      // Get role from response
-      const role = result.data.role;
+      // Wait for cookies to be set
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Wait a bit for cookies to be set
-      setTimeout(() => {
-        // Check if there's a redirect path
-        if (redirectPath) {
-          window.location.href = redirectPath;
-        } else {
-          // Redirect based on role
-          switch (role) {
-            case 'admin':
-              window.location.href = '/admin/dashboard';
-              break;
-            case 'hr':
-              window.location.href = '/hr/dashboard';
-              break;
-            case 'employee':
-              window.location.href = '/employee/dashboard';
-              break;
-            case 'accounts':
-              window.location.href = '/accounts/dashboard';
-              break;
-            case 'support':
-              window.location.href = '/support/dashboard';
-              break;
-            case 'marketing':
-              window.location.href = '/marketing/dashboard';
-              break;
-            default:
-              window.location.href = '/dashboard';
-          }
-        }
-      }, 500);
+      // Determine redirect path
+      let finalRedirectPath = redirectPath;
+      
+      if (!finalRedirectPath && result.redirectTo) {
+        finalRedirectPath = result.redirectTo;
+      }
+      
+      if (!finalRedirectPath && result.data?.role) {
+        finalRedirectPath = getDashboardPath(result.data.role);
+      }
+      
+      console.log('Redirecting to:', finalRedirectPath);
+      
+      // Use hard redirect to ensure cookies are sent
+      window.location.href = finalRedirectPath || '/dashboard';
       
     } catch (error: any) {
       console.error('Login error:', error);
-      toast.error(error.message || 'Invalid credentials. Please try again.')
+      toast.dismiss();
+      toast.error(error.message || 'Invalid credentials. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -186,7 +194,7 @@ export default function LoginForm() {
           setRememberMe(true);
         } else if (email) {
           setAdminHrData(prev => ({ ...prev, email }));
-          setActiveTab('admin');
+          setActiveTab(type === 'hr' ? 'hr' : 'admin');
           setRememberMe(true);
         }
       } catch (error) {
@@ -194,16 +202,29 @@ export default function LoginForm() {
       }
     }
   }, []);
+  
+  // Helper function to get dashboard path
+  const getDashboardPath = (role: string): string => {
+    const paths: Record<string, string> = {
+      admin: '/admin/dashboard',
+      hr: '/hr/dashboard/employee-management',
+      employee: '/employee/dashboard',
+      accounts: '/accounts/dashboard',
+      support: '/support/dashboard',
+      marketing: '/marketing/dashboard',
+    };
+    return paths[role] || '/dashboard';
+  };
 
   return (
-    <Card className="shadow-lg border-0">
+    <Card className="shadow-lg border-0 max-w-md w-full mx-auto">
       <CardHeader className="text-center">
         <div className="flex justify-center mb-4">
           <div className="h-12 w-12 rounded-lg bg-blue-600 flex items-center justify-center">
             <Lock className="h-6 w-6 text-white" />
           </div>
         </div>
-        <CardTitle className="text-2xl">Welcome Back</CardTitle>
+        <CardTitle className="text-2xl">ERP System Login</CardTitle>
         <CardDescription>
           Sign in to your account to continue
         </CardDescription>
@@ -211,14 +232,18 @@ export default function LoginForm() {
       
       <CardContent>
         <Tabs defaultValue="employee" value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-          <TabsList className="grid grid-cols-2 mb-6">
+          <TabsList className="grid grid-cols-3 mb-6">
             <TabsTrigger value="employee" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               Employee
             </TabsTrigger>
             <TabsTrigger value="admin" className="flex items-center gap-2">
               <Building className="h-4 w-4" />
-              Admin/HR
+              Admin
+            </TabsTrigger>
+            <TabsTrigger value="hr" className="flex items-center gap-2">
+              <Building className="h-4 w-4" />
+              HR
             </TabsTrigger>
           </TabsList>
           
@@ -232,10 +257,11 @@ export default function LoginForm() {
                 </Label>
                 <Input
                   id="rollNo"
-                  placeholder="EMP-DEP-24-001"
+                  placeholder="EMP-001"
                   value={employeeData.rollNo}
                   onChange={(e) => setEmployeeData(prev => ({ ...prev, rollNo: e.target.value.toUpperCase() }))}
                   required
+                  disabled={loading}
                 />
               </div>
               
@@ -250,6 +276,7 @@ export default function LoginForm() {
                   value={employeeData.fullName}
                   onChange={(e) => setEmployeeData(prev => ({ ...prev, fullName: e.target.value }))}
                   required
+                  disabled={loading}
                 />
               </div>
               
@@ -265,6 +292,7 @@ export default function LoginForm() {
                   onChange={handleCNICChange}
                   maxLength={15}
                   required
+                  disabled={loading}
                 />
                 <p className="text-xs text-gray-500">
                   Format: XXXXX-XXXXXXX-X
@@ -284,6 +312,7 @@ export default function LoginForm() {
                     value={employeeData.password}
                     onChange={(e) => setEmployeeData(prev => ({ ...prev, password: e.target.value }))}
                     required
+                    disabled={loading}
                   />
                   <Button
                     type="button"
@@ -291,6 +320,7 @@ export default function LoginForm() {
                     size="sm"
                     className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
                     onClick={() => setShowPassword(!showPassword)}
+                    disabled={loading}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -307,6 +337,7 @@ export default function LoginForm() {
                     id="rememberEmployee"
                     checked={rememberMe}
                     onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                    disabled={loading}
                   />
                   <Label htmlFor="rememberEmployee" className="text-sm">
                     Remember me
@@ -317,7 +348,8 @@ export default function LoginForm() {
                   type="button"
                   variant="link"
                   className="text-sm text-blue-600 hover:text-blue-800 p-0 h-auto"
-                  onClick={() =>toast.error('Please contact your HR department for password reset.')}
+                  onClick={() => toast.error('Please contact your HR department for password reset.')}
+                  disabled={loading}
                 >
                   Forgot password?
                 </Button>
@@ -340,9 +372,9 @@ export default function LoginForm() {
             </form>
           </TabsContent>
           
-          {/* Admin/HR Login Tab */}
+          {/* Admin Login Tab */}
           <TabsContent value="admin">
-            <form onSubmit={handleAdminHrLogin} className="space-y-4">
+            <form onSubmit={handleAdminLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email" className="flex items-center gap-2">
                   <Mail className="h-4 w-4" />
@@ -351,10 +383,11 @@ export default function LoginForm() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@erp.com"
+                  placeholder="admin@company.com"
                   value={adminHrData.email}
                   onChange={(e) => setAdminHrData(prev => ({ ...prev, email: e.target.value }))}
                   required
+                  disabled={loading}
                 />
               </div>
               
@@ -371,6 +404,7 @@ export default function LoginForm() {
                     value={adminHrData.password}
                     onChange={(e) => setAdminHrData(prev => ({ ...prev, password: e.target.value }))}
                     required
+                    disabled={loading}
                   />
                   <Button
                     type="button"
@@ -378,6 +412,7 @@ export default function LoginForm() {
                     size="sm"
                     className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
                     onClick={() => setShowPassword(!showPassword)}
+                    disabled={loading}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -394,6 +429,7 @@ export default function LoginForm() {
                     id="rememberAdmin"
                     checked={rememberMe}
                     onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                    disabled={loading}
                   />
                   <Label htmlFor="rememberAdmin" className="text-sm">
                     Remember me
@@ -405,54 +441,124 @@ export default function LoginForm() {
                   variant="link"
                   className="text-sm text-blue-600 hover:text-blue-800 p-0 h-auto"
                   onClick={() => toast.error('Please contact system administrator for password reset.')}
+                  disabled={loading}
                 >
                   Forgot password?
                 </Button>
               </div>
               
-              <div className="pt-2">
-                <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>Login as:</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    type="submit"
-                    variant="default"
-                    className="w-full"
+              <Button
+                type="submit"
+                className="w-full mt-4"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign In as Admin'
+                )}
+              </Button>
+            </form>
+          </TabsContent>
+          
+          {/* HR Login Tab */}
+          <TabsContent value="hr">
+            <form onSubmit={handleHrLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="hrEmail" className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  HR Email
+                </Label>
+                <Input
+                  id="hrEmail"
+                  type="email"
+                  placeholder="hr@company.com"
+                  value={adminHrData.email}
+                  onChange={(e) => setAdminHrData(prev => ({ ...prev, email: e.target.value }))}
+                  required
+                  disabled={loading}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="hrPassword" className="flex items-center gap-2">
+                  <Lock className="h-4 w-4" />
+                  Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="hrPassword"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    value={adminHrData.password}
+                    onChange={(e) => setAdminHrData(prev => ({ ...prev, password: e.target.value }))}
+                    required
                     disabled={loading}
-                  >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      'Admin'
-                    )}
-                  </Button>
+                  />
                   <Button
                     type="button"
-                    onClick={() => handleLogin('hr', {
-                      email: adminHrData.email,
-                      password: adminHrData.password,
-                      loginType: 'hr'
-                    })}
-                    variant="outline"
-                    className="w-full"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                    onClick={() => setShowPassword(!showPassword)}
                     disabled={loading}
                   >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
                     ) : (
-                      'HR'
+                      <Eye className="h-4 w-4" />
                     )}
                   </Button>
                 </div>
               </div>
+              
+              <div className="flex items-center justify-between pt-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="rememberHr"
+                    checked={rememberMe}
+                    onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                    disabled={loading}
+                  />
+                  <Label htmlFor="rememberHr" className="text-sm">
+                    Remember me
+                  </Label>
+                </div>
+                
+                <Button
+                  type="button"
+                  variant="link"
+                  className="text-sm text-blue-600 hover:text-blue-800 p-0 h-auto"
+                  onClick={() => toast.error('Please contact system administrator for password reset.')}
+                  disabled={loading}
+                >
+                  Forgot password?
+                </Button>
+              </div>
+              
+              <Button
+                type="submit"
+                className="w-full mt-4"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign In as HR'
+                )}
+              </Button>
             </form>
           </TabsContent>
         </Tabs>
       </CardContent>
       
-      <CardFooter className="flex flex-col space-y-3">
+      <CardFooter className="flex flex-col space-y-3 border-t pt-6">
         <div className="text-center text-sm text-gray-600">
           <p>Having trouble signing in?</p>
           <p className="mt-1">
@@ -463,16 +569,10 @@ export default function LoginForm() {
           </p>
         </div>
         
-        <div className="w-full border-t pt-4">
-          <div className="text-center">
-            <p className="text-sm text-gray-600">
-              Secure login with{' '}
-              <span className="font-semibold">256-bit encryption</span>
-            </p>
-            <div className="flex items-center justify-center mt-2 space-x-2">
-              <div className="h-2 w-2 rounded-full bg-green-500"></div>
-              <span className="text-xs text-gray-500">All connections are secured</span>
-            </div>
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 text-xs text-green-600 bg-green-50 px-3 py-1 rounded-full">
+            <div className="h-2 w-2 rounded-full bg-green-500"></div>
+            Secure connection • 256-bit encryption
           </div>
         </div>
       </CardFooter>

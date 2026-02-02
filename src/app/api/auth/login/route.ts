@@ -1,32 +1,81 @@
+// app/api/auth/login/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import User from '@/models/User';
-import { generateToken } from '@/lib/auth/jwt';
+import bcrypt from 'bcryptjs';
+import { signToken } from '@/lib/auth/jwt';
+import dns from 'node:dns';
 
+dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
     
     const body = await request.json();
-    const { identifier, password, loginType } = body;
+    console.log('Login request:', { 
+      loginType: body.loginType,
+      identifier: body.email || body.rollNo || 'N/A' 
+    });
 
-    // Determine login type
-    let query = {};
-    
+    const { loginType } = body;
+
+    // Determine login type and build query
+    let query: any = {};
+    let user: any = null;
+
     if (loginType === 'employee') {
-      const { rollNo, fullName, cnic } = body;
+      const { rollNo, fullName, cnic, password } = body;
       
       if (!rollNo || !fullName || !cnic || !password) {
         return NextResponse.json(
-          { success: false, message: 'Roll number, full name, CNIC, and password are required' },
+          { success: false, message: 'All fields are required for employee login' },
           { status: 400 }
         );
       }
       
-      query = { rollNo, fullName, cnic, role: 'employee' };
-    } else if (loginType === 'hr') {
-      const { email } = body;
+      // Clean CNIC (remove dashes)
+      const cleanCnic = cnic.replace(/-/g, '');
+      
+      query = { 
+        rollNo: rollNo.trim(),
+        cnic: cleanCnic,
+        role: 'employee',
+        isActive: true,
+        status: 'active'
+      };
+      
+      console.log('Employee login query:', query);
+      
+      // Find user
+      user = await User.findOne(query).select('+password');
+      
+      if (user) {
+        // Check if full name matches (case-insensitive)
+        const userFullName = user.fullName?.toLowerCase().trim();
+        const inputFullName = fullName.toLowerCase().trim();
+        
+        if (userFullName !== inputFullName) {
+          console.log('Full name mismatch:', userFullName, 'vs', inputFullName);
+          return NextResponse.json(
+            { success: false, message: 'Invalid credentials' },
+            { status: 401 }
+          );
+        }
+        
+        // Check password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+          console.log('Invalid password for employee');
+          return NextResponse.json(
+            { success: false, message: 'Invalid credentials' },
+            { status: 401 }
+          );
+        }
+      }
+      
+    } else if (loginType === 'admin' || loginType === 'hr') {
+      const { email, password } = body;
       
       if (!email || !password) {
         return NextResponse.json(
@@ -35,18 +84,35 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      query = { email, role: 'hr' };
-    } else if (loginType === 'admin') {
-      const { email } = body;
+      query = { 
+        email: email.toLowerCase().trim(),
+        isActive: true,
+        status: 'active'
+      };
       
-      if (!email || !password) {
-        return NextResponse.json(
-          { success: false, message: 'Email and password are required' },
-          { status: 400 }
-        );
+      console.log(`${loginType} login query:`, query);
+      user = await User.findOne(query).select('+password');
+      
+      if (user) {
+        // Check role matches
+        if (user.role !== loginType) {
+          console.log(`Role mismatch: Expected ${loginType}, got ${user.role}`);
+          return NextResponse.json(
+            { success: false, message: 'Invalid credentials' },
+            { status: 401 }
+          );
+        }
+        
+        // Check password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+          console.log('Invalid password for:', loginType);
+          return NextResponse.json(
+            { success: false, message: 'Invalid credentials' },
+            { status: 401 }
+          );
+        }
       }
-      
-      query = { email, role: 'admin' };
     } else {
       return NextResponse.json(
         { success: false, message: 'Invalid login type' },
@@ -54,105 +120,112 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user with password
-    const user = await User.findOne(query).select('+password');
+    // Check if user exists
     if (!user) {
+      console.log('User not found with query:', query);
       return NextResponse.json(
         { success: false, message: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
-    // Check if user is active
-    if (!user.isActive || user.status !== 'active') {
-      return NextResponse.json(
-        { success: false, message: 'Account is deactivated' },
-        { status: 401 }
-      );
-    }
-
-    // Check password
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid credentials' },
-        { status: 401 }
-      );
-    }
+    console.log('User found:', user.email || user.rollNo, 'Role:', user.role);
 
     // Update last login
     user.lastLogin = new Date();
     await user.save();
 
-    // Generate token
-    const token = generateToken(user._id.toString(), user.role);
+    // Generate JWT token
+    const token = signToken({
+      userId: user._id.toString(),
+      role: user.role,
+      email: user.email,
+    });
 
-    // Prepare response
+    console.log('Token generated for:', user.fullName);
+
+    // Prepare user response
     const userResponse = {
-      id: user._id,
+      id: user._id.toString(),
       fullName: user.fullName,
+      email: user.email,
       role: user.role,
       department: user.department,
       profilePhoto: user.profilePhoto,
+      rollNo: user.rollNo,
+      cnic: user.cnic,
+      jobTitle: user.jobTitle,
+      status: user.status,
       lastLogin: user.lastLogin,
-      ...(user.role === 'employee' ? {
-        rollNo: user.rollNo,
-        cnic: user.cnic,
-        jobTitle: user.jobTitle,
-      } : {
-        email: user.email,
-        mobile: user.mobile,
-      }),
     };
 
-    // Create response with cookie
+    // Determine dashboard path
+    const dashboardPath = getDashboardPath(user.role);
+
+    // Create response
     const response = NextResponse.json({
       success: true,
       message: 'Login successful',
       data: userResponse,
-      token, // Also return token for client-side storage if needed
+      redirectTo: dashboardPath,
+      userRole: user.role,
     });
 
-    // Set token as HTTP-only cookie (FIXED)
+    // Set HTTP-only cookie
     response.cookies.set({
       name: 'token',
       value: token,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Changed from 'strict' to 'lax' for better compatibility
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      sameSite: 'lax',
       path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
-    // Also set user role in cookie for quick access
+    // Set user role cookie (for client-side use)
     response.cookies.set({
       name: 'userRole',
       value: user.role,
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
       path: '/',
+      maxAge: 60 * 60 * 24 * 7,
     });
 
-    // Set user data in cookie (optional)
-    response.cookies.set({
-      name: 'userData',
-      value: JSON.stringify(userResponse),
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
-      path: '/',
-    });
+    // Add debugging headers in development
+    if (process.env.NODE_ENV === 'development') {
+      response.headers.set('x-user-role', user.role);
+      response.headers.set('x-user-id', user._id.toString());
+    }
+
+    console.log('Login successful for:', user.fullName);
+    console.log('Redirecting to:', dashboardPath);
 
     return response;
 
   } catch (error: any) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { success: false, message: 'Server error', error: error.message },
+      { 
+        success: false, 
+        message: 'Login failed', 
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500 }
     );
   }
+}
+
+// Helper function to get dashboard path
+function getDashboardPath(role: string): string {
+  const paths: Record<string, string> = {
+    admin: '/admin/dashboard',
+    hr: '/hr/dashboard/employee-management',
+    employee: '/employee/dashboard',
+    accounts: '/accounts/dashboard',
+    support: '/support/dashboard',
+    marketing: '/marketing/dashboard',
+  };
+  return paths[role] || '/dashboard';
 }
