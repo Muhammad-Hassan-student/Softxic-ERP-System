@@ -1749,29 +1749,34 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 rounded-full hover:bg-gray-100"
+                              className="h-8 w-8 rounded-full hover:bg-gray-800 dark:hover:bg-gray-700"
                             >
-                              <MoreHorizontal className="h-4 w-4" />
+                              <MoreHorizontal className="h-4 w-4 text-gray-700 dark:text-gray-300" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-64">
-                            <DropdownMenuLabel>
+                          <DropdownMenuContent
+                            align="end"
+                            className="w-64 bg-gray-900 border-gray-800 shadow-xl"
+                          >
+                            <DropdownMenuLabel className="text-gray-300 font-medium">
                               Actions for {employee.fullName}
                             </DropdownMenuLabel>
-                            <DropdownMenuSeparator />
+                            <DropdownMenuSeparator className="bg-gray-700" />
 
                             <DropdownMenuItem
                               onClick={() => onViewProfile(employee)}
+                              className="text-gray-300 hover:text-white hover:bg-gray-800 focus:text-white focus:bg-gray-800"
                             >
-                              <UserCircle className="h-4 w-4 mr-2" />
+                              <UserCircle className="h-4 w-4 mr-2 text-blue-400" />
                               View Full Profile
                             </DropdownMenuItem>
 
                             {onViewAttendance && (
                               <DropdownMenuItem
                                 onClick={() => onViewAttendance(employee)}
+                                className="text-gray-300 hover:text-white hover:bg-gray-800 focus:text-white focus:bg-gray-800"
                               >
-                                <CalendarDays className="h-4 w-4 mr-2" />
+                                <CalendarDays className="h-4 w-4 mr-2 text-green-400" />
                                 View Attendance
                               </DropdownMenuItem>
                             )}
@@ -1779,8 +1784,9 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                             {onViewLeaves && (
                               <DropdownMenuItem
                                 onClick={() => onViewLeaves(employee)}
+                                className="text-gray-300 hover:text-white hover:bg-gray-800 focus:text-white focus:bg-gray-800"
                               >
-                                <Calendar className="h-4 w-4 mr-2" />
+                                <Calendar className="h-4 w-4 mr-2 text-yellow-400" />
                                 View Leaves
                               </DropdownMenuItem>
                             )}
@@ -1788,8 +1794,9 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                             {onSendEmail && (
                               <DropdownMenuItem
                                 onClick={() => onSendEmail(employee)}
+                                className="text-gray-300 hover:text-white hover:bg-gray-800 focus:text-white focus:bg-gray-800"
                               >
-                                <Mail className="h-4 w-4 mr-2" />
+                                <Mail className="h-4 w-4 mr-2 text-purple-400" />
                                 Send Email
                               </DropdownMenuItem>
                             )}
@@ -1797,19 +1804,21 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                             {onSendNotification && (
                               <DropdownMenuItem
                                 onClick={() => onSendNotification(employee)}
+                                className="text-gray-300 hover:text-white hover:bg-gray-800 focus:text-white focus:bg-gray-800"
                               >
-                                <Bell className="h-4 w-4 mr-2" />
+                                <Bell className="h-4 w-4 mr-2 text-orange-400" />
                                 Send Notification
                               </DropdownMenuItem>
                             )}
 
-                            <DropdownMenuSeparator />
+                            <DropdownMenuSeparator className="bg-gray-700" />
 
                             {onPrint && (
                               <DropdownMenuItem
                                 onClick={() => onPrint(employee)}
+                                className="text-gray-300 hover:text-white hover:bg-gray-800 focus:text-white focus:bg-gray-800"
                               >
-                                <Printer className="h-4 w-4 mr-2" />
+                                <Printer className="h-4 w-4 mr-2 text-gray-400" />
                                 Print Details
                               </DropdownMenuItem>
                             )}
@@ -1817,43 +1826,46 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                             {onExport && (
                               <DropdownMenuItem
                                 onClick={() => onExport(employee)}
+                                className="text-gray-300 hover:text-white hover:bg-gray-800 focus:text-white focus:bg-gray-800"
                               >
-                                <Download className="h-4 w-4 mr-2" />
+                                <Download className="h-4 w-4 mr-2 text-gray-400" />
                                 Export Data
                               </DropdownMenuItem>
                             )}
 
-                            <DropdownMenuSeparator />
+                            <DropdownMenuSeparator className="bg-gray-700" />
 
                             {employee.status !== "terminated" ? (
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <DropdownMenuItem
                                     onSelect={(e) => e.preventDefault()}
-                                    className="text-red-600 focus:text-red-600"
+                                    className="text-red-400 hover:text-red-300 hover:bg-red-950 focus:text-red-300 focus:bg-red-950"
                                   >
-                                    <UserX className="h-4 w-4 mr-2" />
+                                    <UserX className="h-4 w-4 mr-2 text-red-400" />
                                     Terminate Employee
                                   </DropdownMenuItem>
                                 </AlertDialogTrigger>
-                                <AlertDialogContent>
+                                <AlertDialogContent className="bg-gray-900 border-gray-800">
                                   <AlertDialogHeader>
-                                    <AlertDialogTitle>
+                                    <AlertDialogTitle className="text-gray-200">
                                       Terminate Employee
                                     </AlertDialogTitle>
-                                    <AlertDialogDescription>
+                                    <AlertDialogDescription className="text-gray-400">
                                       Are you sure you want to terminate{" "}
-                                      {employee.fullName}? This action cannot be
-                                      undone.
+                                      <span className="font-medium text-gray-300">
+                                        {employee.fullName}
+                                      </span>
+                                      ? This action cannot be undone.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
-                                    <AlertDialogCancel>
+                                    <AlertDialogCancel className="bg-gray-800 text-gray-300 hover:bg-gray-700 border-gray-700">
                                       Cancel
                                     </AlertDialogCancel>
                                     <AlertDialogAction
                                       onClick={() => onTerminate(employee)}
-                                      className="bg-red-600 hover:bg-red-700"
+                                      className="bg-red-600 hover:bg-red-700 text-white"
                                     >
                                       Terminate
                                     </AlertDialogAction>
@@ -1867,9 +1879,9 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                                     "Employee reactivated successfully!",
                                   );
                                 }}
-                                className="text-green-600"
+                                className="text-green-400 hover:text-green-300 hover:bg-green-950 focus:text-green-300 focus:bg-green-950"
                               >
-                                <User className="h-4 w-4 mr-2" />
+                                <User className="h-4 w-4 mr-2 text-green-400" />
                                 Reactivate Employee
                               </DropdownMenuItem>
                             )}
@@ -1878,28 +1890,33 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                               <AlertDialogTrigger asChild>
                                 <DropdownMenuItem
                                   onSelect={(e) => e.preventDefault()}
-                                  className="text-red-600 focus:text-red-600"
+                                  className="text-red-400 hover:text-red-300 hover:bg-red-950 focus:text-red-300 focus:bg-red-950"
                                 >
-                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  <Trash2 className="h-4 w-4 mr-2 text-red-400" />
                                   Delete Permanently
                                 </DropdownMenuItem>
                               </AlertDialogTrigger>
-                              <AlertDialogContent>
+                              <AlertDialogContent className="bg-gray-900 border-gray-800">
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>
+                                  <AlertDialogTitle className="text-gray-200">
                                     Delete Employee
                                   </AlertDialogTitle>
-                                  <AlertDialogDescription>
+                                  <AlertDialogDescription className="text-gray-400">
                                     This action cannot be undone. This will
-                                    permanently delete {employee.fullName}'s
-                                    record from the system.
+                                    permanently delete{" "}
+                                    <span className="font-medium text-gray-300">
+                                      {employee.fullName}
+                                    </span>
+                                    's record from the system.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogCancel className="bg-gray-800 text-gray-300 hover:bg-gray-700 border-gray-700">
+                                    Cancel
+                                  </AlertDialogCancel>
                                   <AlertDialogAction
                                     onClick={() => onDelete(employee.id)}
-                                    className="bg-red-600 hover:bg-red-700"
+                                    className="bg-red-600 hover:bg-red-700 text-white"
                                   >
                                     Delete
                                   </AlertDialogAction>
