@@ -2,10 +2,63 @@ import { NextResponse } from 'next/server';
 import { type NextRequest } from 'next/server';
 import { verifyToken } from '@/lib/auth/jwt';
 
+// Role-based access configuration
+const ROLE_ACCESS_CONFIG = {
+  admin: {
+    allowedPaths: [
+      /^\/admin\/.*/,           // All admin pages
+      /^\/hr\/.*/,              // All HR pages
+      /^\/finance\/.*/,         // All finance pages
+      /^\/support\/.*/,         // All support pages
+      /^\/marketing\/.*/,       // All marketing pages
+      /^\/employee\/.*/,        // All employee pages
+      /^\/accounts\/.*/,        // All accounts pages
+    ],
+    dashboard: '/admin/dashboard',
+  },
+  hr: {
+    allowedPaths: [
+      /^\/hr\/.*/,              // All HR pages
+      /^\/employee\/.*/,        // Employee pages for viewing
+      /^\/api\/.*/,             // API routes
+    ],
+    dashboard: '/hr/dashboard/employee-management',
+  },
+  employee: {
+    allowedPaths: [
+      /^\/employee\/.*/,        // Only employee pages
+      /^\/api\/auth\/.*/,       // Auth APIs
+    ],
+    dashboard: '/employee/dashboard',
+  },
+  accounts: {
+    allowedPaths: [
+      /^\/accounts\/.*/,        // Only accounts pages
+      /^\/finance\/.*/,         // Finance pages
+      /^\/api\/.*/,             // API routes
+    ],
+    dashboard: '/accounts/dashboard',
+  },
+  support: {
+    allowedPaths: [
+      /^\/support\/.*/,         // Only support pages
+      /^\/api\/.*/,             // API routes
+    ],
+    dashboard: '/support/dashboard',
+  },
+  marketing: {
+    allowedPaths: [
+      /^\/marketing\/.*/,       // Only marketing pages
+      /^\/api\/.*/,             // API routes
+    ],
+    dashboard: '/marketing/dashboard',
+  },
+};
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Skip static files
+  // Skip static files and public assets
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/public') ||
@@ -13,7 +66,8 @@ export async function middleware(request: NextRequest) {
     pathname.includes('.png') ||
     pathname.includes('.jpg') ||
     pathname.includes('.css') ||
-    pathname.includes('.js')
+    pathname.includes('.js') ||
+    pathname.includes('.svg')
   ) {
     return NextResponse.next();
   }
@@ -22,6 +76,7 @@ export async function middleware(request: NextRequest) {
   const isPublicPath = 
     pathname === '/login' || 
     pathname === '/' ||
+    pathname === '/forgot-password' ||
     pathname.startsWith('/api/auth/');
   
   // Get token from cookies
@@ -69,16 +124,56 @@ export async function middleware(request: NextRequest) {
       return response;
     }
     
+    // Check role-based access
+    const userRole = decoded.role;
+    const roleConfig = ROLE_ACCESS_CONFIG[userRole as keyof typeof ROLE_ACCESS_CONFIG];
+    
+    if (!roleConfig) {
+      console.log(`Invalid role: ${userRole}, redirecting to login`);
+      const loginUrl = new URL('/login', request.url);
+      return NextResponse.redirect(loginUrl);
+    }
+    
+    // Check if user has access to the requested path
+    const hasAccess = roleConfig.allowedPaths.some(pattern => pattern.test(pathname));
+    
+    if (!hasAccess) {
+      console.log(`Access denied for ${userRole} to ${pathname}`);
+      
+      // Redirect to dashboard if trying to access unauthorized area
+      if (pathname.startsWith('/admin/') && userRole !== 'admin') {
+        console.log(`Non-admin trying to access admin area: ${userRole}`);
+        return NextResponse.redirect(new URL(roleConfig.dashboard, request.url));
+      }
+      
+      if (pathname.startsWith('/hr/') && !['admin', 'hr'].includes(userRole)) {
+        console.log(`Non-HR trying to access HR area: ${userRole}`);
+        return NextResponse.redirect(new URL(roleConfig.dashboard, request.url));
+      }
+      
+      // For all other unauthorized accesses
+      return NextResponse.redirect(new URL(roleConfig.dashboard, request.url));
+    }
+    
     // Add user info to headers for API routes
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-user-id', decoded.userId);
     requestHeaders.set('x-user-role', decoded.role);
     
-    return NextResponse.next({
+    // Add role to response headers for debugging
+    const response = NextResponse.next({
       request: {
         headers: requestHeaders,
       },
     });
+    
+    // Add debug headers in development
+    if (process.env.NODE_ENV === 'development') {
+      response.headers.set('x-user-role', decoded.role);
+      response.headers.set('x-user-id', decoded.userId);
+    }
+    
+    return response;
     
   } catch (error) {
     console.error('Middleware token verification error:', error);
@@ -96,6 +191,13 @@ export async function middleware(request: NextRequest) {
 
 // Redirect to role-specific dashboard
 function redirectToRoleDashboard(role: string, request: NextRequest) {
+  const roleConfig = ROLE_ACCESS_CONFIG[role as keyof typeof ROLE_ACCESS_CONFIG];
+  
+  if (roleConfig) {
+    return NextResponse.redirect(new URL(roleConfig.dashboard, request.url));
+  }
+  
+  // Fallback dashboard paths
   const dashboardPaths: Record<string, string> = {
     admin: '/admin/dashboard',
     hr: '/hr/dashboard/employee-management',
@@ -117,7 +219,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - public folder
+     * - favicon.ico
      */
-    '/((?!api/auth|_next/static|_next/image|public).*)',
+    '/((?!api/auth|_next/static|_next/image|public|favicon.ico).*)',
   ],
 };
