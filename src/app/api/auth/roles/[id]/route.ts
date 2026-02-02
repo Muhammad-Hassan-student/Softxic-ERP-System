@@ -3,29 +3,29 @@ import { connectDB } from '@/lib/db/mongodb';
 import Role from '@/models/Role';
 import { requirePermission } from '@/lib/auth/permissions';
 
-interface RouteParams {
-  params: {
-    id: string;
-  }
-}
-
-// GET single role
-export async function GET(request: NextRequest, { params }: RouteParams) {
+/* =========================
+   GET single role
+========================= */
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    // Check view permission
     const permissionCheck = await requirePermission({
       module: 'role_management',
-      action: 'view'
+      action: 'view',
     })(request);
-    
+
     if (permissionCheck.status !== 200) {
       return permissionCheck;
     }
 
     await connectDB();
-    
-    const role = await Role.findById(params.id).select('-__v');
-    
+
+    const { id } = await context.params;
+
+    const role = await Role.findById(id).select('-__v');
+
     if (!role) {
       return NextResponse.json(
         { success: false, message: 'Role not found' },
@@ -47,26 +47,30 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// PUT update role
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+/* =========================
+   PUT update role
+========================= */
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    // Check edit permission
     const permissionCheck = await requirePermission({
       module: 'role_management',
-      action: 'edit'
+      action: 'edit',
     })(request);
-    
+
     if (permissionCheck.status !== 200) {
       return permissionCheck;
     }
 
     await connectDB();
-    
+
+    const { id } = await context.params;
     const body = await request.json();
     const { description, permissions, isActive } = body;
 
-    // Cannot update default roles' permissions
-    const existingRole = await Role.findById(params.id);
+    const existingRole = await Role.findById(id);
     if (!existingRole) {
       return NextResponse.json(
         { success: false, message: 'Role not found' },
@@ -76,20 +80,21 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     if (existingRole.isDefault && permissions) {
       return NextResponse.json(
-        { success: false, message: 'Cannot modify permissions of default roles' },
+        {
+          success: false,
+          message: 'Cannot modify permissions of default roles',
+        },
         { status: 400 }
       );
     }
 
-    // Prepare update data
     const updateData: any = {};
     if (description !== undefined) updateData.description = description;
     if (permissions !== undefined) updateData.permissions = permissions;
     if (isActive !== undefined) updateData.isActive = isActive;
 
-    // Update role
     const updatedRole = await Role.findByIdAndUpdate(
-      params.id,
+      id,
       updateData,
       { new: true, runValidators: true }
     ).select('-__v');
@@ -109,23 +114,29 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// DELETE role (soft delete)
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+/* =========================
+   DELETE role (soft delete)
+========================= */
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    // Check delete permission
     const permissionCheck = await requirePermission({
       module: 'role_management',
-      action: 'delete'
+      action: 'delete',
     })(request);
-    
+
     if (permissionCheck.status !== 200) {
       return permissionCheck;
     }
 
     await connectDB();
-    
-    const role = await Role.findById(params.id);
-    
+
+    const { id } = await context.params;
+
+    const role = await Role.findById(id);
+
     if (!role) {
       return NextResponse.json(
         { success: false, message: 'Role not found' },
@@ -133,7 +144,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Cannot delete default roles
     if (role.isDefault) {
       return NextResponse.json(
         { success: false, message: 'Cannot delete default roles' },
@@ -141,7 +151,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Soft delete by marking as inactive
     role.isActive = false;
     await role.save();
 

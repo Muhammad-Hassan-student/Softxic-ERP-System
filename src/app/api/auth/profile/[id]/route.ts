@@ -3,18 +3,15 @@ import { connectDB } from '@/lib/db/mongodb';
 import User from '@/models/User';
 import { verifyToken } from '@/lib/auth/jwt';
 
-interface RouteParams {
-  params: {
-    id: string;
-  }
-}
-
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     await connectDB();
-    
-    const userId = params.id;
-    
+
+    const { id: userId } = await context.params;
+
     // Verify authentication
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -26,7 +23,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const token = authHeader.split(' ')[1];
     const decoded = verifyToken(token);
-    
+
     if (!decoded) {
       return NextResponse.json(
         { success: false, message: 'Invalid token' },
@@ -45,6 +42,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Users can only view their own profile unless admin/hr
     let targetUserId = decoded.userId;
+
     if (userId && ['admin', 'hr'].includes(requestingUser.role)) {
       targetUserId = userId;
     } else if (userId && userId !== decoded.userId) {
@@ -100,8 +98,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Add contact info if allowed
-    if (requestingUser.role === 'admin' || requestingUser.role === 'hr' || 
-        requestingUser._id.toString() === targetUserId) {
+    if (
+      requestingUser.role === 'admin' ||
+      requestingUser.role === 'hr' ||
+      requestingUser._id.toString() === targetUserId
+    ) {
       userData.mobile = targetUser.mobile;
       userData.alternateMobile = targetUser.alternateMobile;
       userData.email = targetUser.email;

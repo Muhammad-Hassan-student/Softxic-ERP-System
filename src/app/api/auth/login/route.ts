@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import User from '@/models/User';
 import { generateToken } from '@/lib/auth/jwt';
-import dns from 'node:dns';
 
-// Is line ko connection se pehle lazmi likhein
-dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 export async function POST(request: NextRequest) {
   try {

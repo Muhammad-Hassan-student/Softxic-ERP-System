@@ -4,17 +4,18 @@ import User from '@/models/User';
 import { verifyToken } from '@/lib/auth/jwt';
 import bcrypt from 'bcryptjs';
 
-interface RouteParams {
-  params: {
-    id: string;
-  }
-}
-
-// GET user profile
-export async function GET(request: NextRequest, { params }: RouteParams) {
+/* =========================
+   GET user profile
+========================= */
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     await connectDB();
-    
+
+    const { id } = await context.params;
+
     // Verify authentication
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const token = authHeader.split(' ')[1];
     const decoded = verifyToken(token);
-    
+
     if (!decoded) {
       return NextResponse.json(
         { success: false, message: 'Invalid token' },
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Find target user
-    const targetUser = await User.findById(params.id);
+    const targetUser = await User.findById(id);
     if (!targetUser) {
       return NextResponse.json(
         { success: false, message: 'Target user not found' },
@@ -53,10 +54,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check permissions
-    const canView = 
+    const canView =
       requestingUser.role === 'admin' ||
       (requestingUser.role === 'hr' && targetUser.role === 'employee') ||
-      requestingUser._id.toString() === params.id;
+      requestingUser._id.toString() === id;
 
     if (!canView) {
       return NextResponse.json(
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Prepare response based on permissions
+    // Prepare response
     let userData: any = {
       id: targetUser._id,
       fullName: targetUser.fullName,
@@ -76,7 +77,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       createdAt: targetUser.createdAt,
     };
 
-    // Add role-specific fields
     if (targetUser.role === 'employee') {
       userData = {
         ...userData,
@@ -101,9 +101,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       };
     }
 
-    // Add contact info if allowed
-    if (requestingUser.role === 'admin' || requestingUser.role === 'hr' || 
-        requestingUser._id.toString() === params.id) {
+    if (
+      requestingUser.role === 'admin' ||
+      requestingUser.role === 'hr' ||
+      requestingUser._id.toString() === id
+    ) {
       userData.email = targetUser.email;
       userData.mobile = targetUser.mobile;
       userData.alternateMobile = targetUser.alternateMobile;
@@ -123,11 +125,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// PUT update user profile
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+/* =========================
+   PUT update user profile
+========================= */
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     await connectDB();
-    
+
+    const { id } = await context.params;
+
     // Verify authentication
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -139,7 +148,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const token = authHeader.split(' ')[1];
     const decoded = verifyToken(token);
-    
+
     if (!decoded) {
       return NextResponse.json(
         { success: false, message: 'Invalid token' },
@@ -148,8 +157,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    
-    // Find requesting user
+
     const requestingUser = await User.findById(decoded.userId);
     if (!requestingUser) {
       return NextResponse.json(
@@ -158,8 +166,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Find target user
-    const targetUser = await User.findById(params.id);
+    const targetUser = await User.findById(id);
     if (!targetUser) {
       return NextResponse.json(
         { success: false, message: 'Target user not found' },
@@ -167,11 +174,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Check permissions
-    const canUpdate = 
+    const canUpdate =
       requestingUser.role === 'admin' ||
       (requestingUser.role === 'hr' && targetUser.role === 'employee') ||
-      requestingUser._id.toString() === params.id;
+      requestingUser._id.toString() === id;
 
     if (!canUpdate) {
       return NextResponse.json(
@@ -180,35 +186,43 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Define allowed fields based on role
     let allowedFields: string[] = [];
-    
-    if (requestingUser._id.toString() === params.id) {
-      // Users can update their own basic info
+
+    if (requestingUser._id.toString() === id) {
       allowedFields = ['fullName', 'mobile', 'alternateMobile', 'address'];
     }
-    
+
     if (requestingUser.role === 'hr' && targetUser.role === 'employee') {
-      allowedFields = [
-        ...allowedFields,
-        'jobTitle', 'department', 'responsibility', 'timing',
-        'monthOff', 'salary', 'incentive'
-      ];
-    }
-    
-    if (requestingUser.role === 'admin') {
-      if (targetUser.role === 'employee') {
-        allowedFields = [
-          'fullName', 'email', 'mobile', 'alternateMobile', 'address',
-          'jobTitle', 'department', 'responsibility', 'timing',
-          'monthOff', 'salary', 'incentive', 'taxDeduction', 'taxAmount'
-        ];
-      } else {
-        allowedFields = ['fullName', 'email', 'mobile', 'alternateMobile', 'address'];
-      }
+      allowedFields.push(
+        'jobTitle',
+        'department',
+        'responsibility',
+        'timing',
+        'monthOff',
+        'salary',
+        'incentive'
+      );
     }
 
-    // Filter updates to only allowed fields
+    if (requestingUser.role === 'admin') {
+      allowedFields = [
+        'fullName',
+        'email',
+        'mobile',
+        'alternateMobile',
+        'address',
+        'jobTitle',
+        'department',
+        'responsibility',
+        'timing',
+        'monthOff',
+        'salary',
+        'incentive',
+        'taxDeduction',
+        'taxAmount',
+      ];
+    }
+
     const filteredUpdates: any = {};
     Object.keys(body).forEach(key => {
       if (allowedFields.includes(key)) {
@@ -216,7 +230,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     });
 
-    // Update user
     Object.assign(targetUser, filteredUpdates);
     await targetUser.save();
 
@@ -225,7 +238,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       message: 'Profile updated successfully',
       data: {
         id: targetUser._id,
-        fullName: targetUser.fullName,
         ...filteredUpdates,
       },
     });
