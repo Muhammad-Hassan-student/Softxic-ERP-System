@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server';
 import { type NextRequest } from 'next/server';
 import { verifyToken } from '@/lib/auth/jwt';
 
-// Public paths that don't require auth
-const PUBLIC_PATHS = [
+// ==================== CONFIGURATION ====================
+// Yahan se aap easily routes add/remove kar sakte hain
+
+// 1. PUBLIC ROUTES (No auth required)
+const PUBLIC_ROUTES = [
   '/login',
   '/',
   '/forgot-password',
@@ -11,64 +14,95 @@ const PUBLIC_PATHS = [
   '/api/auth/login',
   '/api/auth/me',
   '/api/auth/check',
+  '/api/auth/debug',
 ];
 
-// Role-based access configuration
-const ROLE_ACCESS: Record<string, string[]> = {
-  admin: [
-    '/admin',
-    '/hr',
-    '/employee',
-    '/accounts',
-    '/support',
-    '/marketing',
-    '/finance',
-    '/api',
-    '/dashboard',
-    '/profile',
-  ],
+// 2. ROLE-SPECIFIC ROUTES
+// Aap yahan easily koi bhi route add kar sakte hain
+const ROLE_ROUTES: Record<string, string[]> = {
+  // ADMIN - Can access everything (wildcard '*')
+  admin: ['*'], // * means ALL routes
+  
+  // HR - Can access HR and Employee routes
   hr: [
     '/hr',
+    '/hr/dashboard',
+    '/hr/employee-management',
+    '/hr/payroll',
+    '/hr/attendance',
+    '/hr/leaves',
+    '/hr/reports',
     '/employee',
+    '/employee/dashboard',
+    '/employee/profile',
+    '/employee/attendance',
+    '/employee/leaves',
     '/dashboard',
     '/profile',
-    '/api/hr',
-    '/api/employee',
-    '/api/auth',
   ],
+  
+  // EMPLOYEE - Can access only employee routes
   employee: [
     '/employee',
+    '/employee/dashboard',
+    '/employee/profile',
+    '/employee/attendance',
+    '/employee/leaves',
+    '/employee/payslip',
+    '/employee/tasks',
     '/dashboard',
     '/profile',
-    '/api/employee',
-    '/api/auth',
   ],
+  
+  // ACCOUNTS - Can access accounts and finance
   accounts: [
     '/accounts',
+    '/accounts/dashboard',
+    '/accounts/payments',
+    '/accounts/invoices',
+    '/accounts/reports',
     '/finance',
+    '/finance/dashboard',
+    '/finance/transactions',
+    '/finance/budget',
     '/dashboard',
     '/profile',
-    '/api/accounts',
-    '/api/finance',
-    '/api/auth',
   ],
+  
+  // SUPPORT - Can access support routes
   support: [
     '/support',
+    '/support/dashboard',
+    '/support/tickets',
+    '/support/chat',
+    '/support/knowledge-base',
     '/dashboard',
     '/profile',
-    '/api/support',
-    '/api/auth',
   ],
+  
+  // MARKETING - Can access marketing routes
   marketing: [
     '/marketing',
+    '/marketing/dashboard',
+    '/marketing/campaigns',
+    '/marketing/analytics',
+    '/marketing/social',
     '/dashboard',
     '/profile',
-    '/api/marketing',
-    '/api/auth',
   ],
 };
 
-// Dashboard paths for each role
+// 3. SHARED ROUTES (All authenticated users can access)
+const SHARED_ROUTES = [
+  '/profile',
+  '/profile/edit',
+  '/profile/settings',
+  '/notifications',
+  '/help',
+  '/contact',
+];
+
+// 4. DASHBOARD REDIRECT PATHS
 const DASHBOARD_PATHS: Record<string, string> = {
   admin: '/admin/dashboard',
   hr: '/hr/dashboard',
@@ -78,15 +112,61 @@ const DASHBOARD_PATHS: Record<string, string> = {
   marketing: '/marketing/dashboard',
 };
 
+// ==================== HELPER FUNCTIONS ====================
+
+// Check if route matches any pattern
+function matchesRoute(pathname: string, routePatterns: string[]): boolean {
+  for (const pattern of routePatterns) {
+    // If pattern is '*', allow all
+    if (pattern === '*') return true;
+    
+    // Exact match
+    if (pathname === pattern) return true;
+    
+    // Prefix match (e.g., '/admin' matches '/admin/anything')
+    if (pattern.endsWith('/') && pathname.startsWith(pattern)) return true;
+    
+    // Wildcard match (e.g., '/admin/*' matches '/admin/anything')
+    if (pattern.endsWith('/*') && pathname.startsWith(pattern.slice(0, -2))) return true;
+    
+    // Simple prefix match
+    if (pathname.startsWith(pattern)) return true;
+  }
+  return false;
+}
+
+// Check if path is public
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_ROUTES.some(route => 
+    pathname === route || pathname.startsWith(route)
+  );
+}
+
+// Check if path is shared (all authenticated users)
+function isSharedPath(pathname: string): boolean {
+  return SHARED_ROUTES.some(route => 
+    pathname === route || pathname.startsWith(route)
+  );
+}
+
+// Get user's allowed routes
+function getAllowedRoutes(userRole: string): string[] {
+  return [...(ROLE_ROUTES[userRole] || []), ...SHARED_ROUTES];
+}
+
+// Check if user has access to path
+function hasAccess(userRole: string, pathname: string): boolean {
+  const allowedRoutes = getAllowedRoutes(userRole);
+  return matchesRoute(pathname, allowedRoutes);
+}
+
+// ==================== MAIN MIDDLEWARE ====================
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  console.log('🔍 Middleware checking:', {
-    path: pathname,
-    method: request.method,
-    cookies: request.cookies.getAll().map(c => c.name)
-  });
-
+  console.log('🛡️ Middleware checking:', pathname);
+  
   // Skip static files
   if (
     pathname.startsWith('/_next') ||
@@ -98,24 +178,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check if public path
-  const isPublicPath = PUBLIC_PATHS.some(path => 
-    pathname === path || pathname.startsWith(path)
-  );
-
-  // Get token from cookies
-  const token = request.cookies.get('token')?.value;
-  const userRole = request.cookies.get('userRole')?.value;
-
-  console.log('📋 Auth status:', {
-    hasToken: !!token,
-    userRole,
-    isPublicPath,
-    pathname
-  });
-
-  // Handle public paths
-  if (isPublicPath) {
+  if (isPublicPath(pathname)) {
     // If already logged in and trying to access login, redirect to dashboard
+    const token = request.cookies.get('token')?.value;
     if (token && (pathname === '/login' || pathname === '/')) {
       try {
         const decoded = verifyToken(token);
@@ -125,18 +190,20 @@ export async function middleware(request: NextRequest) {
           return NextResponse.redirect(new URL(dashboardPath, request.url));
         }
       } catch (error) {
-        console.log('Invalid token, allowing access to login');
+        console.log('Invalid token, allowing access');
       }
     }
     return NextResponse.next();
   }
 
-  // Protected paths - require authentication
+  // Get token
+  const token = request.cookies.get('token')?.value;
+  
+  // PROTECTED PATHS: Require authentication
   if (!token) {
-    console.log('❌ No token found, redirecting to login');
+    console.log('❌ No token, redirecting to login');
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
-    loginUrl.searchParams.set('error', 'session_expired');
     return NextResponse.redirect(loginUrl);
   }
 
@@ -145,59 +212,35 @@ export async function middleware(request: NextRequest) {
     const decoded = verifyToken(token);
     
     if (!decoded || !decoded.role) {
-      console.log('❌ Invalid or expired token');
+      console.log('❌ Invalid token');
       const response = NextResponse.redirect(new URL('/login', request.url));
-      
-      // Clear invalid cookies
       response.cookies.delete('token');
       response.cookies.delete('userRole');
-      response.cookies.delete('userId');
-      
       return response;
     }
 
-    console.log('✅ User authenticated:', {
-      role: decoded.role,
-      userId: decoded.userId,
-      path: pathname
-    });
+    const userRole = decoded.role;
+    console.log('✅ User authenticated:', { role: userRole, userId: decoded.userId });
 
-    // Check role-based access
-    const userAllowedPaths = ROLE_ACCESS[decoded.role] || [];
-    let hasAccess = false;
-
-    // Admin has access to everything
-    if (decoded.role === 'admin') {
-      hasAccess = true;
-    }
-    // Check if path starts with allowed prefix
-    else if (userAllowedPaths.some(allowedPath => pathname.startsWith(allowedPath))) {
-      hasAccess = true;
-    }
-    // Allow access to profile pages
-    else if (pathname.startsWith('/profile')) {
-      hasAccess = true;
-    }
-    // Allow access to dashboard
-    else if (pathname === '/dashboard') {
-      hasAccess = true;
-    }
-
-    if (!hasAccess) {
-      console.log(`⛔ Access denied for ${decoded.role} to ${pathname}`);
+    // Check access
+    if (!hasAccess(userRole, pathname)) {
+      console.log(`⛔ Access denied for ${userRole} to ${pathname}`);
       
-      // Redirect to user's dashboard
-      const dashboardPath = DASHBOARD_PATHS[decoded.role] || '/dashboard';
+      // Show what they CAN access
+      console.log(`Allowed routes for ${userRole}:`, getAllowedRoutes(userRole));
+      
+      // Redirect to their dashboard
+      const dashboardPath = DASHBOARD_PATHS[userRole] || '/dashboard';
       return NextResponse.redirect(new URL(dashboardPath, request.url));
     }
 
-    // Add user info to headers for backend use
+    console.log('✅ Access granted to:', pathname);
+    
+    // Add user info to headers
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-user-id', decoded.userId);
     requestHeaders.set('x-user-role', decoded.role);
-    requestHeaders.set('x-user-token', token);
 
-    console.log('✅ Access granted');
     return NextResponse.next({
       request: {
         headers: requestHeaders,
@@ -205,28 +248,16 @@ export async function middleware(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ Middleware error:', error.message);
+    console.error('❌ Middleware error:', error);
     const response = NextResponse.redirect(new URL('/login', request.url));
-    
-    // Clear cookies on error
     response.cookies.delete('token');
     response.cookies.delete('userRole');
-    response.cookies.delete('userId');
-    
     return response;
   }
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - api/auth/* (public auth APIs)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico
-     * - public folder
-     */
     '/((?!api/auth/|_next/static|_next/image|favicon.ico|public).*)',
   ],
 };
