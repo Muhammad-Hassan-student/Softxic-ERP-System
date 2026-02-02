@@ -16,6 +16,9 @@ const PUBLIC_ROUTES = [
   '/api/auth/check',
   '/api/auth/debug',
   '/api/auth/logout',
+  '/_next',
+  '/favicon.ico',
+  '/public',
 ];
 
 // 2. SHARED ROUTES (All authenticated users)
@@ -56,6 +59,27 @@ const ROLE_ROUTES_CONFIG: Record<string, {
     dashboard: '/admin/dashboard',
     routes: [
       '*', // Wildcard - can access everything
+      '/admin',
+      '/admin/*',
+      '/hr',
+      '/hr/*',
+      '/employee',
+      '/employee/*',
+      '/accounts',
+      '/accounts/*',
+      '/support',
+      '/support/*',
+      '/marketing',
+      '/marketing/*',
+      '/finance',
+      '/finance/*',
+      '/api',
+      '/api/*',
+      '/dashboard',
+      '/profile',
+      '/profile/*',
+      '/settings',
+      '/notifications',
     ],
     description: 'Full system access'
   },
@@ -236,46 +260,97 @@ const ROLE_ROUTES_CONFIG: Record<string, {
 
 // ==================== HELPER FUNCTIONS ====================
 
-// Check if route matches any pattern
+// Improved route matching function
 function matchesRoute(pathname: string, routePatterns: string[]): boolean {
+  // Clean pathname (remove trailing slash)
+  const cleanPathname = pathname.endsWith('/') && pathname.length > 1 
+    ? pathname.slice(0, -1) 
+    : pathname;
+  
   for (const pattern of routePatterns) {
     // If pattern is '*', allow all
-    if (pattern === '*') return true;
-    
-    // Exact match
-    if (pathname === pattern) return true;
-    
-    // Wildcard match (e.g., '/admin/*' matches '/admin/anything')
-    if (pattern.endsWith('/*')) {
-      const base = pattern.slice(0, -2);
-      if (pathname.startsWith(base)) return true;
+    if (pattern === '*') {
+      console.log(`✅ Wildcard match: ${pattern} for ${cleanPathname}`);
+      return true;
     }
     
-    // Simple prefix match
-    if (pathname.startsWith(pattern)) return true;
+    // Exact match
+    if (cleanPathname === pattern) {
+      console.log(`✅ Exact match: ${pattern} for ${cleanPathname}`);
+      return true;
+    }
+    
+    // Remove trailing slash from pattern for comparison
+    const cleanPattern = pattern.endsWith('/') && pattern.length > 1 
+      ? pattern.slice(0, -1) 
+      : pattern;
+    
+    // Wildcard match (e.g., '/admin/*' matches '/admin/anything')
+    if (cleanPattern.endsWith('/*')) {
+      const base = cleanPattern.slice(0, -2);
+      if (cleanPathname.startsWith(base + '/')) {
+        console.log(`✅ Wildcard pattern match: ${pattern} for ${cleanPathname}`);
+        return true;
+      }
+    }
+    
+    // Prefix match (e.g., '/admin' matches '/admin/employee-management')
+    if (cleanPathname.startsWith(cleanPattern + '/')) {
+      console.log(`✅ Prefix match: ${pattern} for ${cleanPathname}`);
+      return true;
+    }
     
     // API route match (e.g., '/api/hr' matches '/api/hr/anything')
-    if (pattern.startsWith('/api/') && pathname.startsWith(pattern)) return true;
+    if (cleanPattern.startsWith('/api/') && cleanPathname.startsWith(cleanPattern)) {
+      console.log(`✅ API match: ${pattern} for ${cleanPathname}`);
+      return true;
+    }
   }
+  
+  console.log(`❌ No match found for ${cleanPathname}`);
   return false;
 }
 
 // Check if path is public
 function isPublicPath(pathname: string): boolean {
-  return PUBLIC_ROUTES.some(route => 
-    pathname === route || pathname.startsWith(route)
-  );
+  // Skip Next.js internal paths
+  if (pathname.startsWith('/_next/') || pathname.includes('_next')) {
+    return true;
+  }
+  
+  // Skip static files
+  if (pathname.includes('.') && !pathname.includes('/api/')) {
+    return true;
+  }
+  
+  return PUBLIC_ROUTES.some(route => {
+    if (pathname === route) return true;
+    if (pathname.startsWith(route + '/')) return true;
+    return false;
+  });
 }
 
 // Get user's allowed routes from config
 function getAllowedRoutes(userRole: string): string[] {
-  return ROLE_ROUTES_CONFIG[userRole]?.routes || SHARED_ROUTES;
+  const config = ROLE_ROUTES_CONFIG[userRole];
+  if (!config) {
+    console.log(`⚠️ No route config found for role: ${userRole}`);
+    return SHARED_ROUTES;
+  }
+  
+  // Combine role routes with shared routes
+  const allRoutes = [...new Set([...config.routes, ...SHARED_ROUTES])];
+  console.log(`📋 Allowed routes for ${userRole}:`, allRoutes);
+  return allRoutes;
 }
 
 // Check if user has access to path
 function hasAccess(userRole: string, pathname: string): boolean {
   const allowedRoutes = getAllowedRoutes(userRole);
-  return matchesRoute(pathname, allowedRoutes);
+  const hasAccess = matchesRoute(pathname, allowedRoutes);
+  
+  console.log(`🔐 Access check for ${userRole} to ${pathname}: ${hasAccess ? '✅ GRANTED' : '❌ DENIED'}`);
+  return hasAccess;
 }
 
 // Get user's dashboard path
@@ -296,25 +371,29 @@ function getRoleName(userRole: string): string {
 // ==================== MAIN MIDDLEWARE ====================
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
   const method = request.method;
   
-  console.log(`🛡️ [${method}] Middleware checking: ${pathname}`);
+  console.log(`\n🛡️ [${method}] Middleware checking: ${pathname}`);
+  console.log(`🔍 Query params:`, Object.fromEntries(searchParams));
   
   // Skip static files and assets
   if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/public') ||
-    pathname.includes('.') ||
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/public/') ||
+    (pathname.includes('.') && !pathname.includes('/api/')) ||
     pathname === '/favicon.ico' ||
     pathname === '/robots.txt' ||
     pathname === '/sitemap.xml'
   ) {
+    console.log(`⏭️ Skipping static file: ${pathname}`);
     return NextResponse.next();
   }
 
   // Check if public path
   if (isPublicPath(pathname)) {
+    console.log(`🌐 Public path: ${pathname}`);
+    
     // If already logged in and trying to access login, redirect to dashboard
     const token = request.cookies.get('token')?.value;
     if (token && (pathname === '/login' || pathname === '/')) {
@@ -322,7 +401,7 @@ export async function middleware(request: NextRequest) {
         const decoded = verifyToken(token);
         if (decoded && decoded.role) {
           const dashboardPath = getDashboardPath(decoded.role);
-          console.log(`↪️ Redirecting ${getRoleName(decoded.role)} to: ${dashboardPath}`);
+          console.log(`↪️ Redirecting ${getRoleName(decoded.role)} from ${pathname} to: ${dashboardPath}`);
           return NextResponse.redirect(new URL(dashboardPath, request.url));
         }
       } catch (error) {
@@ -335,6 +414,8 @@ export async function middleware(request: NextRequest) {
   // Get token from cookies
   const token = request.cookies.get('token')?.value;
   const userRoleCookie = request.cookies.get('userRole')?.value;
+  
+  console.log(`🔐 Token exists: ${!!token}, Role cookie: ${userRoleCookie}`);
   
   // PROTECTED PATHS: Require authentication
   if (!token) {
@@ -373,7 +454,9 @@ export async function middleware(request: NextRequest) {
           { 
             success: false, 
             error: 'Forbidden', 
-            message: `You don't have permission to access this resource` 
+            message: `You don't have permission to access this resource`,
+            role: userRole,
+            path: pathname
           },
           { status: 403 }
         );
@@ -381,6 +464,7 @@ export async function middleware(request: NextRequest) {
       
       // For web routes, redirect to dashboard
       const dashboardPath = getDashboardPath(userRole);
+      console.log(`↪️ Redirecting ${roleName} to dashboard: ${dashboardPath}`);
       return NextResponse.redirect(new URL(dashboardPath, request.url));
     }
 
@@ -412,7 +496,8 @@ export async function middleware(request: NextRequest) {
         { 
           success: false, 
           error: 'Unauthorized', 
-          message: 'Authentication failed' 
+          message: 'Authentication failed',
+          details: error.message
         },
         { status: 401 }
       );
@@ -432,11 +517,10 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except:
-     * - api/auth/* (public auth APIs - but we handle in PUBLIC_ROUTES)
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - public folder
      * - favicon.ico, robots.txt, sitemap.xml
+     * - public folder
      */
     '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|public).*)',
   ],
