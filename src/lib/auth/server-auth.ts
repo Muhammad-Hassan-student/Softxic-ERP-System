@@ -7,6 +7,7 @@ export interface AuthUser {
   role: string;
   fullName?: string;
   email?: string;
+  department?: string;
 }
 
 export async function getAuthUser(): Promise<AuthUser | null> {
