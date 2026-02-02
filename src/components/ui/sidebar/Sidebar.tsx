@@ -40,7 +40,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
   const dashboardItems = [
     { icon: LayoutDashboard, label: DASHBOARD_TEXTS.navItems.dashboard.admin, href: '/admin/dashboard' },
-    { icon: Briefcase, label: DASHBOARD_TEXTS.navItems.dashboard.hr, href: '/hr/dashboard' },
+    { icon: Briefcase, label: DASHBOARD_TEXTS.navItems.dashboard.hr, href: '/admin/dashboard/employee-management' },
     { icon: DollarSign, label: DASHBOARD_TEXTS.navItems.dashboard.finance, href: '/finance/dashboard' },
     { icon: Headphones, label: DASHBOARD_TEXTS.navItems.dashboard.support, href: '/support/dashboard' },
     { icon: Megaphone, label: DASHBOARD_TEXTS.navItems.dashboard.marketing, href: '/marketing/dashboard' },

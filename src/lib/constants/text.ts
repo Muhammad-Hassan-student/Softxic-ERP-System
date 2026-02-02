@@ -20,7 +20,7 @@ export const DASHBOARD_TEXTS = {
   navItems: {
     dashboard: {
       admin: 'Admin Dashboard',
-      hr: 'HR Dashboard',
+      hr: 'Employee Management', // Updated later
       finance: 'Finance Dashboard',
       support: 'Support Dashboard',
       marketing: 'Marketing Dashboard',
