@@ -1,4 +1,3 @@
-// app/api/auth/login/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import User from '@/models/User';
@@ -9,143 +8,155 @@ import dns from 'node:dns';
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 export async function POST(request: NextRequest) {
+  console.log('🔐 Login API called');
+  
   try {
     await connectDB();
     
     const body = await request.json();
-    console.log('Login request:', { 
-      loginType: body.loginType,
-      identifier: body.email || body.rollNo || 'N/A' 
-    });
-
-    const { loginType } = body;
-
-    // Determine login type and build query
-    let query: any = {};
-    let user: any = null;
-
+    console.log('Login request:', { loginType: body.loginType });
+    
+    const { loginType, password } = body;
+    
+    if (!loginType || !password) {
+      return NextResponse.json(
+        { success: false, message: 'Login type and password are required' },
+        { status: 400 }
+      );
+    }
+    
+    let user = null;
+    
+    // Employee login
     if (loginType === 'employee') {
-      const { rollNo, fullName, cnic, password } = body;
+      const { rollNo, fullName, cnic } = body;
       
-      if (!rollNo || !fullName || !cnic || !password) {
+      if (!rollNo || !fullName || !cnic) {
         return NextResponse.json(
           { success: false, message: 'All fields are required for employee login' },
           { status: 400 }
         );
       }
       
-      // Clean CNIC (remove dashes)
+      // Clean CNIC
       const cleanCnic = cnic.replace(/-/g, '');
       
-      query = { 
+      // Find employee
+      user = await User.findOne({ 
         rollNo: rollNo.trim(),
         cnic: cleanCnic,
         role: 'employee',
         isActive: true,
         status: 'active'
-      };
-      
-      console.log('Employee login query:', query);
-      
-      // Find user
-      user = await User.findOne(query).select('+password');
+      }).select('+password');
       
       if (user) {
-        // Check if full name matches (case-insensitive)
+        // Check full name (case-insensitive)
         const userFullName = user.fullName?.toLowerCase().trim();
         const inputFullName = fullName.toLowerCase().trim();
         
         if (userFullName !== inputFullName) {
-          console.log('Full name mismatch:', userFullName, 'vs', inputFullName);
-          return NextResponse.json(
-            { success: false, message: 'Invalid credentials' },
-            { status: 401 }
-          );
-        }
-        
-        // Check password
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-          console.log('Invalid password for employee');
+          console.log('Full name mismatch');
           return NextResponse.json(
             { success: false, message: 'Invalid credentials' },
             { status: 401 }
           );
         }
       }
+    }
+    // Admin login
+    else if (loginType === 'admin') {
+      const { email } = body;
       
-    } else if (loginType === 'admin' || loginType === 'hr') {
-      const { email, password } = body;
-      
-      if (!email || !password) {
+      if (!email) {
         return NextResponse.json(
-          { success: false, message: 'Email and password are required' },
+          { success: false, message: 'Email is required' },
           { status: 400 }
         );
       }
       
-      query = { 
+      user = await User.findOne({ 
         email: email.toLowerCase().trim(),
+        role: 'admin',
         isActive: true,
         status: 'active'
-      };
+      }).select('+password');
+    }
+    // HR login
+    else if (loginType === 'hr') {
+      const { email } = body;
       
-      console.log(`${loginType} login query:`, query);
-      user = await User.findOne(query).select('+password');
-      
-      if (user) {
-        // Check role matches
-        if (user.role !== loginType) {
-          console.log(`Role mismatch: Expected ${loginType}, got ${user.role}`);
-          return NextResponse.json(
-            { success: false, message: 'Invalid credentials' },
-            { status: 401 }
-          );
-        }
-        
-        // Check password
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-          console.log('Invalid password for:', loginType);
-          return NextResponse.json(
-            { success: false, message: 'Invalid credentials' },
-            { status: 401 }
-          );
-        }
+      if (!email) {
+        return NextResponse.json(
+          { success: false, message: 'Email is required' },
+          { status: 400 }
+        );
       }
-    } else {
+      
+      user = await User.findOne({ 
+        email: email.toLowerCase().trim(),
+        role: 'hr',
+        isActive: true,
+        status: 'active'
+      }).select('+password');
+    }
+    else {
       return NextResponse.json(
         { success: false, message: 'Invalid login type' },
         { status: 400 }
       );
     }
-
-    // Check if user exists
+    
+    // User not found
     if (!user) {
-      console.log('User not found with query:', query);
+      console.log('❌ User not found');
       return NextResponse.json(
         { success: false, message: 'Invalid credentials' },
         { status: 401 }
       );
     }
-
-    console.log('User found:', user.email || user.rollNo, 'Role:', user.role);
-
+    
+    console.log('✅ User found:', user.email || user.rollNo);
+    
+    // Check password - FIXED: Use bcrypt.compare directly
+    let isPasswordValid = false;
+    try {
+      // First try bcrypt.compare
+      isPasswordValid = await bcrypt.compare(password, user.password);
+      
+      // If bcrypt fails, try the comparePassword method if it exists
+      if (!isPasswordValid && typeof user.comparePassword === 'function') {
+        isPasswordValid = await user.comparePassword(password);
+      }
+    } catch (error) {
+      console.error('Password comparison error:', error);
+    }
+    
+    if (!isPasswordValid) {
+      console.log('❌ Invalid password');
+      return NextResponse.json(
+        { success: false, message: 'Invalid credentials' },
+        { status: 401 }
+      );
+    }
+    
+    console.log('✅ Password verified');
+    
     // Update last login
     user.lastLogin = new Date();
     await user.save();
-
+    
     // Generate JWT token
     const token = signToken({
       userId: user._id.toString(),
       role: user.role,
       email: user.email,
     });
-
-    console.log('Token generated for:', user.fullName);
-
-    // Prepare user response
-    const userResponse = {
+    
+    console.log('✅ Token generated');
+    
+    // Prepare user data
+    const userData = {
       id: user._id.toString(),
       fullName: user.fullName,
       email: user.email,
@@ -158,20 +169,19 @@ export async function POST(request: NextRequest) {
       status: user.status,
       lastLogin: user.lastLogin,
     };
-
-    // Determine dashboard path
+    
+    // Determine redirect path
     const dashboardPath = getDashboardPath(user.role);
-
+    
     // Create response
     const response = NextResponse.json({
       success: true,
       message: 'Login successful',
-      data: userResponse,
+      data: userData,
       redirectTo: dashboardPath,
-      userRole: user.role,
     });
-
-    // Set HTTP-only cookie
+    
+    // Set cookies - FIXED: secure: false for local development
     response.cookies.set({
       name: 'token',
       value: token,
@@ -181,8 +191,7 @@ export async function POST(request: NextRequest) {
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
-
-    // Set user role cookie (for client-side use)
+    
     response.cookies.set({
       name: 'userRole',
       value: user.role,
@@ -192,24 +201,18 @@ export async function POST(request: NextRequest) {
       path: '/',
       maxAge: 60 * 60 * 24 * 7,
     });
-
-    // Add debugging headers in development
-    if (process.env.NODE_ENV === 'development') {
-      response.headers.set('x-user-role', user.role);
-      response.headers.set('x-user-id', user._id.toString());
-    }
-
-    console.log('Login successful for:', user.fullName);
-    console.log('Redirecting to:', dashboardPath);
-
+    
+    console.log('🍪 Cookies set for:', user.role);
+    console.log('🔗 Redirecting to:', dashboardPath);
+    
     return response;
-
+    
   } catch (error: any) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
     return NextResponse.json(
       { 
         success: false, 
-        message: 'Login failed', 
+        message: 'Login failed',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       },
       { status: 500 }
@@ -217,11 +220,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Helper function to get dashboard path
 function getDashboardPath(role: string): string {
   const paths: Record<string, string> = {
     admin: '/admin/dashboard',
-    hr: '/hr/dashboard/employee-management',
+    hr: '/hr/dashboard',
     employee: '/employee/dashboard',
     accounts: '/accounts/dashboard',
     support: '/support/dashboard',
@@ -229,3 +231,5 @@ function getDashboardPath(role: string): string {
   };
   return paths[role] || '/dashboard';
 }
+
+export const runtime = 'nodejs';

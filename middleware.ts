@@ -11,42 +11,6 @@ const PUBLIC_PATHS = [
   '/reset-password',
 ];
 
-// Role-based access configuration
-const ROLE_ACCESS: Record<string, RegExp[]> = {
-  admin: [
-    /^\/admin\/.*/,      // All admin pages
-    /^\/hr\/.*/,         // All HR pages
-    /^\/employee\/.*/,   // All employee pages
-    /^\/finance\/.*/,    // All finance pages
-    /^\/accounts\/.*/,   // All accounts pages
-    /^\/support\/.*/,    // All support pages
-    /^\/marketing\/.*/,  // All marketing pages
-    /^\/api\/.*/,        // All API routes
-  ],
-  hr: [
-    /^\/hr\/.*/,         // All HR pages
-    /^\/employee\/.*/,   // Employee pages (view only)
-    /^\/api\/(auth|hr|employee).*/,  // Specific APIs
-  ],
-  employee: [
-    /^\/employee\/.*/,   // Only employee pages
-    /^\/api\/(auth|employee).*/,  // Specific APIs
-  ],
-  accounts: [
-    /^\/accounts\/.*/,   // Only accounts pages
-    /^\/finance\/.*/,    // Finance pages
-    /^\/api\/(auth|accounts|finance).*/,  // Specific APIs
-  ],
-  support: [
-    /^\/support\/.*/,    // Only support pages
-    /^\/api\/(auth|support).*/,  // Specific APIs
-  ],
-  marketing: [
-    /^\/marketing\/.*/,  // Only marketing pages
-    /^\/api\/(auth|marketing).*/,  // Specific APIs
-  ],
-};
-
 // Dashboard paths for each role
 const DASHBOARD_PATHS: Record<string, string> = {
   admin: '/admin/dashboard',
@@ -57,16 +21,66 @@ const DASHBOARD_PATHS: Record<string, string> = {
   marketing: '/marketing/dashboard',
 };
 
+// Role-based access configuration (SIMPLE VERSION)
+const ROLE_ACCESS: Record<string, string[]> = {
+  admin: [
+    '/admin',           // All admin pages
+    '/hr',              // All HR pages
+    '/employee',        // All employee pages
+    '/accounts',        // All accounts pages
+    '/support',         // All support pages
+    '/marketing',       // All marketing pages
+    '/finance',         // All finance pages
+    '/api',             // All API routes
+    '/profile',         // Profile pages
+  ],
+  hr: [
+    '/hr',              // All HR pages
+    '/employee',        // Employee pages (view only)
+    '/api/auth',        // Auth APIs
+    '/api/hr',          // HR APIs
+    '/api/employee',    // Employee APIs
+    '/profile',         // Profile pages
+  ],
+  employee: [
+    '/employee',        // Only employee pages
+    '/api/auth',        // Auth APIs
+    '/api/employee',    // Employee APIs
+    '/profile',         // Profile pages
+  ],
+  accounts: [
+    '/accounts',        // Only accounts pages
+    '/finance',         // Finance pages
+    '/api/auth',        // Auth APIs
+    '/api/accounts',    // Accounts APIs
+    '/api/finance',     // Finance APIs
+    '/profile',         // Profile pages
+  ],
+  support: [
+    '/support',         // Only support pages
+    '/api/auth',        // Auth APIs
+    '/api/support',     // Support APIs
+    '/profile',         // Profile pages
+  ],
+  marketing: [
+    '/marketing',       // Only marketing pages
+    '/api/auth',        // Auth APIs
+    '/api/marketing',   // Marketing APIs
+    '/profile',         // Profile pages
+  ],
+};
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Skip static files, API docs, and assets
+  console.log('🔍 Middleware checking:', pathname);
+  
+  // Skip static files and public assets
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/public') ||
     pathname.includes('.') || // All files with extensions
-    pathname === '/favicon.ico' ||
-    pathname === '/api-docs'
+    pathname === '/favicon.ico'
   ) {
     return NextResponse.next();
   }
@@ -77,12 +91,10 @@ export async function middleware(request: NextRequest) {
   
   // Get token from cookies
   const token = request.cookies.get('token')?.value;
-  const userRole = request.cookies.get('userRole')?.value;
   
-  console.log('Middleware check:', {
+  console.log('📋 Middleware Status:', {
     pathname,
     hasToken: !!token,
-    userRole,
     isPublicPath,
     isAuthApi,
   });
@@ -95,11 +107,12 @@ export async function middleware(request: NextRequest) {
         const decoded = verifyToken(token);
         if (decoded && decoded.role) {
           const dashboardPath = DASHBOARD_PATHS[decoded.role] || '/dashboard';
-          console.log('Redirecting logged-in user to:', dashboardPath);
+          console.log('↪️ Redirecting logged-in user to:', dashboardPath);
           return NextResponse.redirect(new URL(dashboardPath, request.url));
         }
       } catch (error) {
         console.log('Invalid token on public path, allowing access');
+        return NextResponse.next();
       }
     }
     return NextResponse.next();
@@ -107,7 +120,7 @@ export async function middleware(request: NextRequest) {
   
   // Protected paths - require authentication
   if (!token) {
-    console.log('No token found for protected path:', pathname);
+    console.log('❌ No token found for protected path:', pathname);
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
@@ -118,7 +131,7 @@ export async function middleware(request: NextRequest) {
     const decoded = verifyToken(token);
     
     if (!decoded || !decoded.role) {
-      console.log('Invalid or expired token');
+      console.log('❌ Invalid or expired token');
       const response = NextResponse.redirect(new URL('/login', request.url));
       
       // Clear invalid cookies
@@ -129,13 +142,28 @@ export async function middleware(request: NextRequest) {
     }
     
     const userRole = decoded.role;
+    console.log('✅ User authenticated:', { role: userRole, userId: decoded.userId });
     
-    // Check if user has access to the requested path
-    const allowedPaths = ROLE_ACCESS[userRole] || [];
-    const hasAccess = allowedPaths.some(pattern => pattern.test(pathname));
+    // Check if user has access to the requested path (SIMPLE CHECK)
+    let hasAccess = false;
+    const userAllowedPaths = ROLE_ACCESS[userRole] || [];
+    
+    // Allow access if:
+    // 1. Admin has access to everything
+    if (userRole === 'admin') {
+      hasAccess = true;
+    }
+    // 2. Path starts with allowed prefix
+    else if (userAllowedPaths.some(allowedPath => pathname.startsWith(allowedPath))) {
+      hasAccess = true;
+    }
+    // 3. Profile page access (always allowed for authenticated users)
+    else if (pathname.startsWith('/profile')) {
+      hasAccess = true;
+    }
     
     if (!hasAccess) {
-      console.log(`Access denied for ${userRole} to ${pathname}`);
+      console.log(`⛔ Access denied for ${userRole} to ${pathname}`);
       
       // Redirect to user's dashboard
       const dashboardPath = DASHBOARD_PATHS[userRole] || '/dashboard';
@@ -147,14 +175,11 @@ export async function middleware(request: NextRequest) {
     requestHeaders.set('x-user-id', decoded.userId);
     requestHeaders.set('x-user-role', decoded.role);
     
-    // For debugging
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Access granted for:', {
-        role: decoded.role,
-        path: pathname,
-        userId: decoded.userId,
-      });
-    }
+    console.log('✅ Access granted for:', {
+      role: decoded.role,
+      path: pathname,
+      userId: decoded.userId,
+    });
     
     return NextResponse.next({
       request: {
@@ -163,7 +188,7 @@ export async function middleware(request: NextRequest) {
     });
     
   } catch (error) {
-    console.error('Middleware error:', error);
+    console.error('❌ Middleware error:', error);
     const response = NextResponse.redirect(new URL('/login', request.url));
     
     // Clear cookies on error
@@ -183,8 +208,7 @@ export const config = {
      * - _next/image (image optimization files)
      * - public folder
      * - favicon.ico
-     * - files with extensions
      */
-    '/((?!api/auth|_next/static|_next/image|public|favicon.ico|[\\w-]+\\.\\w+).*)',
+    '/((?!api/auth|_next/static|_next/image|public|favicon.ico).*)',
   ],
 };
