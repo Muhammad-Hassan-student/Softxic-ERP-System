@@ -1,448 +1,199 @@
-import { NextResponse } from 'next/server';
-import { type NextRequest } from 'next/server';
-import { verifyToken } from '@/lib/auth/jwt';
+import { NextResponse } from "next/server";
+import { type NextRequest } from "next/server";
+import { verifyToken } from "@/lib/auth/jwt";
 
 // ==================== CONFIGURATION ====================
 // Sab kuch isi file mein - easily modify kar sakte hain
 
 // 1. PUBLIC ROUTES (No auth required)
 const PUBLIC_ROUTES = [
-  '/login',
-  '/',
-  '/forgot-password',
-  '/reset-password',
-  '/api/auth/login',
-  '/api/auth/me',
-  '/api/auth/check',
-  '/api/auth/debug',
-  '/api/auth/logout',
+  "/login",
+  "/",
+  "/forgot-password",
+  "/reset-password",
+  "/api/auth/login",
+  "/api/auth/me",
+  "/api/auth/check",
+  "/api/auth/debug",
+  "/api/auth/logout",
 ];
 
-// 2. SHARED ROUTES (All authenticated users)
-const SHARED_ROUTES = [
-  '/profile',
-  '/profile/edit',
-  '/profile/settings',
-  '/profile/change-password',
-  '/dashboard',
-  '/notifications',
-  '/help',
-  '/contact',
-  '/settings',
-  '/api/profile',
-  '/api/notifications',
-];
-
-// 3. DASHBOARD PATHS for each role
+// 2. DASHBOARD PATHS for each role
 const DASHBOARD_PATHS: Record<string, string> = {
-  admin: '/admin/dashboard',
-  hr: '/hr/dashboard',
-  employee: '/employee/dashboard',
-  accounts: '/accounts/dashboard',
-  support: '/support/dashboard',
-  marketing: '/marketing/dashboard',
-};
-
-// 4. ROLE-SPECIFIC ROUTES CONFIGURATION
-// Aap yahan easily koi bhi route add/remove kar sakte hain
-const ROLE_ROUTES_CONFIG: Record<string, {
-  name: string;
-  dashboard: string;
-  routes: string[];
-  description?: string;
-}> = {
-  admin: {
-    name: 'Administrator',
-    dashboard: '/admin/dashboard',
-    routes: [
-      '*', // Wildcard - can access everything
-    ],
-    description: 'Full system access'
-  },
-  
-  hr: {
-    name: 'Human Resources',
-    dashboard: '/hr/dashboard',
-    routes: [
-      // HR specific pages
-      '/hr',
-      '/hr/dashboard',
-      '/hr/employee-management',
-      '/hr/employee-management/*', // All sub-routes
-      '/hr/attendance',
-      '/hr/attendance/*',
-      '/hr/leaves',
-      '/hr/leaves/*',
-      '/hr/payroll',
-      '/hr/payroll/*',
-      '/hr/recruitment',
-      '/hr/recruitment/*',
-      '/hr/reports',
-      '/hr/reports/*',
-      '/hr/settings',
-      
-      // Employee pages (view only)
-      '/employee',
-      '/employee/dashboard',
-      '/employee/profile',
-      '/employee/profile/*',
-      '/employee/attendance',
-      '/employee/leaves',
-      
-      // Shared routes
-      ...SHARED_ROUTES,
-      
-      // API routes
-      '/api/hr',
-      '/api/hr/*',
-      '/api/employee',
-      '/api/employee/*',
-      '/api/auth',
-    ],
-    description: 'HR management and employee oversight'
-  },
-  
-  employee: {
-    name: 'Employee',
-    dashboard: '/employee/dashboard',
-    routes: [
-      // Employee specific pages
-      '/employee',
-      '/employee/dashboard',
-      '/employee/profile',
-      '/employee/profile/edit',
-      '/employee/profile/settings',
-      '/employee/attendance',
-      '/employee/attendance/mark',
-      '/employee/attendance/history',
-      '/employee/leaves',
-      '/employee/leaves/apply',
-      '/employee/leaves/history',
-      '/employee/payslip',
-      '/employee/payslip/*',
-      '/employee/tasks',
-      '/employee/tasks/*',
-      '/employee/documents',
-      '/employee/documents/*',
-      '/employee/settings',
-      
-      // Shared routes
-      ...SHARED_ROUTES,
-      
-      // API routes
-      '/api/employee',
-      '/api/employee/*',
-      '/api/auth',
-    ],
-    description: 'Employee self-service portal'
-  },
-  
-  accounts: {
-    name: 'Accounts',
-    dashboard: '/accounts/dashboard',
-    routes: [
-      // Accounts specific pages
-      '/accounts',
-      '/accounts/dashboard',
-      '/accounts/payments',
-      '/accounts/payments/*',
-      '/accounts/invoices',
-      '/accounts/invoices/*',
-      '/accounts/expenses',
-      '/accounts/expenses/*',
-      '/accounts/reports',
-      '/accounts/reports/*',
-      '/accounts/settings',
-      
-      // Finance pages
-      '/finance',
-      '/finance/dashboard',
-      '/finance/transactions',
-      '/finance/transactions/*',
-      '/finance/budget',
-      '/finance/budget/*',
-      '/finance/forecast',
-      
-      // Shared routes
-      ...SHARED_ROUTES,
-      
-      // API routes
-      '/api/accounts',
-      '/api/accounts/*',
-      '/api/finance',
-      '/api/finance/*',
-      '/api/auth',
-    ],
-    description: 'Financial management and accounting'
-  },
-  
-  support: {
-    name: 'Support',
-    dashboard: '/support/dashboard',
-    routes: [
-      // Support specific pages
-      '/support',
-      '/support/dashboard',
-      '/support/tickets',
-      '/support/tickets/*',
-      '/support/chat',
-      '/support/chat/*',
-      '/support/knowledge-base',
-      '/support/knowledge-base/*',
-      '/support/faq',
-      '/support/settings',
-      
-      // Shared routes
-      ...SHARED_ROUTES,
-      
-      // API routes
-      '/api/support',
-      '/api/support/*',
-      '/api/auth',
-    ],
-    description: 'Customer and technical support'
-  },
-  
-  marketing: {
-    name: 'Marketing',
-    dashboard: '/marketing/dashboard',
-    routes: [
-      // Marketing specific pages
-      '/marketing',
-      '/marketing/dashboard',
-      '/marketing/campaigns',
-      '/marketing/campaigns/*',
-      '/marketing/analytics',
-      '/marketing/analytics/*',
-      '/marketing/social',
-      '/marketing/social/*',
-      '/marketing/email',
-      '/marketing/email/*',
-      '/marketing/seo',
-      '/marketing/seo/*',
-      '/marketing/settings',
-      
-      // Shared routes
-      ...SHARED_ROUTES,
-      
-      // API routes
-      '/api/marketing',
-      '/api/marketing/*',
-      '/api/auth',
-    ],
-    description: 'Marketing campaigns and analytics'
-  },
+  admin: "/admin/dashboard",
+  hr: "/hr/dashboard",
+  employee: "/employee/dashboard",
+  accounts: "/accounts/dashboard",
+  support: "/support/dashboard",
+  marketing: "/marketing/dashboard",
 };
 
 // ==================== HELPER FUNCTIONS ====================
 
-// FIXED: Check if route matches any pattern
-function matchesRoute(pathname: string, routePatterns: string[]): boolean {
-  // Clean the pathname by removing trailing slash
-  const cleanPathname = pathname.endsWith('/') && pathname.length > 1 
-    ? pathname.slice(0, -1) 
-    : pathname;
-  
-  for (const pattern of routePatterns) {
-    // If pattern is '*', allow all (for admin)
-    if (pattern === '*') {
-      return true;
-    }
-    
-    // Exact match
-    if (cleanPathname === pattern) {
-      return true;
-    }
-    
-    // FIXED: Wildcard match (e.g., '/admin/*' matches '/admin/anything')
-    if (pattern.endsWith('/*')) {
-      const base = pattern.slice(0, -2); // Remove '/*'
-      const cleanBase = base.endsWith('/') && base.length > 1 
-        ? base.slice(0, -1) 
-        : base;
-      
-      // Check if path starts with base + '/' OR is exactly the base
-      if (cleanPathname === cleanBase || cleanPathname.startsWith(cleanBase + '/')) {
-        return true;
-      }
-    }
-    
-    // FIXED: Simple prefix match (e.g., '/admin' matches '/admin/dashboard')
-    if (cleanPathname.startsWith(pattern + '/')) {
-      return true;
-    }
-    
-    // API route match (e.g., '/api/hr' matches '/api/hr/anything')
-    if (pattern.startsWith('/api/') && cleanPathname.startsWith(pattern)) {
-      return true;
-    }
+// SUPER SIMPLE Route check for admin
+function canAccessRoute(userRole: string, pathname: string): boolean {
+  // Admin can access everything
+  if (userRole === "admin") return true;
+
+  // HR can access HR routes and employee dashboard
+  if (userRole === "hr") {
+    if (pathname.startsWith("/hr")) return true;
+    if (pathname === "/employee/dashboard") return true;
+    if (pathname === "/profile") return true;
+    if (pathname === "/dashboard") return true;
   }
+
+  // Employee can access only employee routes
+  if (userRole === "employee") {
+    if (pathname.startsWith("/employee")) return true;
+    if (pathname === "/profile") return true;
+    if (pathname === "/dashboard") return true;
+  }
+
+  // Accounts can access accounts routes
+  if (userRole === "accounts") {
+    if (pathname.startsWith("/accounts")) return true;
+    if (pathname.startsWith("/finance")) return true;
+    if (pathname === "/profile") return true;
+    if (pathname === "/dashboard") return true;
+  }
+
+  // Support can access support routes
+  if (userRole === "support") {
+    if (pathname.startsWith("/support")) return true;
+    if (pathname === "/profile") return true;
+    if (pathname === "/dashboard") return true;
+  }
+
+  // Marketing can access marketing routes
+  if (userRole === "marketing") {
+    if (pathname.startsWith("/marketing")) return true;
+    if (pathname === "/profile") return true;
+    if (pathname === "/dashboard") return true;
+  }
+
   return false;
-}
-
-// Check if path is public
-function isPublicPath(pathname: string): boolean {
-  return PUBLIC_ROUTES.some(route => 
-    pathname === route || pathname.startsWith(route)
-  );
-}
-
-// Get user's allowed routes from config
-function getAllowedRoutes(userRole: string): string[] {
-  return ROLE_ROUTES_CONFIG[userRole]?.routes || SHARED_ROUTES;
-}
-
-// Check if user has access to path
-function hasAccess(userRole: string, pathname: string): boolean {
-  const allowedRoutes = getAllowedRoutes(userRole);
-  return matchesRoute(pathname, allowedRoutes);
-}
-
-// Get user's dashboard path
-function getDashboardPath(userRole: string): string {
-  return ROLE_ROUTES_CONFIG[userRole]?.dashboard || '/dashboard';
-}
-
-// Check if path is API route
-function isApiRoute(pathname: string): boolean {
-  return pathname.startsWith('/api/');
-}
-
-// Get role name for logging
-function getRoleName(userRole: string): string {
-  return ROLE_ROUTES_CONFIG[userRole]?.name || userRole;
 }
 
 // ==================== MAIN MIDDLEWARE ====================
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const method = request.method;
-  
-  console.log(`🛡️ [${method}] Middleware checking: ${pathname}`);
-  
-  // Skip static files and assets
+
+  // Skip static files and assets COMPLETELY
   if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/public') ||
-    pathname.includes('.') ||
-    pathname === '/favicon.ico' ||
-    pathname === '/robots.txt' ||
-    pathname === '/sitemap.xml'
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/public/") ||
+    pathname.includes(".") ||
+    pathname === "/favicon.ico" ||
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml"
   ) {
     return NextResponse.next();
   }
 
-  // Check if public path
-  if (isPublicPath(pathname)) {
+  console.log(`\n🔐 Middleware checking: ${pathname}`);
+  console.log(`📊 Request URL: ${request.url}`);
+
+  // Check if it's a public API auth route
+  const isAuthApi = pathname.startsWith("/api/auth/");
+  const isPublicPage = PUBLIC_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(route),
+  );
+
+  // PUBLIC PATHS: No auth required
+  if (isAuthApi || isPublicPage) {
+    console.log(`🌐 Public path: ${pathname}`);
+
     // If already logged in and trying to access login, redirect to dashboard
-    const token = request.cookies.get('token')?.value;
-    if (token && (pathname === '/login' || pathname === '/')) {
+    const token = request.cookies.get("token")?.value;
+    if (token && (pathname === "/login" || pathname === "/")) {
       try {
         const decoded = verifyToken(token);
         if (decoded && decoded.role) {
-          const dashboardPath = getDashboardPath(decoded.role);
-          console.log(`↪️ Redirecting ${getRoleName(decoded.role)} to: ${dashboardPath}`);
-          return NextResponse.redirect(new URL(dashboardPath, request.url));
+          const dashboardPath = DASHBOARD_PATHS[decoded.role] || "/dashboard";
+          console.log(
+            `↪️ Already logged in as ${decoded.role}, redirecting to: ${dashboardPath}`,
+          );
+
+          // IMPORTANT: Create new response
+          const response = NextResponse.redirect(
+            new URL(dashboardPath, request.url),
+          );
+
+          // Ensure cookies are preserved in redirect
+          request.cookies.getAll().forEach((cookie) => {
+            response.cookies.set(cookie.name, cookie.value || "", {
+              httpOnly: true,
+              path: "/",
+            });
+          });
+
+          return response;
         }
       } catch (error) {
-        console.log('⚠️ Invalid token, allowing access to login');
+        console.log("⚠️ Invalid token on public path");
       }
     }
     return NextResponse.next();
   }
 
-  // Get token from cookies
-  const token = request.cookies.get('token')?.value;
-  const userRoleCookie = request.cookies.get('userRole')?.value;
-  
   // PROTECTED PATHS: Require authentication
+  const token = request.cookies.get("token")?.value;
+  console.log(`🔑 Token exists: ${!!token}`);
+
   if (!token) {
-    console.log('❌ No token found, redirecting to login');
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    loginUrl.searchParams.set('error', 'session_expired');
+    console.log("❌ No token, redirecting to login");
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   // Verify token
   try {
     const decoded = verifyToken(token);
-    
+
     if (!decoded || !decoded.role) {
-      console.log('❌ Invalid or expired token');
-      const response = NextResponse.redirect(new URL('/login', request.url));
-      response.cookies.delete('token');
-      response.cookies.delete('userRole');
-      response.cookies.delete('userId');
+      console.log("❌ Invalid token");
+      const response = NextResponse.redirect(new URL("/login", request.url));
+      response.cookies.delete("token");
+      response.cookies.delete("userRole");
       return response;
     }
 
-    const userRole = decoded.role;
-    const roleName = getRoleName(userRole);
-    
-    console.log(`✅ ${roleName} authenticated: ${decoded.userId}`);
+    console.log(
+      `✅ User authenticated: ${decoded.role} (ID: ${decoded.userId})`,
+    );
 
-    // Check access permission
-    if (!hasAccess(userRole, pathname)) {
-      console.log(`⛔ Access denied for ${roleName} to ${pathname}`);
-      
-      // For API routes, return JSON error instead of redirect
-      if (isApiRoute(pathname)) {
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: 'Forbidden', 
-            message: `You don't have permission to access this resource` 
-          },
-          { status: 403 }
-        );
-      }
-      
-      // For web routes, redirect to dashboard
-      const dashboardPath = getDashboardPath(userRole);
+    // Check if user can access this route
+    if (!canAccessRoute(decoded.role, pathname)) {
+      console.log(`⛔ Access denied for ${decoded.role} to ${pathname}`);
+
+      // Redirect to user's dashboard
+      const dashboardPath = DASHBOARD_PATHS[decoded.role] || "/dashboard";
+      console.log(`↪️ Redirecting to: ${dashboardPath}`);
       return NextResponse.redirect(new URL(dashboardPath, request.url));
     }
 
     console.log(`✅ Access granted to ${pathname}`);
-    
-    // Add user info to headers for backend use
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set('x-user-id', decoded.userId);
-    requestHeaders.set('x-user-role', decoded.role);
-    requestHeaders.set('x-user-name', roleName);
 
-    // For API routes, also set content-type if not present
-    if (isApiRoute(pathname) && !requestHeaders.has('content-type')) {
-      requestHeaders.set('content-type', 'application/json');
-    }
+    // Add user info to headers
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-user-id", decoded.userId);
+    requestHeaders.set("x-user-role", decoded.role);
 
     return NextResponse.next({
       request: {
         headers: requestHeaders,
       },
     });
-
   } catch (error: any) {
-    console.error('❌ Middleware error:', error.message || error);
-    
-    // For API routes, return JSON error
-    if (isApiRoute(pathname)) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Unauthorized', 
-          message: 'Authentication failed' 
-        },
-        { status: 401 }
-      );
-    }
-    
-    // For web routes, redirect to login
-    const response = NextResponse.redirect(new URL('/login', request.url));
-    response.cookies.delete('token');
-    response.cookies.delete('userRole');
-    response.cookies.delete('userId');
+    console.error("❌ Middleware error:", error.message);
+
+    // Clear cookies and redirect to login
+    const response = NextResponse.redirect(new URL("/login", request.url));
+    response.cookies.delete("token");
+    response.cookies.delete("userRole");
     return response;
   }
 }
@@ -450,14 +201,7 @@ export async function middleware(request: NextRequest) {
 // ==================== MIDDLEWARE CONFIG ====================
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - api/auth/* (public auth APIs - but we handle in PUBLIC_ROUTES)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - public folder
-     * - favicon.ico, robots.txt, sitemap.xml
-     */
-    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|public).*)',
+    // Match all routes except static files
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|public).*)",
   ],
 };
