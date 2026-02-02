@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { RoleBasedSidebar } from '@/components/ui/sidebar/RoleBasedSidebar';
-import { RoleBasedMobileSidebar } from '@/components/ui/sidebar/RoleBasedMobileSidebar';
-import Header  from '@/components/ui/header/Header';
+import { Sidebar } from '@/components/ui/sidebar/Sidebar';
+import { MobileSidebar } from '@/components/ui/sidebar/MobileSidebar';
+import Header from '@/components/ui/header/Header';
 import { cn } from '@/lib/utils';
 
 interface DashboardLayoutProps {
@@ -16,16 +16,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Desktop Role-Based Sidebar */}
+      {/* Desktop Sidebar */}
       <div className="hidden lg:block">
-        <RoleBasedSidebar
+        <Sidebar
           isCollapsed={isSidebarCollapsed}
           setIsCollapsed={setIsSidebarCollapsed}
         />
       </div>
 
-      {/* Mobile Role-Based Sidebar */}
-      <RoleBasedMobileSidebar
+      {/* Mobile Sidebar */}
+      <MobileSidebar
         isOpen={isMobileSidebarOpen}
         onClose={() => setIsMobileSidebarOpen(false)}
       />
