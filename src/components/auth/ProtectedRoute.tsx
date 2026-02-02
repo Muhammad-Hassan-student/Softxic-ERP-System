@@ -1,117 +1,61 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { AuthLoading } from '@/context/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: ('admin' | 'hr' | 'employee' | 'accounts' | 'support' | 'marketing')[];
+  allowedRoles?: string[];
+  redirectTo?: string;
 }
 
 export default function ProtectedRoute({ 
   children, 
-  allowedRoles = ['admin', 'hr', 'employee', 'accounts', 'support', 'marketing'] 
+  allowedRoles, 
+  redirectTo = '/login' 
 }: ProtectedRouteProps) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
-  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    // Skip if still loading initial auth state
-    if (isLoading) return;
-
-    const verifyAccess = async () => {
-      setIsChecking(true);
-      
-      try {
-        // Check if user exists
-        if (!user) {
-          console.log('No user found, redirecting to login');
-          router.push('/login');
-          return;
-        }
-
-        // Check if user role is allowed
-        if (!allowedRoles.includes(user.role)) {
-          console.log(`User role ${user.role} not allowed, redirecting...`);
-          
-          // Redirect based on role
-          let redirectPath = '/login';
-          switch (user.role) {
-            case 'admin':
-              redirectPath = '/admin/dashboard';
-              break;
-            case 'hr':
-              redirectPath = '/hr/dashboard';
-              break;
-            case 'employee':
-              redirectPath = '/employee/dashboard';
-              break;
-            case 'accounts':
-              redirectPath = '/accounts/dashboard';
-              break;
-            case 'support':
-              redirectPath = '/support/dashboard';
-              break;
-            case 'marketing':
-              redirectPath = '/marketing/dashboard';
-              break;
-          }
-          
-          router.push(redirectPath);
-          return;
-        }
-        
-        // All checks passed
-        setIsChecking(false);
-        
-      } catch (error) {
-        console.error('ProtectedRoute error:', error);
-        router.push('/login');
-      } finally {
-        setIsChecking(false);
+    if (!isLoading) {
+      if (!isAuthenticated || !user) {
+        router.push(redirectTo);
+        return;
       }
-    };
 
-    verifyAccess();
-  }, [user, isLoading, allowedRoles, router]);
+      if (allowedRoles && allowedRoles.length > 0) {
+        if (!allowedRoles.includes(user.role)) {
+          // Redirect to appropriate dashboard based on role
+          const dashboardPaths: Record<string, string> = {
+            admin: '/admin/dashboard',
+            hr: '/hr/dashboard',
+            employee: '/employee/dashboard',
+            accounts: '/accounts/dashboard',
+            support: '/support/dashboard',
+            marketing: '/marketing/dashboard',
+          };
+          
+          const redirectPath = dashboardPaths[user.role] || '/dashboard';
+          router.push(redirectPath);
+        }
+      }
+    }
+  }, [user, isLoading, isAuthenticated, allowedRoles, router, redirectTo]);
 
-  // Show loading while checking
-  if (isLoading || isChecking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Checking authentication...</p>
-        </div>
-      </div>
-    );
+  if (isLoading) {
+    return <AuthLoading />;
   }
 
-  // If no user after loading, show nothing (will redirect)
-  if (!user) {
+  if (!isAuthenticated || !user) {
     return null;
   }
 
-  // If user role not allowed (should have redirected already)
-  if (!allowedRoles.includes(user.role)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600">You don't have permission to access this page.</p>
-          <button
-            onClick={() => router.push('/login')}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Go to Login
-          </button>
-        </div>
-      </div>
-    );
+  if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    return null;
   }
 
-  // All checks passed, render children
   return <>{children}</>;
 }

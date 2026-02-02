@@ -4,59 +4,60 @@ import { connectDB } from '@/lib/db/mongodb';
 import User from '@/models/User';
 
 export async function GET(request: NextRequest) {
-  console.log('🔍 Auth check /me API called');
+  console.log('🔍 /api/auth/me called');
   
   try {
     // Get token from cookies
     const token = request.cookies.get('token')?.value;
     
-    console.log('Token exists:', !!token);
-    
     if (!token) {
+      console.log('❌ No token in cookies');
       return NextResponse.json({
         success: false,
-        message: 'No authentication token',
         isAuthenticated: false,
+        message: 'No authentication token',
       });
     }
-    
+
     // Verify token
     const decoded = verifyToken(token);
-    
     if (!decoded) {
-      console.log('❌ Invalid token');
+      console.log('❌ Token verification failed');
       return NextResponse.json({
         success: false,
-        message: 'Invalid token',
         isAuthenticated: false,
+        message: 'Invalid or expired token',
       });
     }
-    
-    console.log('✅ Token decoded:', decoded);
-    
-    // Connect to database and get user
+
+    console.log('✅ Token verified:', { userId: decoded.userId, role: decoded.role });
+
+    // Connect to database
     await connectDB();
     
+    // Get user from database
     const user = await User.findById(decoded.userId)
-      .select('-password -__v')
+      .select('-password -__v -createdAt -updatedAt')
       .lean();
-    
+
     if (!user) {
+      console.log('❌ User not found in database');
       return NextResponse.json({
         success: false,
+        isAuthenticated: false,
         message: 'User not found',
-        isAuthenticated: false,
       });
     }
-    
+
     if (!user.isActive || user.status !== 'active') {
+      console.log('❌ User account is not active');
       return NextResponse.json({
         success: false,
-        message: 'Account is deactivated',
         isAuthenticated: false,
+        message: 'Account is deactivated',
       });
     }
-    
+
     const userData = {
       id: user._id.toString(),
       fullName: user.fullName,
@@ -67,25 +68,31 @@ export async function GET(request: NextRequest) {
       rollNo: user.rollNo,
       cnic: user.cnic,
       jobTitle: user.jobTitle,
+      mobile: user.mobile,
       status: user.status,
+      lastLogin: user.lastLogin,
     };
-    
+
     console.log('✅ User authenticated:', userData.fullName);
-    
+
     return NextResponse.json({
       success: true,
+      isAuthenticated: true,
       message: 'User authenticated',
       data: userData,
-      isAuthenticated: true,
     });
-    
+
   } catch (error: any) {
     console.error('❌ Auth check error:', error);
     return NextResponse.json({
       success: false,
-      message: 'Authentication error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       isAuthenticated: false,
-    }, { status: 500 });
+      message: 'Authentication error',
+      error: error.message,
+    });
   }
+}
+
+export async function POST(request: NextRequest) {
+  return GET(request);
 }

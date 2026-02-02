@@ -1,28 +1,31 @@
 'use client';
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface User {
   id: string;
   fullName: string;
   email?: string;
-  role: 'admin' | 'hr' | 'employee' | 'accounts' | 'support' | 'marketing';
+  role: string;
   department?: string;
   profilePhoto?: string;
   rollNo?: string;
   cnic?: string;
   jobTitle?: string;
-  status?: 'active' | 'inactive' | 'terminated';
+  mobile?: string;
+  status?: string;
+  lastLogin?: Date;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (userData: User) => void;
+  login: (userData: User, token?: string) => void;
   logout: () => Promise<void>;
-  checkAuth: () => Promise<void>;
+  checkAuth: () => Promise<boolean>;
+  refreshAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,60 +35,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
 
-  // Check authentication from server
-  const checkAuth = async (): Promise<void> => {
+  const checkAuth = useCallback(async (): Promise<boolean> => {
     try {
+      console.log('🔄 Checking authentication...');
+      
       const response = await fetch('/api/auth/me', {
+        method: 'GET',
         credentials: 'include',
-        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setUser(data.data);
-          setIsAuthenticated(true);
-          localStorage.setItem('user', JSON.stringify(data.data));
-        } else {
-          clearAuth();
-        }
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        console.log('✅ User authenticated:', data.data.fullName);
+        setUser(data.data);
+        setIsAuthenticated(true);
+        
+        // Store in localStorage for quick access
+        localStorage.setItem('user', JSON.stringify(data.data));
+        localStorage.setItem('lastAuthCheck', Date.now().toString());
+        
+        return true;
       } else {
-        clearAuth();
+        console.log('❌ Auth check failed:', data.message);
+        setUser(null);
+        setIsAuthenticated(false);
+        localStorage.removeItem('user');
+        localStorage.removeItem('lastAuthCheck');
+        
+        // If we're on a protected page, redirect to login
+        if (!pathname?.includes('/login') && pathname !== '/') {
+          console.log('Redirecting to login from:', pathname);
+          router.push('/login');
+        }
+        
+        return false;
       }
     } catch (error) {
-      console.error('Auth check error:', error);
-      clearAuth();
+      console.error('❌ Auth check error:', error);
+      setUser(null);
+      setIsAuthenticated(false);
+      localStorage.removeItem('user');
+      return false;
     }
-  };
+  }, [router, pathname]);
 
-  // Clear all auth data
-  const clearAuth = (): void => {
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem('user');
-    
-    // Clear all auth cookies
-    document.cookie.split(';').forEach(cookie => {
-      const name = cookie.split('=')[0].trim();
-      if (name === 'token' || name === 'userRole' || name === 'userData') {
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-      }
-    });
-  };
+  const refreshAuth = useCallback(async () => {
+    await checkAuth();
+  }, [checkAuth]);
 
-  // Initialize auth on component mount
   useEffect(() => {
-    const initializeAuth = async (): Promise<void> => {
+    const initializeAuth = async () => {
+      setIsLoading(true);
+      
       try {
-        // First try to load from localStorage for fast UI
+        // First try to get from localStorage for instant UI
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
           try {
             const parsedUser = JSON.parse(storedUser);
             setUser(parsedUser);
             setIsAuthenticated(true);
-          } catch (e) {
+          } catch {
             localStorage.removeItem('user');
           }
         }
@@ -94,7 +111,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await checkAuth();
       } catch (error) {
         console.error('Auth initialization error:', error);
-        clearAuth();
       } finally {
         setIsLoading(false);
       }
@@ -102,26 +118,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initializeAuth();
 
-    // Optional: Check auth on window focus
-    const handleFocus = (): void => {
-      checkAuth();
-    };
+    // Set up periodic auth check (every 5 minutes)
+    const interval = setInterval(() => {
+      if (isAuthenticated) {
+        checkAuth();
+      }
+    }, 5 * 60 * 1000);
 
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, []);
+    return () => clearInterval(interval);
+  }, [checkAuth, isAuthenticated]);
 
-  // Login function - just update local state
-  const login = (userData: User): void => {
+  const login = (userData: User, token?: string) => {
     setUser(userData);
     setIsAuthenticated(true);
     localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('lastAuthCheck', Date.now().toString());
+    
+    // If token provided, store it (though cookies should handle this)
+    if (token) {
+      localStorage.setItem('token', token);
+    }
   };
 
-  // Logout function
-  const logout = async (): Promise<void> => {
+  const logout = async () => {
     try {
-      // Call logout API to clear server-side session
+      // Call logout API
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
@@ -129,20 +150,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Logout API error:', error);
     } finally {
-      // Clear client-side state
-      clearAuth();
+      // Clear client state
+      setUser(null);
+      setIsAuthenticated(false);
+      localStorage.clear();
       
-      // Redirect to login page
+      // Clear cookies client-side
+      document.cookie.split(';').forEach(cookie => {
+        const name = cookie.split('=')[0].trim();
+        if (name === 'token' || name === 'userRole' || name === 'userId') {
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        }
+      });
+
+      // Redirect to login
       router.push('/login');
-      
-      // Force a hard refresh to clear any cached state
-      setTimeout(() => {
-        router.refresh();
-      }, 100);
+      router.refresh();
     }
   };
 
-  // Context value
   const contextValue: AuthContextType = {
     user,
     isLoading,
@@ -150,6 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     logout,
     checkAuth,
+    refreshAuth,
   };
 
   return (
@@ -159,8 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Custom hook to use auth context
-export function useAuth(): AuthContextType {
+export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
@@ -168,136 +194,14 @@ export function useAuth(): AuthContextType {
   return context;
 }
 
-// Helper hook for protected components
-export function useProtectedRoute(allowedRoles?: string[]): {
-  user: User;
-  isAuthorized: boolean;
-} {
-  const { user, isLoading, isAuthenticated } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoading) {
-      // Redirect if not authenticated
-      if (!isAuthenticated || !user) {
-        router.push('/login');
-        return;
-      }
-
-      // Redirect if role not allowed
-      if (allowedRoles && allowedRoles.length > 0) {
-        if (!allowedRoles.includes(user.role)) {
-          // Redirect to appropriate dashboard based on role
-          const dashboardPaths: Record<string, string> = {
-            admin: '/admin/dashboard',
-            hr: '/hr/dashboard/employee-management',
-            employee: '/employee/dashboard',
-            accounts: '/accounts/dashboard',
-            support: '/support/dashboard',
-            marketing: '/marketing/dashboard',
-          };
-          
-          const redirectPath = dashboardPaths[user.role] || '/dashboard';
-          router.push(redirectPath);
-        }
-      }
-    }
-  }, [user, isLoading, isAuthenticated, allowedRoles, router]);
-
-  return {
-    user: user!,
-    isAuthorized: allowedRoles ? allowedRoles.includes(user?.role || '') : true,
-  };
-}
-
-// Loading component for auth states
-export function AuthLoading(): React.ReactElement {
+// Loading component
+export function AuthLoading() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Authenticating...</p>
+        <p className="mt-4 text-gray-600">Loading authentication...</p>
       </div>
     </div>
   );
-}
-
-// Higher-order component for role-based protection
-export function withAuth<P extends object>(
-  Component: React.ComponentType<P>,
-  allowedRoles?: string[]
-): React.FC<P> {
-  const WithAuthComponent: React.FC<P> = (props) => {
-    const { user, isLoading, isAuthenticated } = useAuth();
-    const router = useRouter();
-
-    useEffect(() => {
-      if (!isLoading) {
-        if (!isAuthenticated || !user) {
-          router.push('/login');
-          return;
-        }
-
-        if (allowedRoles && allowedRoles.length > 0) {
-          if (!allowedRoles.includes(user.role)) {
-            const dashboardPaths: Record<string, string> = {
-              admin: '/admin/dashboard',
-              hr: '/hr/dashboard/employee-management',
-              employee: '/employee/dashboard',
-              accounts: '/accounts/dashboard',
-              support: '/support/dashboard',
-              marketing: '/marketing/dashboard',
-            };
-            
-            const redirectPath = dashboardPaths[user.role] || '/dashboard';
-            router.push(redirectPath);
-          }
-        }
-      }
-    }, [user, isLoading, isAuthenticated, router]);
-
-    if (isLoading) {
-      return <AuthLoading />;
-    }
-
-    if (!isAuthenticated || !user) {
-      return null;
-    }
-
-    if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-      return null;
-    }
-
-    return <Component {...props} />;
-  };
-
-  // Set display name for debugging
-  WithAuthComponent.displayName = `withAuth(${Component.displayName || Component.name || 'Component'})`;
-
-  return WithAuthComponent;
-}
-
-// Utility function to check permissions
-export function hasPermission(
-  user: User | null,
-  requiredPermissions: string[]
-): boolean {
-  if (!user) return false;
-
-  // Admin has all permissions
-  if (user.role === 'admin') {
-    return true;
-  }
-
-  // Map roles to permissions
-  const rolePermissions: Record<string, string[]> = {
-    hr: ['view_employees', 'manage_employees', 'view_attendance', 'manage_attendance'],
-    employee: ['view_profile', 'edit_profile', 'view_attendance', 'request_leave'],
-    accounts: ['view_finance', 'manage_payments', 'generate_reports'],
-    support: ['view_tickets', 'manage_tickets', 'respond_tickets'],
-    marketing: ['view_campaigns', 'manage_campaigns', 'view_analytics'],
-  };
-
-  const userPermissions = rolePermissions[user.role] || [];
-  return requiredPermissions.every(permission => userPermissions.includes(permission));
 }

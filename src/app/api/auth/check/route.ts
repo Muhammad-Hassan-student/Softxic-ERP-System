@@ -3,46 +3,44 @@ import { verifyToken } from '@/lib/auth/jwt';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get token from cookies
     const token = request.cookies.get('token')?.value;
     
     if (!token) {
       return NextResponse.json({
         success: false,
-        message: 'No token found',
         hasToken: false,
-        cookies: request.cookies.getAll().map(c => c.name),
+        isValid: false,
+        message: 'No token found',
       });
     }
-    
-    // Verify token
+
     const decoded = verifyToken(token);
     
     if (!decoded) {
       return NextResponse.json({
         success: false,
-        message: 'Invalid token',
         hasToken: true,
-        tokenValid: false,
+        isValid: false,
+        message: 'Token is invalid or expired',
       });
     }
-    
+
     return NextResponse.json({
       success: true,
-      message: 'Token is valid',
       hasToken: true,
-      tokenValid: true,
+      isValid: true,
+      message: 'Token is valid',
       user: {
         userId: decoded.userId,
         role: decoded.role,
       },
-      cookies: request.cookies.getAll().map(c => ({ 
-        name: c.name, 
-        hasValue: !!c.value,
-        valueLength: c.value?.length || 0,
-      })),
+      cookies: {
+        token: !!request.cookies.get('token'),
+        userRole: !!request.cookies.get('userRole'),
+        userId: !!request.cookies.get('userId'),
+      }
     });
-    
+
   } catch (error: any) {
     return NextResponse.json({
       success: false,
