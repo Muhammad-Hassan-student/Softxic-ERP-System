@@ -30,7 +30,7 @@ function Header({ toggleMobileSidebar }: headerProps) {
         </div>
 
         {/* Right Side Actions  */}
-        <div className='flex items-center gap-3'>
+        <div className='flex items-center gap-3 bg-white'>
             <Notifications />
             <div className='hidden md:block'>
                 <div className='flex flex-col'>
