@@ -17,14 +17,14 @@ function getTokenFromRequest(request: NextRequest): string | null {
 
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
 
     const { id } = await context.params;
     const token = getTokenFromRequest(request);
-
+    
     if (!token) {
       return NextResponse.json(
         { success: false, message: "Authentication required" },
@@ -43,12 +43,10 @@ export async function PUT(
     const body = await request.json();
     const { currentPassword, newPassword, confirmPassword } = body;
 
+    // Validate new password
     if (!newPassword || newPassword.length < 6) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "New password must be at least 6 characters",
-        },
+        { success: false, message: "New password must be at least 6 characters" },
         { status: 400 },
       );
     }
@@ -78,22 +76,49 @@ export async function PUT(
       );
     }
 
-    // Check permissions
-    const canChangePassword =
-      requestingUser.role === "admin" || requestingUser._id.toString() === id;
+    // Check permissions based on your requirements:
+    let canChangePassword = false;
+    let requiresCurrentPassword = false;
+
+    // 1. Admin can change anyone's password
+    if (requestingUser.role === "admin") {
+      canChangePassword = true;
+      requiresCurrentPassword = false; // Admin doesn't need current password
+    }
+    // 2. HR can change employee passwords only (not other HR or admin)
+    else if (requestingUser.role === "hr" && targetUser.role === "employee") {
+      canChangePassword = true;
+      requiresCurrentPassword = false; // HR doesn't need current password for employees
+    }
+    // 3. Users can change their own password (except employees cannot)
+    else if (requestingUser._id.toString() === id) {
+      // Employees cannot change their own password
+      if (requestingUser.role === "employee") {
+        return NextResponse.json(
+          { 
+            success: false, 
+            message: "Employees cannot change their own password. Please contact HR or Admin." 
+          },
+          { status: 403 },
+        );
+      }
+      // HR/Admin changing their own password
+      canChangePassword = true;
+      requiresCurrentPassword = true;
+    }
 
     if (!canChangePassword) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "You are not allowed to change this password",
+        { 
+          success: false, 
+          message: "You are not authorized to change this password" 
         },
         { status: 403 },
       );
     }
 
-    // If user is changing their own password, verify current password
-    if (requestingUser._id.toString() === id) {
+    // Verify current password if required
+    if (requiresCurrentPassword) {
       if (!currentPassword) {
         return NextResponse.json(
           { success: false, message: "Current password is required" },
@@ -105,7 +130,7 @@ export async function PUT(
         currentPassword,
         targetUser.password,
       );
-
+      
       if (!isPasswordValid) {
         return NextResponse.json(
           { success: false, message: "Current password is incorrect" },
