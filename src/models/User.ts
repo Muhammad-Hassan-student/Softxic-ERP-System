@@ -284,6 +284,7 @@ UserSchema.pre('save', async function (this: any) {
 });
 
 
+
 // Compare password method
 UserSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db/mongodb";
 import User from "@/models/User";
 import { verifyToken } from "@/lib/auth/jwt";
-import bcrypt from "bcryptjs";
 
 // Helper to get token from request
 function getTokenFromRequest(request: NextRequest): string | null {
@@ -126,10 +125,8 @@ export async function PUT(
         );
       }
 
-      const isPasswordValid = await bcrypt.compare(
-        currentPassword,
-        targetUser.password,
-      );
+      // Use the model's comparePassword method
+      const isPasswordValid = await targetUser.comparePassword(currentPassword);
       
       if (!isPasswordValid) {
         return NextResponse.json(
@@ -139,21 +136,16 @@ export async function PUT(
       }
     }
 
-    // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-    // Update password
-    targetUser.password = hashedPassword;
+    // ✅ CRITICAL FIX: Set the plain password and let Mongoose handle hashing
+    targetUser.password = newPassword;
+    
+    // ✅ This will trigger the pre-save hook in User model which hashes the password once
     await targetUser.save();
 
     return NextResponse.json({
       success: true,
-      message: "Password changed successfully",
-      newPassword,
-      hashedPassword,
-      targetUser
-
+      message: "Password changed successfully"
+      // ✅ REMOVED: Don't return sensitive data
     });
   } catch (error: any) {
     console.error("Change password error:", error);
