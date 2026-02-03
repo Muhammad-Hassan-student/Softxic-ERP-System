@@ -27,7 +27,12 @@ export async function apiRequest<T = any>(
 ): Promise<ApiResponse<T>> {
   try {
     const { requireAuth = true, ...fetchOptions } = options;
-
+    console.log(`🔍 API Request Details:`, {
+      endpoint,
+      method: fetchOptions.method || "GET",
+      hasBody: !!fetchOptions.body,
+      requireAuth,
+    });
     // Default headers
     const headers: Record<string, string> = {
       ...(fetchOptions.headers || {}),
@@ -45,7 +50,7 @@ export async function apiRequest<T = any>(
     }
 
     console.log(`🔍 API Request: ${endpoint}`);
-    console.log(`📋 Method: ${fetchOptions.method || 'GET'}`);
+    console.log(`📋 Method: ${fetchOptions.method || "GET"}`);
 
     // IMPORTANT: For authenticated requests, just include cookies
     // Don't add Authorization header if backend expects cookies
@@ -53,17 +58,22 @@ export async function apiRequest<T = any>(
       ...fetchOptions,
       headers,
       body,
-      credentials: "include", // This is KEY - sends cookies automatically
+      credentials: "include",
     });
 
-    console.log(`📊 Response Status: ${response.status} for ${endpoint}`);
+    console.log(`📊 Response Details:`, {
+      url: endpoint,
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+    });
 
     // Handle HTTP errors
     if (!response.ok) {
       if (response.status === 401) {
         // Token expired or invalid
         console.log("🔴 401 Unauthorized");
-        
+
         // Try to get error message
         let errorMessage = "Session expired. Please login again.";
         try {
@@ -136,7 +146,10 @@ export async function apiRequest<T = any>(
     console.error("❌ API Request Error:", error);
 
     // Check for network errors
-    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+    if (
+      error.name === "TypeError" &&
+      error.message.includes("Failed to fetch")
+    ) {
       return {
         success: false,
         message: "Network error. Please check your internet connection.",
@@ -263,14 +276,14 @@ export function setAuthCookies(token: string, userData: any): void {
       `path=/`,
       `max-age=${7 * 24 * 60 * 60}`, // 7 days
       `SameSite=Strict`,
-      `Secure=${window.location.protocol === 'https:'}`
-    ].join('; ');
+      `Secure=${window.location.protocol === "https:"}`,
+    ].join("; ");
 
     document.cookie = `token=${encodeURIComponent(token)}; ${cookieOptions}`;
     document.cookie = `userData=${encodeURIComponent(JSON.stringify(userData))}; ${cookieOptions}`;
-    document.cookie = `userId=${encodeURIComponent(userData.id || '')}; ${cookieOptions}`;
-    document.cookie = `userRole=${encodeURIComponent(userData.role || '')}; ${cookieOptions}`;
-    
+    document.cookie = `userId=${encodeURIComponent(userData.id || "")}; ${cookieOptions}`;
+    document.cookie = `userRole=${encodeURIComponent(userData.role || "")}; ${cookieOptions}`;
+
     console.log("✅ Auth cookies set");
   } catch (error) {
     console.error("Error setting cookies:", error);
@@ -282,20 +295,20 @@ export function clearAuthCookies(): void {
   if (typeof window === "undefined") return;
 
   try {
-    const pastDate = 'Thu, 01 Jan 1970 00:00:00 UTC';
-    const path = 'path=/';
-    
+    const pastDate = "Thu, 01 Jan 1970 00:00:00 UTC";
+    const path = "path=/";
+
     document.cookie = `token=; expires=${pastDate}; ${path}`;
     document.cookie = `userData=; expires=${pastDate}; ${path}`;
     document.cookie = `userId=; expires=${pastDate}; ${path}`;
     document.cookie = `userRole=; expires=${pastDate}; ${path}`;
-    
+
     // Clear localStorage too
     localStorage.removeItem("token");
     localStorage.removeItem("userData");
     localStorage.removeItem("userId");
     localStorage.removeItem("userRole");
-    
+
     console.log("🧹 Auth cookies cleared");
   } catch (error) {
     console.error("Error clearing cookies:", error);

@@ -319,7 +319,6 @@ export default function ProfilePage() {
     }
   };
 
-  // Handle password change - FIXED VERSION
   const handlePasswordChange = async () => {
     // Validate passwords
     if (formData.newPassword !== formData.confirmPassword) {
@@ -342,36 +341,23 @@ export default function ProfilePage() {
       setPasswordChangeLoading(true);
 
       const passwordData = {
-        currentPassword: formData.currentPassword,
+        currentPassword: formData.currentPassword || "",
         newPassword: formData.newPassword,
         confirmPassword: formData.confirmPassword,
         userId: user.id,
       };
 
-      console.log("🔍 Debugging cookies before password change:");
-      debugCookies();
-
-      console.log("📤 Sending password change request with data:", {
+      console.log("🔍 Sending password change request:", {
         ...passwordData,
-        currentPassword: formData.currentPassword ? "***" : "empty",
+        currentPassword: passwordData.currentPassword ? "***" : "empty",
         newPassword: "***",
-        confirmPassword: "***",
       });
 
-      // Try different API endpoints if one doesn't work
-      let response;
-      try {
-        // First try POST to change-password
-        response = await apiPost("/api/users/change-password", passwordData);
-        console.log("Password change response:", response);
-      } catch (postError) {
-        console.log("POST failed, trying PUT:", postError);
-        // If POST fails, try PUT
-        response = await apiRequest(`/api/users/${user.id}/password`, {
-          method: "PUT",
-          body: passwordData,
-        });
-      }
+      // Use PUT method with the correct endpoint
+      const response = await apiRequest(`/api/users/${user.id}/password`, {
+        method: "PUT",
+        body: passwordData,
+      });
 
       if (response.success) {
         toast.success("Password changed successfully");
@@ -384,7 +370,7 @@ export default function ProfilePage() {
         }));
       } else {
         toast.error(response.message || "Failed to change password");
-        console.error("Password change error details:", response);
+        console.error("Password change error:", response);
       }
     } catch (error) {
       console.error("Error changing password:", error);
@@ -429,7 +415,9 @@ export default function ProfilePage() {
           <Loader2 className="h-16 w-16 animate-spin text-gradient-to-r from-blue-500 to-purple-600" />
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 blur-xl opacity-20 animate-pulse"></div>
         </div>
-        <p className="text-gray-600 mt-4 text-lg font-medium">Loading profile...</p>
+        <p className="text-gray-600 mt-4 text-lg font-medium">
+          Loading profile...
+        </p>
       </div>
     );
   }
@@ -443,11 +431,14 @@ export default function ProfilePage() {
               <div className="absolute inset-0 bg-gradient-to-r from-red-400 to-pink-500 rounded-full blur-lg opacity-30"></div>
               <User className="h-24 w-24 text-gradient-to-r from-red-400 to-pink-500 mx-auto relative z-10" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">User Not Found</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">
+              User Not Found
+            </h3>
             <p className="text-gray-600 mb-6">
-              The requested user profile could not be found or you don't have permission to view it.
+              The requested user profile could not be found or you don't have
+              permission to view it.
             </p>
-            <Button 
+            <Button
               onClick={() => window.history.back()}
               className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg"
             >
@@ -486,10 +477,16 @@ export default function ProfilePage() {
               </Badge>
               <div className="flex items-center gap-2 px-4 py-1.5 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm">
                 <Briefcase className="h-3.5 w-3.5 text-gray-600" />
-                <span className="text-gray-700 font-medium">{user.department}</span>
+                <span className="text-gray-700 font-medium">
+                  {user.department}
+                </span>
               </div>
               <p className="text-gray-600 text-lg">
-                Welcome to <span className="font-semibold text-gray-900">{user.fullName}'s</span> profile
+                Welcome to{" "}
+                <span className="font-semibold text-gray-900">
+                  {user.fullName}'s
+                </span>{" "}
+                profile
               </p>
             </div>
           </div>
@@ -517,7 +514,7 @@ export default function ProfilePage() {
               <div className="absolute -top-20 -right-20 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
               <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-300/20 rounded-full blur-2xl"></div>
             </div>
-            
+
             {/* Profile Picture Section */}
             <CardContent className="relative pt-0 px-8 pb-8">
               <div className="flex flex-col items-center -mt-24 mb-8">
@@ -536,10 +533,15 @@ export default function ProfilePage() {
                   {/* Upload Overlay */}
                   {canEdit() && (
                     <>
-                      <div className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-20 cursor-pointer">
+                      <div
+                        className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-20 cursor-pointer"
+                        onClick={() => fileInputRef.current?.click()} // Add this line
+                      >
                         <div className="text-center">
                           <Camera className="h-8 w-8 text-white mx-auto mb-2" />
-                          <span className="text-white text-sm font-medium">Change Photo</span>
+                          <span className="text-white text-sm font-medium">
+                            Change Photo
+                          </span>
                         </div>
                       </div>
                       <input
@@ -551,14 +553,28 @@ export default function ProfilePage() {
                       />
                     </>
                   )}
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    variant="outline"
+                    className="mt-4"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Profile Picture
+                  </Button>
                 </div>
 
                 <div className="text-center mt-8">
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">{user.fullName}</h2>
-                  <p className="text-gray-600 text-lg mb-3">{user.jobTitle || "No title assigned"}</p>
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                    {user.fullName}
+                  </h2>
+                  <p className="text-gray-600 text-lg mb-3">
+                    {user.jobTitle || "No title assigned"}
+                  </p>
                   <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-50 to-white rounded-full border border-gray-200 shadow-sm">
                     <Briefcase className="h-4 w-4 text-gray-500" />
-                    <span className="text-gray-700 font-medium">{user.department}</span>
+                    <span className="text-gray-700 font-medium">
+                      {user.department}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -570,7 +586,9 @@ export default function ProfilePage() {
                     <Mail className="h-5 w-5 text-blue-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Email</p>
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                      Email
+                    </p>
                     <p className="font-medium text-gray-900 mt-1 truncate">
                       {user.email || "Not provided"}
                     </p>
@@ -582,8 +600,12 @@ export default function ProfilePage() {
                     <Phone className="h-5 w-5 text-green-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Mobile</p>
-                    <p className="font-medium text-gray-900 mt-1">{user.mobile || "Not provided"}</p>
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                      Mobile
+                    </p>
+                    <p className="font-medium text-gray-900 mt-1">
+                      {user.mobile || "Not provided"}
+                    </p>
                   </div>
                 </div>
 
@@ -592,8 +614,12 @@ export default function ProfilePage() {
                     <Calendar className="h-5 w-5 text-purple-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Joined</p>
-                    <p className="font-medium text-gray-900 mt-1">{formatDate(user.createdAt)}</p>
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                      Joined
+                    </p>
+                    <p className="font-medium text-gray-900 mt-1">
+                      {formatDate(user.createdAt)}
+                    </p>
                   </div>
                 </div>
 
@@ -602,7 +628,9 @@ export default function ProfilePage() {
                     <MapPin className="h-5 w-5 text-orange-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Address</p>
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                      Address
+                    </p>
                     <p className="font-medium text-gray-900 mt-1">
                       {user.address || "Not provided"}
                     </p>
@@ -617,7 +645,7 @@ export default function ProfilePage() {
             <Card className="border-0 shadow-2xl relative bg-gradient-to-br from-white to-emerald-50/30 overflow-hidden">
               {/* Decorative elements */}
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-200/20 to-teal-200/20 rounded-full -translate-y-16 translate-x-16"></div>
-              
+
               <CardHeader className="relative z-10 bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-6">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl font-bold flex items-center gap-3">
@@ -636,41 +664,53 @@ export default function ProfilePage() {
                   <div className="flex justify-between items-center py-4 border-b border-gray-200/50">
                     <div>
                       <p className="text-gray-600 font-medium">Basic Salary</p>
-                      <p className="text-sm text-gray-500">Fixed monthly amount</p>
+                      <p className="text-sm text-gray-500">
+                        Fixed monthly amount
+                      </p>
                     </div>
                     <span className="text-2xl font-bold text-gray-900">
                       PKR {user.salary?.toLocaleString() || "0"}
                     </span>
                   </div>
-                  
+
                   <div className="flex justify-between items-center py-4 border-b border-gray-200/50">
                     <div>
                       <p className="text-gray-600 font-medium">Incentive</p>
-                      <p className="text-sm text-emerald-500 font-medium">Performance bonus</p>
+                      <p className="text-sm text-emerald-500 font-medium">
+                        Performance bonus
+                      </p>
                     </div>
                     <span className="text-2xl font-bold text-emerald-600">
                       + PKR {user.incentive?.toLocaleString() || "0"}
                     </span>
                   </div>
-                  
+
                   {user.taxDeduction && (
                     <div className="flex justify-between items-center py-4 border-b border-gray-200/50">
                       <div>
-                        <p className="text-gray-600 font-medium">Tax Deduction</p>
-                        <p className="text-sm text-rose-500 font-medium">Government tax</p>
+                        <p className="text-gray-600 font-medium">
+                          Tax Deduction
+                        </p>
+                        <p className="text-sm text-rose-500 font-medium">
+                          Government tax
+                        </p>
                       </div>
                       <span className="text-2xl font-bold text-rose-600">
                         - PKR {user.taxAmount?.toLocaleString() || "0"}
                       </span>
                     </div>
                   )}
-                  
+
                   <div className="pt-6">
                     <div className="bg-gradient-to-r from-emerald-50 to-white p-6 rounded-2xl border border-emerald-200 shadow-lg">
                       <div className="flex justify-between items-center">
                         <div>
-                          <p className="text-gray-600 font-semibold text-lg">Net Salary</p>
-                          <p className="text-sm text-gray-500">Take home amount</p>
+                          <p className="text-gray-600 font-semibold text-lg">
+                            Net Salary
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Take home amount
+                          </p>
                         </div>
                         <span className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-700 bg-clip-text text-transparent">
                           PKR {calculateNetSalary().toLocaleString()}
@@ -679,12 +719,17 @@ export default function ProfilePage() {
                       <div className="mt-4">
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                          <span>Gross: PKR {(user.salary + user.incentive).toLocaleString()}</span>
+                          <span>
+                            Gross: PKR{" "}
+                            {(user.salary + user.incentive).toLocaleString()}
+                          </span>
                         </div>
                         {user.taxDeduction && (
                           <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
                             <div className="w-3 h-3 rounded-full bg-rose-500"></div>
-                            <span>Tax: PKR {(user.taxAmount || 0).toLocaleString()}</span>
+                            <span>
+                              Tax: PKR {(user.taxAmount || 0).toLocaleString()}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -746,11 +791,16 @@ export default function ProfilePage() {
                   <div>
                     <div className="flex items-center gap-2 mb-6">
                       <div className="w-1 h-8 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></div>
-                      <h3 className="text-xl font-bold text-gray-900">Personal Information</h3>
+                      <h3 className="text-xl font-bold text-gray-900">
+                        Personal Information
+                      </h3>
                     </div>
                     <div className="space-y-6">
                       <div>
-                        <Label htmlFor="fullName" className="text-gray-700 font-medium mb-2 block">
+                        <Label
+                          htmlFor="fullName"
+                          className="text-gray-700 font-medium mb-2 block"
+                        >
                           Full Name
                         </Label>
                         <Input
@@ -764,7 +814,10 @@ export default function ProfilePage() {
                       </div>
 
                       <div>
-                        <Label htmlFor="email" className="text-gray-700 font-medium mb-2 block">
+                        <Label
+                          htmlFor="email"
+                          className="text-gray-700 font-medium mb-2 block"
+                        >
                           Email Address
                         </Label>
                         <Input
@@ -780,7 +833,10 @@ export default function ProfilePage() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
-                          <Label htmlFor="mobile" className="text-gray-700 font-medium mb-2 block">
+                          <Label
+                            htmlFor="mobile"
+                            className="text-gray-700 font-medium mb-2 block"
+                          >
                             Mobile Number
                           </Label>
                           <Input
@@ -794,7 +850,10 @@ export default function ProfilePage() {
                         </div>
 
                         <div>
-                          <Label htmlFor="alternateMobile" className="text-gray-700 font-medium mb-2 block">
+                          <Label
+                            htmlFor="alternateMobile"
+                            className="text-gray-700 font-medium mb-2 block"
+                          >
                             Alternate Mobile
                           </Label>
                           <Input
@@ -809,7 +868,10 @@ export default function ProfilePage() {
                       </div>
 
                       <div>
-                        <Label htmlFor="address" className="text-gray-700 font-medium mb-2 block">
+                        <Label
+                          htmlFor="address"
+                          className="text-gray-700 font-medium mb-2 block"
+                        >
                           Address
                         </Label>
                         <Textarea
@@ -831,11 +893,16 @@ export default function ProfilePage() {
                   <div>
                     <div className="flex items-center gap-2 mb-6">
                       <div className="w-1 h-8 bg-gradient-to-b from-emerald-500 to-teal-600 rounded-full"></div>
-                      <h3 className="text-xl font-bold text-gray-900">Job Information</h3>
+                      <h3 className="text-xl font-bold text-gray-900">
+                        Job Information
+                      </h3>
                     </div>
                     <div className="space-y-6">
                       <div>
-                        <Label htmlFor="jobTitle" className="text-gray-700 font-medium mb-2 block">
+                        <Label
+                          htmlFor="jobTitle"
+                          className="text-gray-700 font-medium mb-2 block"
+                        >
                           Job Title
                         </Label>
                         <Input
@@ -856,7 +923,10 @@ export default function ProfilePage() {
                       </div>
 
                       <div>
-                        <Label htmlFor="department" className="text-gray-700 font-medium mb-2 block">
+                        <Label
+                          htmlFor="department"
+                          className="text-gray-700 font-medium mb-2 block"
+                        >
                           Department
                         </Label>
                         <Select
@@ -882,9 +952,15 @@ export default function ProfilePage() {
                             <SelectItem value="sales">Sales</SelectItem>
                             <SelectItem value="support">Support</SelectItem>
                             <SelectItem value="marketing">Marketing</SelectItem>
-                            <SelectItem value="it">Information Technology</SelectItem>
-                            <SelectItem value="operations">Operations</SelectItem>
-                            <SelectItem value="admin">Administration</SelectItem>
+                            <SelectItem value="it">
+                              Information Technology
+                            </SelectItem>
+                            <SelectItem value="operations">
+                              Operations
+                            </SelectItem>
+                            <SelectItem value="admin">
+                              Administration
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -895,7 +971,10 @@ export default function ProfilePage() {
                           <>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                               <div>
-                                <Label htmlFor="salary" className="text-gray-700 font-medium mb-2 block">
+                                <Label
+                                  htmlFor="salary"
+                                  className="text-gray-700 font-medium mb-2 block"
+                                >
                                   Salary (PKR)
                                 </Label>
                                 <Input
@@ -910,7 +989,10 @@ export default function ProfilePage() {
                               </div>
 
                               <div>
-                                <Label htmlFor="incentive" className="text-gray-700 font-medium mb-2 block">
+                                <Label
+                                  htmlFor="incentive"
+                                  className="text-gray-700 font-medium mb-2 block"
+                                >
                                   Incentive (PKR)
                                 </Label>
                                 <Input
@@ -928,7 +1010,10 @@ export default function ProfilePage() {
                             <div className="space-y-6 pt-2">
                               <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200">
                                 <div>
-                                  <Label htmlFor="taxDeduction" className="text-gray-700 font-medium block">
+                                  <Label
+                                    htmlFor="taxDeduction"
+                                    className="text-gray-700 font-medium block"
+                                  >
                                     Tax Deduction
                                   </Label>
                                   <p className="text-sm text-gray-500 mt-1">
@@ -946,7 +1031,10 @@ export default function ProfilePage() {
 
                               {formData.taxDeduction && (
                                 <div>
-                                  <Label htmlFor="taxAmount" className="text-gray-700 font-medium mb-2 block">
+                                  <Label
+                                    htmlFor="taxAmount"
+                                    className="text-gray-700 font-medium mb-2 block"
+                                  >
                                     Tax Amount (PKR)
                                   </Label>
                                   <Input
@@ -993,8 +1081,12 @@ export default function ProfilePage() {
                           <Key className="h-5 w-5 text-blue-600" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-gray-900">Current Password</h4>
-                          <p className="text-sm text-gray-500">Enter your current password to proceed</p>
+                          <h4 className="font-semibold text-gray-900">
+                            Current Password
+                          </h4>
+                          <p className="text-sm text-gray-500">
+                            Enter your current password to proceed
+                          </p>
                         </div>
                       </div>
                       <div className="relative">
@@ -1029,8 +1121,12 @@ export default function ProfilePage() {
                           <Lock className="h-5 w-5 text-emerald-600" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-gray-900">New Password</h4>
-                          <p className="text-sm text-gray-500">Choose a strong new password</p>
+                          <h4 className="font-semibold text-gray-900">
+                            New Password
+                          </h4>
+                          <p className="text-sm text-gray-500">
+                            Choose a strong new password
+                          </p>
                         </div>
                       </div>
                       <div className="relative">
@@ -1058,7 +1154,9 @@ export default function ProfilePage() {
                       <div className="bg-blue-50/50 border border-blue-200 rounded-lg p-4">
                         <p className="text-sm text-blue-700 flex items-start gap-2">
                           <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                          <span>Password must be at least 6 characters long</span>
+                          <span>
+                            Password must be at least 6 characters long
+                          </span>
                         </p>
                       </div>
                     </div>
@@ -1069,8 +1167,12 @@ export default function ProfilePage() {
                           <Lock className="h-5 w-5 text-purple-600" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-gray-900">Confirm Password</h4>
-                          <p className="text-sm text-gray-500">Re-enter your new password</p>
+                          <h4 className="font-semibold text-gray-900">
+                            Confirm Password
+                          </h4>
+                          <p className="text-sm text-gray-500">
+                            Re-enter your new password
+                          </p>
                         </div>
                       </div>
                       <div className="relative">
@@ -1096,17 +1198,22 @@ export default function ProfilePage() {
                         </button>
                       </div>
                       {formData.newPassword && formData.confirmPassword && (
-                        <div className={`rounded-lg p-4 ${
-                          formData.newPassword === formData.confirmPassword 
-                            ? 'bg-emerald-50 border border-emerald-200' 
-                            : 'bg-rose-50 border border-rose-200'
-                        }`}>
-                          <p className={`text-sm flex items-center gap-2 ${
-                            formData.newPassword === formData.confirmPassword 
-                              ? 'text-emerald-700' 
-                              : 'text-rose-700'
-                          }`}>
-                            {formData.newPassword === formData.confirmPassword ? (
+                        <div
+                          className={`rounded-lg p-4 ${
+                            formData.newPassword === formData.confirmPassword
+                              ? "bg-emerald-50 border border-emerald-200"
+                              : "bg-rose-50 border border-rose-200"
+                          }`}
+                        >
+                          <p
+                            className={`text-sm flex items-center gap-2 ${
+                              formData.newPassword === formData.confirmPassword
+                                ? "text-emerald-700"
+                                : "text-rose-700"
+                            }`}
+                          >
+                            {formData.newPassword ===
+                            formData.confirmPassword ? (
                               <>
                                 <Check className="h-4 w-4" />
                                 <span>Passwords match</span>
@@ -1127,23 +1234,29 @@ export default function ProfilePage() {
 
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                     <div className="flex-1">
-                      {currentUser?.role === "admin" && currentUser.id !== user.id ? (
+                      {currentUser?.role === "admin" &&
+                      currentUser.id !== user.id ? (
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                           <p className="text-sm text-amber-800 flex items-start gap-2">
                             <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                            <span className="font-medium">Admin Mode:</span> You can change this user's password without entering their current password.
+                            <span className="font-medium">Admin Mode:</span> You
+                            can change this user's password without entering
+                            their current password.
                           </p>
                         </div>
                       ) : (
                         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                           <p className="text-sm text-blue-800 flex items-start gap-2">
                             <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                            <span>Ensure your current password is correct before changing.</span>
+                            <span>
+                              Ensure your current password is correct before
+                              changing.
+                            </span>
                           </p>
                         </div>
                       )}
                     </div>
-                    
+
                     <Button
                       onClick={handlePasswordChange}
                       disabled={passwordChangeLoading}
@@ -1208,8 +1321,12 @@ export default function ProfilePage() {
             {uploading && (
               <div className="space-y-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 font-medium">Uploading...</span>
-                  <span className="font-bold text-blue-600">{uploadProgress}%</span>
+                  <span className="text-gray-600 font-medium">
+                    Uploading...
+                  </span>
+                  <span className="font-bold text-blue-600">
+                    {uploadProgress}%
+                  </span>
                 </div>
                 <Progress value={uploadProgress} className="h-2 bg-gray-200" />
               </div>
@@ -1232,7 +1349,7 @@ export default function ProfilePage() {
                           {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                         </span>
                         <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
-                          {selectedFile.type.split('/')[1].toUpperCase()}
+                          {selectedFile.type.split("/")[1].toUpperCase()}
                         </span>
                       </div>
                     </div>
@@ -1292,7 +1409,9 @@ export default function ProfilePage() {
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-gray-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm text-gray-700 font-medium mb-1">Upload Guidelines</p>
+                  <p className="text-sm text-gray-700 font-medium mb-1">
+                    Upload Guidelines
+                  </p>
                   <ul className="text-xs text-gray-600 space-y-1">
                     <li className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>

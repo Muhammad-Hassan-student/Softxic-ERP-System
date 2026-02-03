@@ -6,25 +6,25 @@ import bcrypt from "bcryptjs";
 
 // Helper to get token from request
 function getTokenFromRequest(request: NextRequest): string | null {
-  // First try Authorization header
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
     return authHeader.split(" ")[1];
   }
 
-  // Then try cookies
   const token = request.cookies.get("token")?.value;
-  if (token) return token;
-
-  return null;
+  return token || null;
 }
 
-export async function POST(request: NextRequest) {
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
   try {
     await connectDB();
 
-    // Get token from request
+    const { id } = await context.params;
     const token = getTokenFromRequest(request);
+
     if (!token) {
       return NextResponse.json(
         { success: false, message: "Authentication required" },
@@ -32,7 +32,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify token
     const decoded = verifyToken(token);
     if (!decoded) {
       return NextResponse.json(
@@ -42,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId, currentPassword, newPassword } = body;
+    const { currentPassword, newPassword, confirmPassword } = body;
 
     if (!newPassword || newPassword.length < 6) {
       return NextResponse.json(
@@ -50,6 +49,13 @@ export async function POST(request: NextRequest) {
           success: false,
           message: "New password must be at least 6 characters",
         },
+        { status: 400 },
+      );
+    }
+
+    if (newPassword !== confirmPassword) {
+      return NextResponse.json(
+        { success: false, message: "Passwords do not match" },
         { status: 400 },
       );
     }
@@ -64,8 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find target user
-    const targetUserId = userId || decoded.userId;
-    const targetUser = await User.findById(targetUserId);
+    const targetUser = await User.findById(id);
     if (!targetUser) {
       return NextResponse.json(
         { success: false, message: "Target user not found" },
@@ -75,8 +80,7 @@ export async function POST(request: NextRequest) {
 
     // Check permissions
     const canChangePassword =
-      requestingUser.role === "admin" ||
-      requestingUser._id.toString() === targetUserId;
+      requestingUser.role === "admin" || requestingUser._id.toString() === id;
 
     if (!canChangePassword) {
       return NextResponse.json(
@@ -89,7 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     // If user is changing their own password, verify current password
-    if (requestingUser._id.toString() === targetUserId) {
+    if (requestingUser._id.toString() === id) {
       if (!currentPassword) {
         return NextResponse.json(
           { success: false, message: "Current password is required" },
@@ -101,6 +105,7 @@ export async function POST(request: NextRequest) {
         currentPassword,
         targetUser.password,
       );
+
       if (!isPasswordValid) {
         return NextResponse.json(
           { success: false, message: "Current password is incorrect" },
