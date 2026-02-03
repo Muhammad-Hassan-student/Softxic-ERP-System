@@ -1078,603 +1078,305 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Password Security Management - ALWAYS SHOW */}
-          <Card className="border-0 shadow-2xl bg-gradient-to-br from-white to-gray-50/30 overflow-hidden backdrop-blur-sm relative">
-            {/* Animated Background Effects */}
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 animate-pulse"></div>
-            <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-amber-100/20 to-orange-100/20 rounded-full blur-2xl"></div>
-            <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-gradient-to-tr from-blue-100/20 to-indigo-100/20 rounded-full blur-2xl"></div>
+          {/* Password Security Management - Simplified Beautiful Design */}
+<Card className="border-0 shadow-2xl bg-gradient-to-br from-white to-gray-50/30 overflow-hidden backdrop-blur-sm">
+  <CardHeader className="border-b border-gray-200/50 bg-gradient-to-r from-white/90 to-gray-50/90 backdrop-blur-sm py-6">
+    <div className="flex items-center gap-3">
+      <div className="relative">
+        <div className="absolute -inset-2 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl blur opacity-30"></div>
+        <div className="relative p-2.5 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg shadow-xl">
+          <Lock className="h-6 w-6 text-white" />
+        </div>
+      </div>
+      <div>
+        <CardTitle className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+          Password Security
+        </CardTitle>
+        <p className="text-gray-600 text-sm mt-1">
+          Manage account authentication credentials securely
+        </p>
+      </div>
+    </div>
+  </CardHeader>
 
-            <CardHeader className="relative z-10 border-b border-gray-200/50 bg-gradient-to-r from-white/90 to-gray-50/90 backdrop-blur-sm py-8 px-10">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="absolute -inset-2 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl blur opacity-30"></div>
-                    <div className="relative p-3 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg shadow-xl">
-                      <Lock className="h-8 w-8 text-white" />
-                    </div>
-                  </div>
-                  <div>
-                    <CardTitle className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                      Password Security
-                    </CardTitle>
-                    <p className="text-gray-600 mt-1.5 flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-green-500" />
-                      <span>Manage account authentication credentials</span>
-                    </p>
-                  </div>
-                </div>
+  <CardContent className="p-6">
+    {/* Employee Password Restriction View */}
+    {user.role === "employee" && currentUser?.id === user.id ? (
+      <div className="text-center py-8">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-amber-100 to-orange-100 rounded-2xl mb-4">
+          <Lock className="h-8 w-8 text-amber-600" />
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-3">
+          Password Change Restricted
+        </h3>
+        <p className="text-gray-600 mb-6 max-w-md mx-auto">
+          For security compliance, employees cannot change their own passwords. 
+          Please contact your HR department or system administrator for assistance.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Button
+            onClick={() => toast.info("HR department has been notified")}
+            className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Contact HR Department
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => toast.info("Admin has been notified")}
+            className="border-amber-300 text-amber-700 hover:bg-amber-50"
+          >
+            <Shield className="h-4 w-4 mr-2" />
+            Contact Administrator
+          </Button>
+        </div>
+      </div>
+    ) : canChangePassword() ? (
+      /* Authorized Password Change Form - Simplified */
+      <div className="space-y-6">
+        {/* Security Requirements */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-gray-900 text-sm mb-2">
+                Password Requirements
+              </p>
+              <ul className="text-xs text-gray-600 space-y-1">
+                <li className="flex items-center gap-2">
+                  <Check className="h-3 w-3 text-green-500" />
+                  Minimum 6 characters
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-3 w-3 text-green-500" />
+                  No common passwords
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-3 w-3 text-green-500" />
+                  Should include letters and numbers
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
 
-                {/* Security Status Badge */}
-                <div className="flex items-center gap-3">
-                  <div className={`px-4 py-2 rounded-full border shadow-sm backdrop-blur-sm ${
-                    canChangePassword() 
-                      ? 'bg-emerald-50/80 border-emerald-200 text-emerald-700' 
-                      : 'bg-amber-50/80 border-amber-200 text-amber-700'
+        {/* Current Password - Only for self-change */}
+        {currentUser?.id === user.id && currentUser?.role !== "employee" && (
+          <div className="space-y-3">
+            <Label htmlFor="currentPassword" className="text-gray-700 font-medium">
+              Current Password
+            </Label>
+            <div className="relative">
+              <Input
+                id="currentPassword"
+                name="currentPassword"
+                type={showPassword ? "text" : "password"}
+                value={formData.currentPassword}
+                onChange={handleInputChange}
+                className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 pr-10"
+                placeholder="Enter current password"
+                required
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* New Password */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <Label htmlFor="newPassword" className="text-gray-700 font-medium">
+              New Password
+            </Label>
+            <div className="relative">
+              <Input
+                id="newPassword"
+                name="newPassword"
+                type={showPassword ? "text" : "password"}
+                value={formData.newPassword}
+                onChange={handleInputChange}
+                className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 pr-10"
+                placeholder="Enter new password"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+            
+            {/* Password Strength Indicator */}
+            {formData.newPassword && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-600">Password Strength</span>
+                  <span className={`font-medium ${
+                    formData.newPassword.length >= 8 ? 'text-green-600' : 
+                    formData.newPassword.length >= 6 ? 'text-yellow-600' : 'text-red-600'
                   }`}>
-                    <div className="flex items-center gap-2">
-                      <div className={`h-2 w-2 rounded-full animate-pulse ${
-                        canChangePassword() ? 'bg-emerald-500' : 'bg-amber-500'
-                      }`}></div>
-                      <span className="font-semibold text-sm">
-                        {canChangePassword() ? 'Password Change Available' : 'Restricted Access'}
-                      </span>
-                    </div>
-                  </div>
+                    {formData.newPassword.length >= 8 ? 'Strong' : 
+                     formData.newPassword.length >= 6 ? 'Good' : 'Weak'}
+                  </span>
+                </div>
+                <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      formData.newPassword.length >= 8 ? 'bg-green-500' : 
+                      formData.newPassword.length >= 6 ? 'bg-yellow-500' : 'bg-red-500'
+                    }`}
+                    style={{ width: `${Math.min(formData.newPassword.length * 12.5, 100)}%` }}
+                  ></div>
                 </div>
               </div>
-            </CardHeader>
+            )}
+          </div>
 
-            <CardContent className="relative z-10 p-10">
-              {/* Employee Password Restriction View */}
-              {user.role === "employee" && currentUser?.id === user.id ? (
-                <div className="space-y-8">
-                  {/* Security Policy Card */}
-                  <div className="bg-gradient-to-br from-white to-amber-50/30 border border-amber-200/50 rounded-2xl shadow-lg overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-amber-100/20 to-orange-100/20 rounded-full -translate-y-16 translate-x-16"></div>
-                    
-                    <div className="relative p-8">
-                      <div className="flex flex-col lg:flex-row items-start gap-8">
-                        {/* Left Column - Icon & Title */}
-                        <div className="lg:w-1/4">
-                          <div className="relative">
-                            <div className="absolute -inset-4 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full blur-xl opacity-20"></div>
-                            <div className="relative bg-gradient-to-br from-amber-100 to-orange-100 p-5 rounded-2xl border border-amber-200 shadow-lg">
-                              <div className="flex flex-col items-center text-center">
-                                <div className="p-3 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl mb-4">
-                                  <Shield className="h-10 w-10 text-white" />
-                                </div>
-                                <h3 className="text-lg font-bold text-amber-900">Security Policy</h3>
-                                <div className="mt-2 w-12 h-1 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full"></div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+          {/* Confirm Password */}
+          <div className="space-y-3">
+            <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">
+              Confirm Password
+            </Label>
+            <div className="relative">
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type={showPassword ? "text" : "password"}
+                value={formData.confirmPassword}
+                onChange={handleInputChange}
+                className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 pr-10"
+                placeholder="Confirm new password"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+            
+            {/* Password Match Indicator */}
+            {formData.confirmPassword && (
+              <div className={`flex items-center gap-2 text-sm ${
+                formData.newPassword === formData.confirmPassword 
+                  ? 'text-green-600' 
+                  : 'text-red-600'
+              }`}>
+                {formData.newPassword === formData.confirmPassword ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    <span>Passwords match</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="h-4 w-4" />
+                    <span>Passwords don't match</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
 
-                        {/* Right Column - Content */}
-                        <div className="lg:w-3/4 space-y-6">
-                          <div>
-                            <h4 className="text-2xl font-bold text-amber-900 mb-3">Password Management Restricted</h4>
-                            <p className="text-amber-800/90 leading-relaxed">
-                              For enhanced security and compliance with company policies, employee password changes are 
-                              managed exclusively by authorized personnel. This ensures proper audit trails and prevents 
-                              unauthorized access attempts.
-                            </p>
-                          </div>
+        {/* Permission Context */}
+        <div className="bg-gradient-to-r from-gray-50 to-white/80 rounded-xl border border-gray-200 p-4">
+          <div className="flex items-start gap-3">
+            <Shield className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-gray-900 text-sm">
+                {currentUser?.role === "admin" && currentUser.id !== user.id
+                  ? "Administrator Password Reset"
+                  : currentUser?.role === "hr" && user.role === "employee"
+                  ? "HR Password Management"
+                  : "Personal Password Change"}
+              </p>
+              <p className="text-xs text-gray-600 mt-1">
+                {currentUser?.role === "admin" && currentUser.id !== user.id
+                  ? "You can reset this user's password without their current credentials."
+                  : currentUser?.role === "hr" && user.role === "employee"
+                  ? "You can manage employee passwords as part of HR responsibilities."
+                  : "You are changing your own account password."}
+              </p>
+            </div>
+          </div>
+        </div>
 
-                          {/* Security Features List */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                            <div className="flex items-start gap-3 p-4 bg-white/50 rounded-xl border border-amber-100">
-                              <div className="p-2 bg-amber-100 rounded-lg">
-                                <Lock className="h-5 w-5 text-amber-600" />
-                              </div>
-                              <div>
-                                <p className="font-semibold text-amber-900">Enhanced Security</p>
-                                <p className="text-sm text-amber-700 mt-1">Centralized password management prevents security breaches</p>
-                              </div>
-                            </div>
-                            <div className="flex items-start gap-3 p-4 bg-white/50 rounded-xl border border-amber-100">
-                              <div className="p-2 bg-amber-100 rounded-lg">
-                                <Shield className="h-5 w-5 text-amber-600" />
-                              </div>
-                              <div>
-                                <p className="font-semibold text-amber-900">Compliance Ready</p>
-                                <p className="text-sm text-amber-700 mt-1">Meets industry security standards and audit requirements</p>
-                              </div>
-                            </div>
-                            <div className="flex items-start gap-3 p-4 bg-white/50 rounded-xl border border-amber-100">
-                              <div className="p-2 bg-amber-100 rounded-lg">
-                                <Activity className="h-5 w-5 text-amber-600" />
-                              </div>
-                              <div>
-                                <p className="font-semibold text-amber-900">Audit Trail</p>
-                                <p className="text-sm text-amber-700 mt-1">All password changes are logged for security monitoring</p>
-                              </div>
-                            </div>
-                            <div className="flex items-start gap-3 p-4 bg-white/50 rounded-xl border border-amber-100">
-                              <div className="p-2 bg-amber-100 rounded-lg">
-                                <Clock className="h-5 w-5 text-amber-600" />
-                              </div>
-                              <div>
-                                <p className="font-semibold text-amber-900">Quick Resolution</p>
-                                <p className="text-sm text-amber-700 mt-1">HR resolves password issues within 15 minutes during business hours</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Contact Options */}
-                          <div className="pt-6">
-                            <div className="bg-gradient-to-r from-white to-amber-50/50 rounded-xl border border-amber-200 p-6">
-                              <h5 className="font-semibold text-lg text-amber-900 mb-4 flex items-center gap-2">
-                                <MessageSquare className="h-5 w-5" />
-                                Request Password Reset
-                              </h5>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <Button
-                                  onClick={() => {
-                                    toast.success("Password reset request sent to HR Department", {
-                                      description: "You will receive a confirmation email shortly",
-                                    });
-                                  }}
-                                  className="h-14 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-lg hover:shadow-xl border-0 transition-all duration-300 group"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <Users className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                                    <div className="text-left">
-                                      <div className="font-semibold">Contact HR Department</div>
-                                      <div className="text-xs opacity-90">hr@company.com • Ext: 102</div>
-                                    </div>
-                                  </div>
-                                </Button>
-                                <Button
-                                  onClick={() => {
-                                    toast.success("Administrator has been notified", {
-                                      description: "System Administrator will contact you soon",
-                                    });
-                                  }}
-                                  variant="outline"
-                                  className="h-14 border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400 hover:text-amber-800 transition-all duration-300 group"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <Shield className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                                    <div className="text-left">
-                                      <div className="font-semibold">Contact System Admin</div>
-                                      <div className="text-xs opacity-90">admin@company.com • Ext: 101</div>
-                                    </div>
-                                  </div>
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : canChangePassword() ? (
-                /* Authorized Password Change Form */
-                <div className="space-y-10">
-                  {/* Password Requirements Banner */}
-                  <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 border border-blue-200/50 rounded-2xl p-6 backdrop-blur-sm">
-                    <div className="flex items-start gap-4">
-                      <div className="p-3 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl shadow-sm">
-                        <AlertCircle className="h-6 w-6 text-blue-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-gray-900 text-lg mb-2">Password Security Requirements</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                            <span className="text-sm text-gray-700">Minimum 8 characters</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                            <span className="text-sm text-gray-700">At least one uppercase letter</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                            <span className="text-sm text-gray-700">At least one number</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                            <span className="text-sm text-gray-700">At least one special character</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                            <span className="text-sm text-gray-700">No repeating characters</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                            <span className="text-sm text-gray-700">Different from last 5 passwords</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Password Input Sections */}
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Current Password (Conditional) */}
-                    {currentUser?.id === user.id && currentUser?.role !== "employee" && (
-                      <div className="lg:col-span-3">
-                        <div className="bg-gradient-to-br from-white to-blue-50/30 border border-blue-200/50 rounded-2xl p-8 shadow-lg">
-                          <div className="flex items-center gap-4 mb-6">
-                            <div className="relative">
-                              <div className="absolute -inset-3 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full blur opacity-20"></div>
-                              <div className="relative p-3 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl">
-                                <Key className="h-6 w-6 text-blue-600" />
-                              </div>
-                            </div>
-                            <div>
-                              <h3 className="text-xl font-bold text-gray-900">Current Password Verification</h3>
-                              <p className="text-gray-600 mt-1">Verify your identity with existing credentials</p>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-6">
-                            <div className="relative group">
-                              <Input
-                                id="currentPassword"
-                                name="currentPassword"
-                                type={showPassword ? "text" : "password"}
-                                value={formData.currentPassword}
-                                onChange={handleInputChange}
-                                className="h-14 text-lg border-2 border-blue-200/50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm rounded-xl pl-12 pr-12 transition-all duration-300"
-                                placeholder="Enter current password"
-                                required
-                              />
-                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                                <Key className="h-5 w-5" />
-                              </div>
-                              <button
-                                type="button"
-                                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-blue-600 transition-colors group"
-                                onClick={() => setShowPassword(!showPassword)}
-                              >
-                                {showPassword ? (
-                                  <EyeOff className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                                ) : (
-                                  <Eye className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                                )}
-                              </button>
-                            </div>
-                            
-                            {/* Password Strength Indicator */}
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-gray-700">Verification Status</span>
-                                <span className="text-sm font-semibold text-blue-600">
-                                  {formData.currentPassword ? "Validating..." : "Required"}
-                                </span>
-                              </div>
-                              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                <div 
-                                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500"
-                                  style={{ width: formData.currentPassword ? '100%' : '0%' }}
-                                ></div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* New Password */}
-                    <div className="lg:col-span-2">
-                      <div className="bg-gradient-to-br from-white to-emerald-50/30 border border-emerald-200/50 rounded-2xl p-8 shadow-lg h-full">
-                        <div className="flex items-center gap-4 mb-6">
-                          <div className="relative">
-                            <div className="absolute -inset-3 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full blur opacity-20"></div>
-                            <div className="relative p-3 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-xl">
-                              <Lock className="h-6 w-6 text-emerald-600" />
-                            </div>
-                          </div>
-                          <div>
-                            <h3 className="text-xl font-bold text-gray-900">New Password</h3>
-                            <p className="text-gray-600 mt-1">Create a strong, secure password</p>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-6">
-                          <div className="relative group">
-                            <Input
-                              id="newPassword"
-                              name="newPassword"
-                              type={showPassword ? "text" : "password"}
-                              value={formData.newPassword}
-                              onChange={handleInputChange}
-                              className="h-14 text-lg border-2 border-emerald-200/50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-sm rounded-xl pl-12 pr-12 transition-all duration-300"
-                              placeholder="Enter new password"
-                            />
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                              <Lock className="h-5 w-5" />
-                            </div>
-                            <button
-                              type="button"
-                              className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-emerald-600 transition-colors group"
-                              onClick={() => setShowPassword(!showPassword)}
-                            >
-                              {showPassword ? (
-                                <EyeOff className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                              ) : (
-                                <Eye className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                              )}
-                            </button>
-                          </div>
-                          
-                          {/* Password Strength Meter */}
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-gray-700">Password Strength</span>
-                              <span className="text-sm font-semibold text-emerald-600">
-                                {formData.newPassword.length >= 8 ? "Strong" : "Weak"}
-                              </span>
-                            </div>
-                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full transition-all duration-500"
-                                style={{ width: `${Math.min(formData.newPassword.length * 8.33, 100)}%` }}
-                              ></div>
-                            </div>
-                            <div className="flex flex-wrap gap-3">
-                              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
-                                formData.newPassword.length >= 8 
-                                  ? 'bg-emerald-100 text-emerald-700' 
-                                  : 'bg-gray-100 text-gray-500'
-                              }`}>
-                                <div className={`h-1.5 w-1.5 rounded-full ${formData.newPassword.length >= 8 ? 'bg-emerald-500' : 'bg-gray-400'}`}></div>
-                                8+ Characters
-                              </div>
-                              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
-                                /[A-Z]/.test(formData.newPassword)
-                                  ? 'bg-emerald-100 text-emerald-700' 
-                                  : 'bg-gray-100 text-gray-500'
-                              }`}>
-                                <div className={`h-1.5 w-1.5 rounded-full ${/[A-Z]/.test(formData.newPassword) ? 'bg-emerald-500' : 'bg-gray-400'}`}></div>
-                                Uppercase
-                              </div>
-                              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
-                                /\d/.test(formData.newPassword)
-                                  ? 'bg-emerald-100 text-emerald-700' 
-                                  : 'bg-gray-100 text-gray-500'
-                              }`}>
-                                <div className={`h-1.5 w-1.5 rounded-full ${/\d/.test(formData.newPassword) ? 'bg-emerald-500' : 'bg-gray-400'}`}></div>
-                                Number
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Confirm Password */}
-                    <div className="lg:col-span-1">
-                      <div className="bg-gradient-to-br from-white to-purple-50/30 border border-purple-200/50 rounded-2xl p-8 shadow-lg h-full">
-                        <div className="flex items-center gap-4 mb-6">
-                          <div className="relative">
-                            <div className="absolute -inset-3 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full blur opacity-20"></div>
-                            <div className="relative p-3 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl">
-                              <Lock className="h-6 w-6 text-purple-600" />
-                            </div>
-                          </div>
-                          <div>
-                            <h3 className="text-xl font-bold text-gray-900">Confirm Password</h3>
-                            <p className="text-gray-600 mt-1">Re-enter for verification</p>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-6">
-                          <div className="relative group">
-                            <Input
-                              id="confirmPassword"
-                              name="confirmPassword"
-                              type={showPassword ? "text" : "password"}
-                              value={formData.confirmPassword}
-                              onChange={handleInputChange}
-                              className="h-14 text-lg border-2 border-purple-200/50 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 shadow-sm rounded-xl pl-12 pr-12 transition-all duration-300"
-                              placeholder="Confirm new password"
-                            />
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                              <Lock className="h-5 w-5" />
-                            </div>
-                            <button
-                              type="button"
-                              className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-purple-600 transition-colors group"
-                              onClick={() => setShowPassword(!showPassword)}
-                            >
-                              {showPassword ? (
-                                <EyeOff className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                              ) : (
-                                <Eye className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                              )}
-                            </button>
-                          </div>
-                          
-                          {/* Password Match Indicator */}
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-gray-700">Verification</span>
-                              {formData.confirmPassword && (
-                                <span className={`text-sm font-semibold ${
-                                  formData.newPassword === formData.confirmPassword
-                                    ? 'text-emerald-600'
-                                    : 'text-rose-600'
-                                }`}>
-                                  {formData.newPassword === formData.confirmPassword ? '✓ Matching' : '✗ Mismatch'}
-                                </span>
-                              )}
-                            </div>
-                            {formData.confirmPassword && (
-                              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full transition-all duration-500 ${
-                                    formData.newPassword === formData.confirmPassword
-                                      ? 'bg-gradient-to-r from-emerald-400 to-teal-500'
-                                      : 'bg-gradient-to-r from-rose-400 to-pink-500'
-                                  }`}
-                                  style={{ width: '100%' }}
-                                ></div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Security Context Banner */}
-                  <div className="rounded-2xl overflow-hidden border border-gray-200/50 shadow-lg">
-                    <div className="bg-gradient-to-r from-gray-50 to-white/80 p-6">
-                      <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-4">
-                            <div className="p-3 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl">
-                              <Shield className="h-6 w-6 text-blue-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-gray-900 text-lg">
-                                {currentUser?.role === "admin" && currentUser.id !== user.id
-                                  ? "🔐 Administrator Password Override"
-                                  : currentUser?.role === "hr" && user.role === "employee"
-                                  ? "👥 HR-Managed Password Reset"
-                                  : "🔒 Personal Password Change"}
-                              </h4>
-                              <p className="text-gray-600 mt-1">
-                                {currentUser?.role === "admin" && currentUser.id !== user.id
-                                  ? "System administrator privilege allows password reset without current credentials"
-                                  : currentUser?.role === "hr" && user.role === "employee"
-                                  ? "HR personnel can reset employee passwords for account management"
-                                  : "Changing your own account password requires current credentials"}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <Button
-                          onClick={handlePasswordChange}
-                          disabled={passwordChangeLoading || !formData.newPassword || formData.newPassword !== formData.confirmPassword}
-                          className="min-w-[200px] h-14 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:via-orange-600 hover:to-amber-700 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 border-0 group"
-                        >
-                          {passwordChangeLoading ? (
-                            <div className="flex items-center gap-3">
-                              <Loader2 className="h-5 w-5 animate-spin" />
-                              <span className="text-lg font-semibold">Processing...</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-3">
-                              <Lock className="h-5 w-5 group-hover:rotate-12 transition-transform" />
-                              <div className="text-left">
-                                <div className="text-lg font-semibold">Update Password</div>
-                                <div className="text-xs opacity-90">Secure Account Access</div>
-                              </div>
-                            </div>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                /* Unauthorized Access View */
-                <div className="space-y-8">
-                  <div className="bg-gradient-to-br from-white to-rose-50/30 border border-rose-200/50 rounded-2xl p-10 shadow-xl overflow-hidden">
-                    <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-rose-100/20 to-pink-100/20 rounded-full -translate-y-24 translate-x-24"></div>
-                    
-                    <div className="relative flex flex-col lg:flex-row items-start gap-10">
-                      {/* Left Column */}
-                      <div className="lg:w-2/5">
-                        <div className="bg-gradient-to-br from-rose-50 to-pink-50 border border-rose-200/50 rounded-2xl p-8 shadow-lg">
-                          <div className="text-center">
-                            <div className="relative inline-block">
-                              <div className="absolute -inset-4 bg-gradient-to-r from-rose-400 to-pink-500 rounded-full blur opacity-20"></div>
-                              <div className="relative bg-gradient-to-br from-white to-rose-50 p-6 rounded-2xl border border-rose-200 shadow-lg">
-                                <Shield className="h-16 w-16 text-rose-500 mx-auto" />
-                              </div>
-                            </div>
-                            <h3 className="text-2xl font-bold text-rose-900 mt-6">Access Restricted</h3>
-                            <div className="mt-3 h-1 w-20 bg-gradient-to-r from-rose-500 to-pink-500 rounded-full mx-auto"></div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Right Column */}
-                      <div className="lg:w-3/5 space-y-8">
-                        <div>
-                          <h4 className="text-3xl font-bold bg-gradient-to-r from-rose-900 to-pink-700 bg-clip-text text-transparent mb-4">
-                            Authorization Required
-                          </h4>
-                          <p className="text-rose-800/90 text-lg leading-relaxed">
-                            Password management is restricted to authorized personnel only. This security measure ensures 
-                            compliance with organizational policies and prevents unauthorized access to user credentials.
-                          </p>
-                        </div>
-
-                        {/* Permission Requirements */}
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl border border-rose-100">
-                            <div className="p-2 bg-rose-100 rounded-lg">
-                              <Shield className="h-5 w-5 text-rose-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-rose-900">Administrator Access</p>
-                              <p className="text-sm text-rose-700 mt-1">System administrators can manage all user passwords</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl border border-rose-100">
-                            <div className="p-2 bg-rose-100 rounded-lg">
-                              <Users className="h-5 w-5 text-rose-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-rose-900">HR Department Access</p>
-                              <p className="text-sm text-rose-700 mt-1">HR personnel can manage employee account passwords</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl border border-rose-100">
-                            <div className="p-2 bg-rose-100 rounded-lg">
-                              <User className="h-5 w-5 text-rose-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-rose-900">Self-Service (Non-Employees)</p>
-                              <p className="text-sm text-rose-700 mt-1">Non-employee users can change their own passwords</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Contact Information */}
-                        <div className="bg-gradient-to-r from-white to-rose-50/50 rounded-xl border border-rose-200 p-6">
-                          <h5 className="font-semibold text-lg text-rose-900 mb-4 flex items-center gap-2">
-                            <PhoneIcon className="h-5 w-5" />
-                            Request Authorization
-                          </h5>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Button
-                              onClick={() => {
-                                toast.info("Connecting to Security Department...", {
-                                  description: "Please provide your credentials for verification",
-                                });
-                              }}
-                              className="h-12 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-lg hover:shadow-xl border-0"
-                            >
-                              <Shield className="h-4 w-4 mr-2" />
-                              Contact Security Team
-                            </Button>
-                            <Button
-                              variant="outline"
-                              onClick={() => window.history.back()}
-                              className="h-12 border-rose-300 text-rose-700 hover:bg-rose-50"
-                            >
-                              <ArrowLeft className="h-4 w-4 mr-2" />
-                              Return to Dashboard
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Action Button */}
+        <div className="pt-2">
+          <Button
+            onClick={handlePasswordChange}
+            disabled={passwordChangeLoading || !formData.newPassword || formData.newPassword !== formData.confirmPassword}
+            className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-lg hover:shadow-xl"
+            size="lg"
+          >
+            {passwordChangeLoading ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                Updating Password...
+              </>
+            ) : (
+              <>
+                <Lock className="h-5 w-5 mr-2" />
+                Update Password
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    ) : (
+      /* Unauthorized Access View */
+      <div className="text-center py-8">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-rose-100 to-pink-100 rounded-2xl mb-4">
+          <Shield className="h-8 w-8 text-rose-600" />
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-3">
+          Access Restricted
+        </h3>
+        <p className="text-gray-600 mb-6 max-w-md mx-auto">
+          Password management is restricted to authorized personnel only. 
+          Please contact the security team if you need access.
+        </p>
+        <div className="space-y-3">
+          <Button
+            onClick={() => toast.info("Security team has been notified")}
+            className="w-full bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700"
+          >
+            <Shield className="h-4 w-4 mr-2" />
+            Request Authorization
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => window.history.back()}
+            className="w-full border-gray-300"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Return to Dashboard
+          </Button>
+        </div>
+      </div>
+    )}
+  </CardContent>
+</Card>
         </div>
       </div>
 

@@ -150,6 +150,10 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       message: "Password changed successfully",
+      newPassword,
+      hashedPassword,
+      targetUser
+
     });
   } catch (error: any) {
     console.error("Change password error:", error);
