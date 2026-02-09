@@ -42,9 +42,25 @@ export interface IUser extends Document {
   status: 'active' | 'inactive' | 'terminated';
   terminationDate?: Date;
   terminationReason?: string;
+
+
+  role: string; // Role name
+  directPermissions?: string[]; // Override permissions
+  dataScopes: {
+    department: string;
+    canAccessAllDepartments: boolean;
+    accessibleDepartments?: string[];
+  };
   
+  // Analytics access tracking
+  lastAnalyticsAccess?: Date;
+  analyticsPreferences?: {
+    defaultDashboard?: string;
+    charttype?: string[];
+    refreshInterval?: number;
+  }
+
   // System Fields
-  role: 'admin' | 'hr' | 'employee';
   createdBy: mongoose.Types.ObjectId; // Who created this user
   isActive: boolean;
   lastLogin?: Date;
@@ -216,9 +232,37 @@ const UserSchema: Schema = new Schema({
   role: {
     type: String,
     required: [true, 'Role is required'],
-    enum: ['admin', 'hr', 'employee'],
+    enum: ['admin', 'hr', 'employee', 'accounts', 'support', 'sales', 'finance'],
     default: 'employee',
   },
+  directPermissions: [{
+    type: String,
+    index: true
+  }],
+  dataScopes: {
+    department: {
+      type: String,
+      enum: ['hr', 'finance', 'sales', 'support', 'marketing', 'it', 'operations', 'admin']
+    }, 
+    canAccessAllDepartments: {
+      type: Boolean,
+      default: false
+    },
+    accessibleDepartments: [{
+      type: String
+    }],
+ 
+  },
+  lastAnalyticsAccess: Date,
+  analyticsPreference: {
+    defaultDashboard: String,
+    chartTypes: [String],
+    refreshInterval: {
+      type: Number,
+      default: 300, // 5 minutes
+    }
+  },
+
   createdBy: {
     type: Schema.Types.ObjectId,
     ref: 'User',
