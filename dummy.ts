@@ -1,223 +1,267 @@
+// app/api/admin/roles/[id]/route.ts - SINGLE ROLE CRUD
+import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/lib/db/mongodb';
+import Role from '@/lib/db/schemas/role';
+import Permission from '@/lib/db/schemas/permission';
+import User from '@/lib/db/schemas/user';
+import { withPermission } from '@/lib/middleware/permission-guard';
 
+interface Params {
+  params: { id: string };
+}
 
-// // lib/middleware/permission-guard.ts
-// import { NextRequest, NextResponse } from 'next/server';
-// import { verifyToken } from '@/lib/auth/jwt';
-// import { connectDB } from '@/lib/db/mongodb';
-// import User from '@/lib/db/schemas/user';
-// import Role from '@/lib/db/schemas/role';
-
-// export interface PermissionGuardOptions {
-//   requiredPermission?: string;
-//   requiredAnalyticsPermission?: string;
-//   requireAll?: boolean;
-//   dataScope?: 'self' | 'department' | 'all';
-//   sensitiveData?: boolean;
-// }
-
-// export class PermissionGuard {
-//   private request: NextRequest;
-//   private userId: string;
-//   private userRole: string;
-
-//   constructor(request: NextRequest) {
-//     this.request = request;
+// GET single role by ID
+async function getHandler(request: NextRequest, { params }: Params) {
+  try {
+    await connectDB();
     
-//     // Extract user info from headers
-//     const userId = request.headers.get('x-user-id');
-//     const userRole = request.headers.get('x-user-role');
+    const role = await Role.findById(params.id).lean();
     
-//     if (!userId || !userRole) {
-//       throw new Error('User authentication required');
-//     }
+    if (!role) {
+      return NextResponse.json(
+        { success: false, message: 'Role not found' },
+        { status: 404 }
+      );
+    }
     
-//     this.userId = userId;
-//     this.userRole = userRole;
-//   }
-
-//   async checkPermission(requiredPermission: string): Promise<boolean> {
-//     await connectDB();
+    // Get permission details
+    const allPermissions = [
+      ...(role.permissionCodes || []),
+      ...(role.analyticsPermissions || []),
+    ];
     
-//     // Admin has all permissions
-//     if (this.userRole === 'admin') {
-//       return true;
-//     }
-
-//     // Get user with role and permissions
-//     const user = await User.findById(this.userId)
-//       .select('role directPermissions dataScopes')
-//       .lean();
-
-//     if (!user) return false;
-
-//     // Check direct permissions first (overrides)
-//     if (user.directPermissions?.includes(requiredPermission)) {
-//       return true;
-//     }
-
-//     // Check role permissions
-//     const role = await Role.findOne({ name: user.role, isActive: true })
-//       .select('permissionCodes analyticsPermissions dataAccessLevel')
-//       .lean();
-
-//     if (!role) return false;
-
-//     // Check if permission exists in role
-//     const hasPermission = role.permissionCodes.includes(requiredPermission) ||
-//                          role.analyticsPermissions.includes(requiredPermission);
-
-//     return hasPermission;
-//   }
-
-//   async checkAnalyticsPermission(requiredPermission: string): Promise<boolean> {
-//     // Analytics permissions require specific check
-//     if (requiredPermission.startsWith('analytics.')) {
-//       return this.checkPermission(requiredPermission);
-//     }
-//     return false;
-//   }
-
-//   async filterData<T extends Record<string, any>>(
-//     data: T,
-//     permissionRules: Record<string, string[]> // field -> required permissions
-//   ): Promise<T> {
-//     const filteredData = { ...data };
+    const permissionDetails = allPermissions.length > 0 
+      ? await Permission.find({
+          code: { $in: allPermissions },
+          isActive: true,
+        }).lean()
+      : [];
     
-//     for (const [field, requiredPermissions] of Object.entries(permissionRules)) {
-//       if (field in filteredData) {
-//         let hasAccess = false;
-        
-//         for (const permission of requiredPermissions) {
-//           if (await this.checkPermission(permission)) {
-//             hasAccess = true;
-//             break;
-//           }
-//         }
-        
-//         if (!hasAccess) {
-//           delete filteredData[field];
-//         }
-//       }
-//     }
+    // Get user count
+    const userCount = await User.countDocuments({ 
+      role: role.name,
+      isActive: true 
+    });
     
-//     return filteredData;
-//   }
-
-//   async getUserDataScope(): Promise<{
-//     level: 'self' | 'department' | 'all';
-//     department?: string;
-//     accessibleDepartments?: string[];
-//   }> {
-//     await connectDB();
+    // Get users with this role
+    const users = await User.find({ 
+      role: role.name,
+      isActive: true 
+    })
+    .select('fullName email department jobTitle status lastLogin')
+    .limit(10)
+    .lean();
     
-//     if (this.userRole === 'admin') {
-//       return { level: 'all' };
-//     }
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...role,
+        permissionDetails,
+        userCount,
+        users,
+        stats: {
+          totalPermissions: allPermissions.length,
+          crudPermissions: role.permissionCodes?.length || 0,
+          analyticsPermissions: role.analyticsPermissions?.length || 0,
+        },
+      },
+    });
 
-//     const user = await User.findById(this.userId)
-//       .select('dataScopes department')
-//       .lean();
+  } catch (error: any) {
+    console.error('Get role error:', error);
+    return NextResponse.json(
+      { success: false, message: 'Failed to fetch role' },
+      { status: 500 }
+    );
+  }
+}
 
-//     if (!user) {
-//       return { level: 'self' };
-//     }
-
-//     const role = await Role.findOne({ name: this.userRole })
-//       .select('dataAccessLevel')
-//       .lean();
-
-//     const dataAccessLevel = role?.dataAccessLevel || 'self';
-
-//     return {
-//       level: dataAccessLevel,
-//       department: user.department,
-//       accessibleDepartments: user.dataScopes?.accessibleDepartments,
-//     };
-//   }
-
-//   async buildQueryFilter(): Promise<Record<string, any>> {
-//     const dataScope = await this.getUserDataScope();
+// PUT update role
+async function putHandler(request: NextRequest, { params }: Params) {
+  try {
+    const body = await request.json();
+    const { name, description, permissionCodes, analyticsPermissions, dataAccessLevel, isActive } = body;
     
-//     switch (dataScope.level) {
-//       case 'all':
-//         return {};
-//       case 'department':
-//         if (dataScope.department) {
-//           return { department: dataScope.department };
-//         }
-//         return {};
-//       case 'self':
-//         return { _id: this.userId };
-//       default:
-//         return { _id: this.userId };
-//     }
-//   }
-// }
-
-// // Middleware wrapper
-// export function requirePermission(options: PermissionGuardOptions) {
-//   return async function (request: NextRequest): Promise<NextResponse | null> {
-//     try {
-//       const guard = new PermissionGuard(request);
+    await connectDB();
+    
+    const role = await Role.findById(params.id);
+    
+    if (!role) {
+      return NextResponse.json(
+        { success: false, message: 'Role not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Don't allow updating default roles name
+    if (role.isDefault && name && name !== role.name) {
+      return NextResponse.json(
+        { success: false, message: 'Cannot rename default roles' },
+        { status: 400 }
+      );
+    }
+    
+    // Check if new name already exists (if name is being changed)
+    if (name && name !== role.name) {
+      const existingRole = await Role.findOne({ 
+        name: { $regex: new RegExp(`^${name}$`, 'i') },
+        _id: { $ne: params.id }
+      });
       
-//       // Check CRUD permission
-//       if (options.requiredPermission) {
-//         const hasPermission = await guard.checkPermission(options.requiredPermission);
-//         if (!hasPermission) {
-//           return NextResponse.json(
-//             { 
-//               success: false, 
-//               message: 'Insufficient permissions',
-//               error: 'PERMISSION_DENIED'
-//             },
-//             { status: 403 }
-//           );
-//         }
-//       }
+      if (existingRole) {
+        return NextResponse.json(
+          { success: false, message: 'Role with this name already exists' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Validate permissions if provided
+    if (permissionCodes || analyticsPermissions) {
+      const allPermissions = [
+        ...(permissionCodes || role.permissionCodes),
+        ...(analyticsPermissions || role.analyticsPermissions),
+      ];
       
-//       // Check analytics permission
-//       if (options.requiredAnalyticsPermission) {
-//         const hasAnalyticsPermission = await guard.checkAnalyticsPermission(
-//           options.requiredAnalyticsPermission
-//         );
-//         if (!hasAnalyticsPermission) {
-//           return NextResponse.json(
-//             { 
-//               success: false, 
-//               message: 'Analytics access denied',
-//               error: 'ANALYTICS_PERMISSION_DENIED'
-//             },
-//             { status: 403 }
-//           );
-//         }
-//       }
+      const validPermissions = await Permission.countDocuments({
+        code: { $in: allPermissions },
+        isActive: true,
+      });
       
-//       // Check data scope for sensitive data
-//       if (options.sensitiveData && options.dataScope) {
-//         const userScope = await guard.getUserDataScope();
-//         if (userScope.level !== 'all' && userScope.level !== options.dataScope) {
-//           return NextResponse.json(
-//             { 
-//               success: false, 
-//               message: 'Data scope restriction',
-//               error: 'DATA_SCOPE_VIOLATION'
-//             },
-//             { status: 403 }
-//           );
-//         }
-//       }
-      
-//       return null; // Permission granted
-//     } catch (error) {
-//       console.error('Permission guard error:', error);
-//       return NextResponse.json(
-//         { 
-//           success: false, 
-//           message: 'Permission check failed',
-//           error: 'PERMISSION_CHECK_ERROR'
-//         },
-//         { status: 500 }
-//       );
-//     }
-//   };
-// }
+      if (validPermissions !== allPermissions.length) {
+        return NextResponse.json(
+          { success: false, message: 'One or more invalid permissions' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Update role
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (permissionCodes !== undefined) updateData.permissionCodes = permissionCodes;
+    if (analyticsPermissions !== undefined) updateData.analyticsPermissions = analyticsPermissions;
+    if (dataAccessLevel !== undefined) updateData.dataAccessLevel = dataAccessLevel;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    
+    const updatedRole = await Role.findByIdAndUpdate(
+      params.id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).lean();
+    
+    // Get updated permission details
+    const allPermissions = [
+      ...(updatedRole.permissionCodes || []),
+      ...(updatedRole.analyticsPermissions || []),
+    ];
+    
+    const permissionDetails = allPermissions.length > 0 
+      ? await Permission.find({
+          code: { $in: allPermissions },
+          isActive: true,
+        }).lean()
+      : [];
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Role updated successfully',
+      data: {
+        ...updatedRole,
+        permissionDetails,
+      },
+    });
+
+  } catch (error: any) {
+    console.error('Update role error:', error);
+    
+    if (error.code === 11000) {
+      return NextResponse.json(
+        { success: false, message: 'Role name already exists' },
+        { status: 400 }
+      );
+    }
+    
+    return NextResponse.json(
+      { success: false, message: 'Failed to update role' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE role
+async function deleteHandler(request: NextRequest, { params }: Params) {
+  try {
+    await connectDB();
+    
+    const role = await Role.findById(params.id);
+    
+    if (!role) {
+      return NextResponse.json(
+        { success: false, message: 'Role not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Don't allow deleting default roles
+    if (role.isDefault) {
+      return NextResponse.json(
+        { success: false, message: 'Cannot delete default roles' },
+        { status: 400 }
+      );
+    }
+    
+    // Check if any users are assigned to this role
+    const userCount = await User.countDocuments({ 
+      role: role.name,
+      isActive: true 
+    });
+    
+    if (userCount > 0) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: `Cannot delete role. ${userCount} user(s) are assigned to this role.`,
+          userCount 
+        },
+        { status: 400 }
+      );
+    }
+    
+    // Soft delete - set isActive to false
+    await Role.findByIdAndUpdate(params.id, { 
+      $set: { isActive: false } 
+    });
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Role deleted successfully',
+    });
+
+  } catch (error: any) {
+    console.error('Delete role error:', error);
+    return NextResponse.json(
+      { success: false, message: 'Failed to delete role' },
+      { status: 500 }
+    );
+  }
+}
+
+// Export with permission middleware
+export const GET = withPermission(getHandler, {
+  requiredPermission: 'user.role.assign',
+  module: 'role',
+});
+
+export const PUT = withPermission(putHandler, {
+  requiredPermission: 'user.role.assign',
+  module: 'role',
+  logAccess: true,
+});
+
+export const DELETE = withPermission(deleteHandler, {
+  requiredPermission: 'user.role.assign',
+  module: 'role',
+  logAccess: true,
+});
