@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import { verifyToken } from '@/lib/auth/jwt';
 import { getTokenFromRequest } from '@/lib/auth/token-helper';
-import FieldModel from '@/modules/financial-tracker/models/custom-field.model';
+import FieldModel from '@/app/financial-tracker/models/custom-field.model';
 
 export async function GET(request: NextRequest) {
   try {
