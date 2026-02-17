@@ -35,6 +35,8 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { connection } from 'next/server';
+export const dynamic = 'force-dynamic';
 
 interface Category {
   _id: string;
@@ -58,9 +60,12 @@ interface Category {
   };
 }
 
-export default function CategoriesPage() {
+export default async function  CategoriesPage() {
+     await connection(); 
   const router = useRouter();
   const searchParams = useSearchParams();
+    const module = searchParams.get('module');
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

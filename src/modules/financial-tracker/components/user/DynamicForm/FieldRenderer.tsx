@@ -103,13 +103,16 @@ const FieldRenderer: React.FC<FieldRendererProps> = ({
 
       case 'checkbox':
         return (
-          <input
-            type="checkbox"
-            checked={value || false}
-            onChange={handleChange}
-            disabled={disabled}
-            className="w-4 h-4 text-blue-600"
-          />
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              checked={value || false}
+              onChange={handleChange}
+              disabled={disabled}
+              className="w-4 h-4 text-blue-600 rounded border-gray-300"
+            />
+            <span className="ml-2 text-sm text-gray-600">Yes</span>
+          </div>
         );
 
       case 'radio':
@@ -123,7 +126,7 @@ const FieldRenderer: React.FC<FieldRendererProps> = ({
                   checked={value === opt}
                   onChange={handleChange}
                   disabled={disabled}
-                  className="w-4 h-4 text-blue-600"
+                  className="w-4 h-4 text-blue-600 border-gray-300"
                 />
                 <span>{opt}</span>
               </label>

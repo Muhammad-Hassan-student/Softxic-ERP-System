@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import FieldRenderer from './FieldRenderer';
 import { ICustomField } from '../../../models/custom-field.model';
-import { usePermissions } from '../../../hooks/usePermission';
+import { usePermissions } from '../../../hooks/usePermission'; // Fixed: usePermissions (with 's')
 
 interface DynamicFormProps {
   fields: ICustomField[];
@@ -75,7 +75,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
           if (field.required) fieldSchema = fieldSchema.min(1, 'Required');
           if (field.options?.length) {
             fieldSchema = fieldSchema.refine(
-              (val:any) => field.options?.includes(val),
+              (val: string) => field.options?.includes(val),
               { message: 'Invalid option' }
             );
           }
@@ -86,7 +86,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
           fieldSchema = z.any();
           if (field.required) {
             fieldSchema = fieldSchema.refine(
-              (val:any) => val !== null && val !== undefined,
+              (val: any) => val !== null && val !== undefined,
               { message: 'Required' }
             );
           }
