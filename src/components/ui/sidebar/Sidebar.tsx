@@ -14,7 +14,6 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Home,
   Briefcase,
   DollarSign,
   Headphones,
@@ -26,6 +25,10 @@ import {
   Wallet,
   Flag,
   Percent,
+  FolderTree,
+  FileSpreadsheet,
+  PieChart,
+  Building2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_TEXTS } from "@/lib/constants/text";
@@ -41,6 +44,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed,
   setIsCollapsed,
 }) => {
+  // Financial Tracker Items
+  const financialItems = [
+    {
+      icon: LayoutDashboard,
+      label: 'Financial Dashboard',
+      href: '/admin/financial-tracker/dashboard',
+    },
+    {
+      icon: FolderTree,
+      label: 'Categories',
+      href: '/admin/financial-tracker/categories',
+    },
+    {
+      icon: FileSpreadsheet,
+      label: 'RE Module',
+      href: '/admin/financial-tracker/re',
+    },
+    {
+      icon: Wallet,
+      label: 'Expense Module',
+      href: '/admin/financial-tracker/expense',
+    },
+    {
+      icon: Users,
+      label: 'User Management',
+      href: '/admin/financial-tracker/users',
+    },
+    {
+      icon: Shield,
+      label: 'Permissions',
+      href: '/admin/financial-tracker/permissions',
+    },
+    {
+      icon: PieChart,
+      label: 'Reports',
+      href: '/admin/financial-tracker/reports',
+    },
+  ];
+
   const dashboardItems = [
     {
       icon: LayoutDashboard,
@@ -172,11 +214,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex h-16 items-center justify-between border-b border-gray-700 px-4">
         {!isCollapsed && (
           <div className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded-lg bg-erp-primary flex items-center justify-center">
-              <span className="font-bold">ERP</span>
+            <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
+              <span className="font-bold text-white">ERP</span>
             </div>
             <div>
-              <h2 className="font-bold text-lg">
+              <h2 className="font-bold text-lg text-white">
                 {DASHBOARD_TEXTS.sidebar.title}
               </h2>
               <p className="text-xs text-gray-400">
@@ -187,15 +229,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
         {isCollapsed && (
           <div className="mx-auto">
-            <div className="h-8 w-8 rounded-lg bg-erp-primary flex items-center justify-center">
-              <span className="font-bold">ERP</span>
+            <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
+              <span className="font-bold text-white">ERP</span>
             </div>
           </div>
         )}
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0 hover:bg-gray-700"
+          className="h-8 w-8 p-0 hover:bg-gray-700 text-white"
           onClick={() => setIsCollapsed(!isCollapsed)}
         >
           {isCollapsed ? (
@@ -208,6 +250,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Content */}
       <div className="h-[calc(100vh-4rem)] overflow-y-auto py-4">
+        {/* Financial Tracker Section */}
+        <div className="px-4 py-2">
+          {!isCollapsed && (
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
+              FINANCIAL TRACKER
+            </p>
+          )}
+          <div className="space-y-1">
+            {financialItems.map((item) => (
+              <SidebarItem
+                key={item.href}
+                icon={item.icon}
+                label={item.label}
+                href={item.href}
+                isCollapsed={isCollapsed}
+              />
+            ))}
+          </div>
+        </div>
+
         {/* Dashboard Section */}
         <div className="px-4 py-2">
           {!isCollapsed && (

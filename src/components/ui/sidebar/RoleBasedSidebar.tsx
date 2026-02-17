@@ -23,27 +23,13 @@ export const RoleBasedSidebar: React.FC<RoleBasedSidebarProps> = ({
   // Get sidebar items grouped by section for this role
   const groupedItems = getGroupedSidebarItems(role);
 
-  // Section titles mapping with proper typing
+  // Section titles mapping
   const sectionTitles: Record<string, string> = {
     dashboard: 'DASHBOARD',
     management: 'MANAGEMENT',
-    employees: 'EMPLOYEES',
     finance: 'FINANCE',
-    payroll: 'PAYROLL',
-    operations: 'OPERATIONS',
-    personal: 'PERSONAL',
-    attendance: 'ATTENDANCE & LEAVES',
-    salary: 'SALARY',
-    payments: 'PAYMENTS',
-    tickets: 'TICKETS',
-    campaigns: 'CAMPAIGNS',
-    analytics: 'ANALYTICS',
-    leads: 'LEADS',
     reports: 'REPORTS',
-    support: 'SUPPORT',
     system: 'SYSTEM',
-    communication: 'COMMUNICATION',
-    other: 'OTHER',
   };
 
   return (
@@ -62,7 +48,7 @@ export const RoleBasedSidebar: React.FC<RoleBasedSidebarProps> = ({
               <span className="font-bold text-white">ERP</span>
             </div>
             <div>
-              <h2 className="font-bold text-lg">
+              <h2 className="font-bold text-lg text-white">
                 {role.charAt(0).toUpperCase() + role.slice(1)} Panel
               </h2>
               <p className="text-xs text-gray-400">
@@ -81,7 +67,7 @@ export const RoleBasedSidebar: React.FC<RoleBasedSidebarProps> = ({
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0 hover:bg-gray-700"
+          className="h-8 w-8 p-0 hover:bg-gray-700 text-white"
           onClick={() => setIsCollapsed(!isCollapsed)}
         >
           {isCollapsed ? (
@@ -95,24 +81,26 @@ export const RoleBasedSidebar: React.FC<RoleBasedSidebarProps> = ({
       {/* Sidebar Content */}
       <div className="flex-1 overflow-y-auto py-4">
         {Object.entries(groupedItems).map(([section, items]) => (
-          <div key={section} className="px-4 py-2">
-            {!isCollapsed && sectionTitles[section] && (
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
-                {sectionTitles[section]}
-              </p>
-            )}
-            <div className="space-y-1">
-              {items.map((item) => (
-                <SidebarItem
-                  key={item.href}
-                  icon={item.icon}
-                  label={item.label}
-                  href={item.href}
-                  isCollapsed={isCollapsed}
-                />
-              ))}
+          items.length > 0 && (
+            <div key={section} className="px-4 py-2">
+              {!isCollapsed && sectionTitles[section] && (
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
+                  {sectionTitles[section]}
+                </p>
+              )}
+              <div className="space-y-1">
+                {items.map((item) => (
+                  <SidebarItem
+                    key={item.href}
+                    icon={item.icon}
+                    label={item.label}
+                    href={item.href}
+                    isCollapsed={isCollapsed}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )
         ))}
       </div>
 
@@ -126,7 +114,7 @@ export const RoleBasedSidebar: React.FC<RoleBasedSidebarProps> = ({
               </span>
             </div>
             <div className="ml-3 overflow-hidden">
-              <p className="text-sm font-medium truncate">{user.fullName}</p>
+              <p className="text-sm font-medium truncate text-white">{user.fullName}</p>
               <p className="text-xs text-gray-400 truncate capitalize">
                 {user.role} • {user.department || 'No Department'}
               </p>
