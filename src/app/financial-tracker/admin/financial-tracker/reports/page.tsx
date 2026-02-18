@@ -141,7 +141,7 @@ export default function ReportsPage() {
   const fetchSavedReports = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/financial-tracker/reports', {
+      const response = await fetch('/financial-tracker/api/financial-tracker/reports', {
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
         }
@@ -165,7 +165,7 @@ export default function ReportsPage() {
       setIsGenerating(true);
       setShowPreview(true);
 
-      const response = await fetch('/api/financial-tracker/reports/generate', {
+      const response = await fetch('/financial-tracker/api/financial-tracker/reports/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -190,7 +190,7 @@ export default function ReportsPage() {
   // Export report
   const exportReport = async (format: 'excel' | 'csv' | 'pdf') => {
     try {
-      const response = await fetch(`/api/financial-tracker/reports/export?format=${format}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/reports/export?format=${format}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -225,7 +225,7 @@ export default function ReportsPage() {
     }
 
     try {
-      const response = await fetch('/api/financial-tracker/reports', {
+      const response = await fetch('/financial-tracker/api/financial-tracker/reports', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -249,7 +249,7 @@ export default function ReportsPage() {
     if (!confirm('Are you sure you want to delete this report?')) return;
 
     try {
-      const response = await fetch(`/api/financial-tracker/reports/${reportId}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/reports/${reportId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
@@ -306,7 +306,7 @@ export default function ReportsPage() {
   // Schedule report
   const scheduleReport = async () => {
     try {
-      const response = await fetch(`/api/financial-tracker/reports/${selectedReport}/schedule`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/reports/${selectedReport}/schedule`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

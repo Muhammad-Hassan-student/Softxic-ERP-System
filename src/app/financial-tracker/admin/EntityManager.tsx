@@ -48,7 +48,7 @@ const EntityManager: React.FC<EntityManagerProps> = ({ module }) => {
     try {
       setIsLoading(true);
       const response = await fetch(
-        `/api/financial-tracker/entities?module=${module}${!showInactive ? '&active=true' : ''}`,
+        `/financial-tracker/api/financial-tracker/entities?module=${module}${!showInactive ? '&active=true' : ''}`,
         {
           headers: {
             'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
@@ -72,8 +72,8 @@ const EntityManager: React.FC<EntityManagerProps> = ({ module }) => {
     
     try {
       const url = editingEntity 
-        ? `/api/financial-tracker/entities/${editingEntity._id}`
-        : '/api/financial-tracker/entities';
+        ? `/financial-tracker/api/financial-tracker/entities/${editingEntity._id}`
+        : '/financial-tracker/api/financial-tracker/entities';
       
       const method = editingEntity ? 'PUT' : 'POST';
 
@@ -103,7 +103,7 @@ const EntityManager: React.FC<EntityManagerProps> = ({ module }) => {
 
   const handleToggleEntity = async (entityId: string, isEnabled: boolean) => {
     try {
-      const response = await fetch(`/api/financial-tracker/entities/${entityId}/toggle`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/entities/${entityId}/toggle`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
@@ -123,7 +123,7 @@ const EntityManager: React.FC<EntityManagerProps> = ({ module }) => {
     if (!confirm('Are you sure you want to delete this entity?')) return;
 
     try {
-      const response = await fetch(`/api/financial-tracker/entities/${entityId}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/entities/${entityId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`

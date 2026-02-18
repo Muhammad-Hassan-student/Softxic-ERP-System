@@ -96,7 +96,7 @@ export default function CreateModuleUserPage() {
     try {
       setIsLoading(true);
 
-      const response = await fetch('/api/financial-tracker/module-users', {
+      const response = await fetch('/financial-tracker/api/financial-tracker/module-users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

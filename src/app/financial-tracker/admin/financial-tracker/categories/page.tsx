@@ -65,7 +65,7 @@ export default function CategoriesPage() {
       if (selectedEntity !== 'all') params.append('entity', selectedEntity);
       if (!showInactive) params.append('active', 'true');
 
-      const response = await fetch(`/api/financial-tracker/categories?${params.toString()}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/categories?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
         }
@@ -93,8 +93,8 @@ export default function CategoriesPage() {
     
     try {
       const url = editingCategory 
-        ? `/api/financial-tracker/categories/${editingCategory._id}`
-        : '/api/financial-tracker/categories';
+        ? `/financial-tracker/api/financial-tracker/categories/${editingCategory._id}`
+        : '/financial-tracker/api/financial-tracker/categories';
       
       const method = editingCategory ? 'PUT' : 'POST';
 
@@ -132,7 +132,7 @@ export default function CategoriesPage() {
     if (!confirm(`Are you sure you want to delete "${category.name}"?`)) return;
 
     try {
-      const response = await fetch(`/api/financial-tracker/categories/${category._id}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/categories/${category._id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
@@ -151,7 +151,7 @@ export default function CategoriesPage() {
   // Handle toggle active
   const handleToggleActive = async (category: Category) => {
     try {
-      const response = await fetch(`/api/financial-tracker/categories/${category._id}/toggle`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/categories/${category._id}/toggle`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`

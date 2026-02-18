@@ -98,7 +98,7 @@ export default function CreateUserPage() {
     try {
       setIsLoading(true);
 
-      const response = await fetch('/api/financial-tracker/admin/users', {
+      const response = await fetch('/financial-tracker/api/financial-tracker/admin/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -171,7 +171,7 @@ Please change your password after first login.
     if (!generatedCredentials) return;
     
     try {
-      const response = await fetch('/api/financial-tracker/admin/users/send-credentials', {
+      const response = await fetch('/financial-tracker/api/financial-tracker/admin/users/send-credentials', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

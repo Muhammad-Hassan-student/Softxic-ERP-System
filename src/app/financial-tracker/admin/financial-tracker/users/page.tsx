@@ -63,7 +63,7 @@ export default function UserManagementPage() {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/financial-tracker/admin/users', {
+      const response = await fetch('/financial-tracker/api/financial-tracker/admin/users', {
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
         }
@@ -77,7 +77,7 @@ export default function UserManagementPage() {
       // Fetch permissions for each user
       const permissionsMap = new Map();
       for (const user of data.users) {
-        const permResponse = await fetch(`/api/financial-tracker/admin/users/${user._id}/permissions`, {
+        const permResponse = await fetch(`/financial-tracker/api/financial-tracker/admin/users/${user._id}/permissions`, {
           headers: {
             'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
           }
@@ -135,7 +135,7 @@ export default function UserManagementPage() {
   // Handle user status toggle
   const toggleUserStatus = async (userId: string, currentStatus: string) => {
     try {
-      const response = await fetch(`/api/financial-tracker/admin/users/${userId}/toggle-status`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/admin/users/${userId}/toggle-status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
@@ -156,7 +156,7 @@ export default function UserManagementPage() {
     if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
 
     try {
-      const response = await fetch(`/api/financial-tracker/admin/users/${userId}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
@@ -175,7 +175,7 @@ export default function UserManagementPage() {
   // Generate credentials for user
   const generateCredentials = async (userId: string) => {
     try {
-      const response = await fetch(`/api/financial-tracker/admin/users/${userId}/generate-credentials`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/admin/users/${userId}/generate-credentials`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
@@ -209,7 +209,7 @@ export default function UserManagementPage() {
   // Export users list
   const exportUsers = async () => {
     try {
-      const response = await fetch('/api/financial-tracker/admin/users/export', {
+      const response = await fetch('/financial-tracker/api/financial-tracker/admin/users/export', {
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
         }

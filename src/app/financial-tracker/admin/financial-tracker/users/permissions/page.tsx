@@ -159,7 +159,7 @@ export default function UserPermissionsPage({ params }: { params: { userId: stri
         setIsLoading(true);
         
         // Fetch user details
-        const userResponse = await fetch(`/api/financial-tracker/admin/users/${params.userId}`, {
+        const userResponse = await fetch(`/financial-tracker/api/financial-tracker/admin/users/${params.userId}`, {
           headers: {
             'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
           }
@@ -170,7 +170,7 @@ export default function UserPermissionsPage({ params }: { params: { userId: stri
         setUser(userData.user);
 
         // Fetch permissions
-        const permResponse = await fetch(`/api/financial-tracker/admin/users/${params.userId}/permissions`, {
+        const permResponse = await fetch(`/financial-tracker/api/financial-tracker/admin/users/${params.userId}/permissions`, {
           headers: {
             'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
           }
@@ -332,7 +332,7 @@ export default function UserPermissionsPage({ params }: { params: { userId: stri
     try {
       setIsSaving(true);
       
-      const response = await fetch(`/api/financial-tracker/admin/users/${params.userId}/permissions`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/admin/users/${params.userId}/permissions`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -52,7 +52,7 @@ export default function ModuleUsersPage() {
       if (selectedModule !== 'all') params.append('module', selectedModule);
       if (!showInactive) params.append('active', 'true');
 
-      const response = await fetch(`/api/financial-tracker/module-users?${params.toString()}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/module-users?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
         }
@@ -71,7 +71,7 @@ export default function ModuleUsersPage() {
 
   const toggleUserStatus = async (userId: string, currentStatus: boolean) => {
     try {
-      const response = await fetch(`/api/financial-tracker/module-users/${userId}/toggle`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/module-users/${userId}/toggle`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
@@ -91,7 +91,7 @@ export default function ModuleUsersPage() {
     if (!confirm('Delete this user?')) return;
 
     try {
-      const response = await fetch(`/api/financial-tracker/module-users/${userId}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/module-users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`

@@ -258,7 +258,7 @@ export default function FieldsPage() {
 
   const fetchEntities = async () => {
     try {
-      const response = await fetch(`/api/financial-tracker/entities?module=${selectedModule}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/entities?module=${selectedModule}`, {
         headers: {
           'Authorization': `Bearer ${getToken()}`
         }
@@ -280,7 +280,7 @@ export default function FieldsPage() {
     try {
       setIsLoading(true);
       const response = await fetch(
-        `/api/financial-tracker/fields?module=${selectedModule}&entityId=${selectedEntity}`,
+        `/financial-tracker/api/financial-tracker/fields?module=${selectedModule}&entityId=${selectedEntity}`,
         {
           headers: {
             'Authorization': `Bearer ${getToken()}`
@@ -313,7 +313,7 @@ export default function FieldsPage() {
       setFields(newFields);
 
       try {
-        await fetch('/api/financial-tracker/fields/reorder', {
+        await fetch('/financial-tracker/api/financial-tracker/fields/reorder', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -336,8 +336,8 @@ export default function FieldsPage() {
     
     try {
       const url = editingField 
-        ? `/api/financial-tracker/fields/${editingField._id}`
-        : '/api/financial-tracker/fields';
+        ? `/financial-tracker/api/financial-tracker/fields/${editingField._id}`
+        : '/financial-tracker/api/financial-tracker/fields';
       
       const method = editingField ? 'PUT' : 'POST';
 
@@ -364,7 +364,7 @@ export default function FieldsPage() {
 
   const handleToggle = async (fieldId: string) => {
     try {
-      const response = await fetch(`/api/financial-tracker/fields/${fieldId}/toggle`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/fields/${fieldId}/toggle`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${getToken()}`
@@ -387,7 +387,7 @@ export default function FieldsPage() {
     if (!confirm('Delete this field?')) return;
 
     try {
-      const response = await fetch(`/api/financial-tracker/fields/${field._id}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/fields/${field._id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${getToken()}`
@@ -422,7 +422,7 @@ export default function FieldsPage() {
     setFields(newFields);
 
     try {
-      await fetch('/api/financial-tracker/fields/reorder', {
+      await fetch('/financial-tracker/api/financial-tracker/fields/reorder', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
