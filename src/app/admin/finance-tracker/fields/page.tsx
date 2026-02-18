@@ -3,10 +3,9 @@ import FieldsContent from './fields-content';
 
 export const metadata = {
   title: 'Dynamic Fields',
-  description: 'Configure custom fields',
+  description: 'Configure custom fields for entities',
 };
 
-// ✅ FIX: Add loading fallback
 export default function FieldsPage() {
   return (
     <Suspense fallback={

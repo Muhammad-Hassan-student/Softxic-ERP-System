@@ -62,6 +62,7 @@ export async function requireAuth(): Promise<AuthUser> {
 export async function requireRole(role: string): Promise<AuthUser> {
   const user = await requireAuth();
   if (user.role !== role) {
+    // Redirect to appropriate dashboard based on user's actual role
     redirect(`/${user.role}/dashboard`);
   }
   return user;

@@ -263,7 +263,9 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, index, totalItem
 };
 
 export default function FieldsContent() {
-  const searchParams = useSearchParams();
+    const searchParams = useSearchParams(); // ✅ Safe now inside Suspense
+      const module = searchParams.get('module');
+
   const [fields, setFields] = useState<Field[]>([]);
   const [entities, setEntities] = useState<Entity[]>([]);
   const [isLoading, setIsLoading] = useState(true);

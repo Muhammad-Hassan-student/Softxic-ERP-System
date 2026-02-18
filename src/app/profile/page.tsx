@@ -1,5 +1,7 @@
+
 import { Metadata } from 'next';
 import { requireAuth } from '@/lib/auth/server-auth';
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Profile',
