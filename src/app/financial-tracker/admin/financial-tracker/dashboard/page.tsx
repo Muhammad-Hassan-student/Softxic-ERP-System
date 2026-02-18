@@ -178,7 +178,7 @@ export default function AdminDashboardPage() {
   const fetchDashboardStats = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/financial-tracker/admin/dashboard?range=${dateRange}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/admin/dashboard?range=${dateRange}`, {
         headers: {
           'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
         }
