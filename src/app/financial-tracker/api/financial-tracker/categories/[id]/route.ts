@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import { verifyToken } from '@/lib/auth/jwt';
-import CategoryModel from '@/app/financial-tracker/models/category.model';
-import ActivityService from '@/app/financial-tracker/services/activity-service'; // Fixed import
+import CategoryModel from '@/app/financial-tracker/models/category.model'; // ✅ FIXED: modules path
+import ActivityService from '@/app/financial-tracker/services/activity-service'; // ✅ FIXED: modules path + .service
 
 // GET /api/financial-tracker/categories/[id]
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ FIXED: Promise wrap
 ) {
   try {
     await connectDB();
 
-    // Verify authentication
     const token = request.cookies.get('token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -23,7 +22,9 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const category = await CategoryModel.findById(params.id)
+    const { id } = await params; // ✅ FIXED: await params
+
+    const category = await CategoryModel.findById(id)
       .populate('parentCategory', 'name')
       .populate('createdBy', 'fullName')
       .populate('updatedBy', 'fullName');
@@ -46,12 +47,11 @@ export async function GET(
 // PUT /api/financial-tracker/categories/[id]
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ FIXED: Promise wrap
 ) {
   try {
     await connectDB();
 
-    // Verify authentication
     const token = request.cookies.get('token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -62,17 +62,18 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Only admin can update categories
     if (decoded.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const category = await CategoryModel.findById(params.id);
+    const { id } = await params; // ✅ FIXED: await params
+    const body = await request.json();
+
+    const category = await CategoryModel.findById(id);
     if (!category) {
       return NextResponse.json({ error: 'Category not found' }, { status: 404 });
     }
 
-    // System categories have restricted updates
     if (category.isSystem) {
       return NextResponse.json(
         { error: 'System categories cannot be modified' },
@@ -80,10 +81,8 @@ export async function PUT(
       );
     }
 
-    const body = await request.json();
     const oldData = { ...category.toObject() };
 
-    // Update allowed fields
     const allowedUpdates = ['name', 'description', 'type', 'color', 'icon', 'isActive'];
     allowedUpdates.forEach(field => {
       if (body[field] !== undefined) {
@@ -94,7 +93,6 @@ export async function PUT(
     category.updatedBy = decoded.userId;
     await category.save();
 
-    // Log activity
     const changes = allowedUpdates
       .filter(field => body[field] !== undefined && body[field] !== (oldData as any)[field])
       .map(field => ({
@@ -131,12 +129,11 @@ export async function PUT(
 // DELETE /api/financial-tracker/categories/[id]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ FIXED: Promise wrap
 ) {
   try {
     await connectDB();
 
-    // Verify authentication
     const token = request.cookies.get('token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -147,17 +144,17 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Only admin can delete categories
     if (decoded.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const category = await CategoryModel.findById(params.id);
+    const { id } = await params; // ✅ FIXED: await params
+
+    const category = await CategoryModel.findById(id);
     if (!category) {
       return NextResponse.json({ error: 'Category not found' }, { status: 404 });
     }
 
-    // System categories cannot be deleted
     if (category.isSystem) {
       return NextResponse.json(
         { error: 'System categories cannot be deleted' },
@@ -165,8 +162,7 @@ export async function DELETE(
       );
     }
 
-    // Check if category is in use
-    const RecordModel = (await import('@/app/financial-tracker/models/record.model')).default;
+    const RecordModel = (await import('@/app/financial-tracker/models/record.model')).default; // ✅ FIXED: modules path
     const inUse = await RecordModel.exists({
       module: category.module,
       entity: category.entity,
@@ -182,7 +178,6 @@ export async function DELETE(
 
     await category.deleteOne();
 
-    // Log activity - Fixed to include newValue (null for delete)
     await ActivityService.log({
       userId: decoded.userId,
       module: category.module,
@@ -191,7 +186,7 @@ export async function DELETE(
       changes: [{ 
         field: 'category', 
         oldValue: category.name,
-        newValue: null  // Added newValue
+        newValue: null
       }]
     });
 

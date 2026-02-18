@@ -5,9 +5,10 @@ import User from '@/models/User';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
+// ✅ FIX: params ab async function ke andar await karna hoga
 export async function POST(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     await connectDB();
@@ -22,7 +23,10 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const user = await User.findById(params.userId);
+    // ✅ FIX: params ko await karo
+    const { userId } = await params;
+
+    const user = await User.findById(userId);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -35,7 +39,6 @@ export async function POST(
     user.password = hashedPassword;
     await user.save();
 
-    // Return credentials (only once!)
     return NextResponse.json({
       username: user.email,
       password: password,

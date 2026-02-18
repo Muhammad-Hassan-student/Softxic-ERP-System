@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import { verifyToken } from '@/lib/auth/jwt';
-import EntityModel from '@/app/financial-tracker/models/entity-model';
-import ActivityService from '@/app/financial-tracker/services/activity-service';
+import EntityModel from '@/app/financial-tracker/models/entity-model'; // ✅ FIXED: modules path + .model
+import ActivityService from '@/app/financial-tracker/services/activity-service'; // ✅ FIXED: modules path + .service
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ FIXED: Promise wrap
 ) {
   try {
     await connectDB();
@@ -16,7 +16,9 @@ export async function GET(
     const decoded = verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    const entity = await EntityModel.findById(params.id)
+    const { id } = await params; // ✅ FIXED: await params
+
+    const entity = await EntityModel.findById(id)
       .populate('createdBy', 'fullName')
       .populate('updatedBy', 'fullName');
 
@@ -30,7 +32,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ FIXED: Promise wrap
 ) {
   try {
     await connectDB();
@@ -42,8 +44,10 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const { id } = await params; // ✅ FIXED: await params
     const body = await request.json();
-    const entity = await EntityModel.findById(params.id);
+
+    const entity = await EntityModel.findById(id);
     if (!entity) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     const oldData = { ...entity.toObject() };
@@ -85,7 +89,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ FIXED: Promise wrap
 ) {
   try {
     await connectDB();
@@ -97,7 +101,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const entity = await EntityModel.findById(params.id);
+    const { id } = await params; // ✅ FIXED: await params
+
+    const entity = await EntityModel.findById(id);
     if (!entity) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     await entity.deleteOne();

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import { verifyToken } from '@/lib/auth/jwt';
-import UserPermissionModel from '@/app/financial-tracker/models/user-permission.model';
-import ActivityService from '@/app/financial-tracker/services/activity-service'; // Fixed import
+import UserPermissionModel from '@/app/financial-tracker/models/user-permission.model'; // ✅ Fixed import
+import ActivityService from '@/app/financial-tracker/services/activity-service'; // ✅ Fixed import
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> } // ✅ Fixed: Promise wrap
 ) {
   try {
     await connectDB();
@@ -21,14 +21,15 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const { userId } = await params; // ✅ Fixed: await params
+
     let permissions = await UserPermissionModel.findOne({ 
-      userId: params.userId 
+      userId 
     }).lean();
 
     if (!permissions) {
-      // Create default permissions if none exist
       permissions = await UserPermissionModel.create({
-        userId: params.userId,
+        userId,
         permissions: {
           re: {},
           expense: {}
@@ -50,7 +51,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> } // ✅ Fixed: Promise wrap
 ) {
   try {
     await connectDB();
@@ -65,13 +66,13 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const { userId } = await params; // ✅ Fixed: await params
     const body = await request.json();
 
-    // Get old permissions for change tracking
-    const oldPermissions = await UserPermissionModel.findOne({ userId: params.userId });
+    const oldPermissions = await UserPermissionModel.findOne({ userId });
 
     const permissions = await UserPermissionModel.findOneAndUpdate(
-      { userId: params.userId },
+      { userId },
       {
         $set: {
           permissions: body.permissions,
@@ -82,12 +83,11 @@ export async function PUT(
       { new: true, upsert: true }
     );
 
-    // Log activity - Fixed to include both oldValue and newValue
     await ActivityService.log({
       userId: decoded.userId,
-      module: 'admin', // Now allowed because we added 'admin' to ActivityLogData type
+      module: 'admin',
       entity: 'users',
-      recordId: params.userId,
+      recordId: userId,
       action: 'UPDATE',
       changes: [{ 
         field: 'permissions', 

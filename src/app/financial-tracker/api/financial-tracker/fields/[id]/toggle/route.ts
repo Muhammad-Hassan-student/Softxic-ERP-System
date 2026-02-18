@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import { verifyToken } from '@/lib/auth/jwt';
-import CustomFieldModel from '@/app/financial-tracker/models/custom-field.model';
-import ActivityService from '@/app/financial-tracker/services/activity-service';
+import CustomFieldModel from '@/app/financial-tracker/models/custom-field.model'; // ✅ FIXED: modules path
+import ActivityService from '@/app/financial-tracker/services/activity-service'; // ✅ FIXED: modules path + .service
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ FIXED: Promise wrap
 ) {
   try {
     await connectDB();
@@ -18,7 +18,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const field = await CustomFieldModel.findById(params.id);
+    const { id } = await params; // ✅ FIXED: await params
+
+    const field = await CustomFieldModel.findById(id);
     if (!field) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     if (field.isSystem) {

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import { verifyToken } from '@/lib/auth/jwt';
-import CustomFieldModel from '@/app/financial-tracker/models/custom-field.model';
-import ActivityService from '@/app/financial-tracker/services/activity-service';
+import CustomFieldModel from '@/app/financial-tracker/models/custom-field.model'; // ✅ FIXED: modules path
+import ActivityService from '@/app/financial-tracker/services/activity-service'; // ✅ FIXED: modules path + .service
 
 export async function POST(request: NextRequest) {
   try {

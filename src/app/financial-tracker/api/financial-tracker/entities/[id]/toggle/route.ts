@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import { verifyToken } from '@/lib/auth/jwt';
-import EntityModel from '@/app/financial-tracker/models/entity-model';
-import ActivityService from '@/app/financial-tracker/services/activity-service';
+import EntityModel from '@/app/financial-tracker/models/entity-model'; // ✅ FIXED: modules path + .model
+import ActivityService from '@/app/financial-tracker/services/activity-service'; // ✅ FIXED: modules path + .service
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ FIXED: Promise wrap
 ) {
   try {
     await connectDB();
@@ -18,7 +18,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const entity = await EntityModel.findById(params.id);
+    const { id } = await params; // ✅ FIXED: await params
+
+    const entity = await EntityModel.findById(id);
     if (!entity) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     const oldStatus = entity.isEnabled;

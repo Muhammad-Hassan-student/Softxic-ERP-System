@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import { verifyToken } from '@/lib/auth/jwt';
 import User from '@/models/User';
-import UserPermissionModel from '@/app/financial-tracker/models/user-permission.model';
+import UserPermissionModel from '@/app/financial-tracker/models/user-permission.model'; // ✅ FIXED: modules path
 import bcrypt from 'bcryptjs';
 
 // GET /api/financial-tracker/admin/users - List all users

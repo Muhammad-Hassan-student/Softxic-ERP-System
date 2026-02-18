@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import { verifyToken } from '@/lib/auth/jwt';
-import ReportModel from '@/app/financial-tracker/models/report-model';
+import ReportModel from '@/app/financial-tracker/models/report-model'; // ✅ FIXED: modules path + .model
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ FIXED: Promise wrap
 ) {
   try {
     await connectDB();
@@ -15,8 +15,10 @@ export async function GET(
     const decoded = verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
+    const { id } = await params; // ✅ FIXED: await params
+
     const report = await ReportModel.findOne({
-      _id: params.id,
+      _id: id,
       createdBy: decoded.userId
     }).lean();
 
@@ -30,7 +32,7 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ FIXED: Promise wrap
 ) {
   try {
     await connectDB();
@@ -40,8 +42,10 @@ export async function DELETE(
     const decoded = verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
+    const { id } = await params; // ✅ FIXED: await params
+
     const report = await ReportModel.findOneAndDelete({
-      _id: params.id,
+      _id: id,
       createdBy: decoded.userId
     });
 

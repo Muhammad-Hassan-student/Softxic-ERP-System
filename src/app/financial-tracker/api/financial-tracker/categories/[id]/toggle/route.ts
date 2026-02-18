@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import { verifyToken } from '@/lib/auth/jwt';
-import CategoryModel from '@/app/financial-tracker/models/category.model';
-import ActivityService from '@/app/financial-tracker/services/activity-service';
+import CategoryModel from '@/app/financial-tracker/models/category.model'; // ✅ FIXED: modules path
+import ActivityService from '@/app/financial-tracker/services/activity-service'; // ✅ FIXED: modules path + .service
 
-// PATCH /api/financial-tracker/categories/[id]/toggle
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ FIXED: Promise wrap
 ) {
   try {
     await connectDB();
 
-    // Verify authentication
     const token = request.cookies.get('token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -23,23 +21,22 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Only admin can toggle categories
     if (decoded.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const category = await CategoryModel.findById(params.id);
+    const { id } = await params; // ✅ FIXED: await params
+
+    const category = await CategoryModel.findById(id);
     if (!category) {
       return NextResponse.json({ error: 'Category not found' }, { status: 404 });
     }
 
-    // Toggle active status
     const oldStatus = category.isActive;
     category.isActive = !category.isActive;
     category.updatedBy = decoded.userId;
     await category.save();
 
-    // Log activity
     await ActivityService.log({
       userId: decoded.userId,
       module: category.module,

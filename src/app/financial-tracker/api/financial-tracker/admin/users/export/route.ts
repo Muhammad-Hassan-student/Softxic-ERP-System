@@ -31,27 +31,24 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Prepare data for export
     const exportData = users.map(user => ({
-      'Full Name': user.fullName,
-      'Email': user.email,
-      'Role': user.role,
+      'Full Name': user.fullName || '',
+      'Email': user.email || '',
+      'Role': user.role || '',
       'Department': user.department || '',
       'Designation': user.designation || '',
       'Mobile': user.mobile || '',
       'Employee ID': user.employeeId || '',
-      'Status': user.status,
+      'Status': user.status || '',
       'Last Login': user.lastLogin ? new Date(user.lastLogin).toLocaleString() : '',
-      'Created At': new Date(user.createdAt).toLocaleString()
+      'Created At': user.createdAt ? new Date(user.createdAt).toLocaleString() : ''
     }));
 
-    // Convert to CSV
     const fields = ['Full Name', 'Email', 'Role', 'Department', 'Designation', 
                     'Mobile', 'Employee ID', 'Status', 'Last Login', 'Created At'];
     const parser = new Parser({ fields });
     const csv = parser.parse(exportData);
 
-    // Return as downloadable file
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv',

@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import { verifyToken } from '@/lib/auth/jwt';
 import User from '@/models/User';
-import UserPermissionModel from '@/app/financial-tracker/models/user-permission.model';
-import ActivityService from '@/app/financial-tracker/services/activity-service';
+import UserPermissionModel from '@/app/financial-tracker/models/user-permission.model'; // ✅ FIXED: modules path
+import ActivityService from '@/app/financial-tracker/services/activity-service'; // ✅ FIXED: modules path + .service
 import bcrypt from 'bcryptjs';
 
 // GET user details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> } // ✅ FIXED: Promise wrap
 ) {
   try {
     await connectDB();
@@ -24,7 +24,9 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const user = await User.findById(params.userId).select('-password');
+    const { userId } = await params; // ✅ FIXED: await params
+
+    const user = await User.findById(userId).select('-password');
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -42,7 +44,7 @@ export async function GET(
 // UPDATE user
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> } // ✅ FIXED: Promise wrap
 ) {
   try {
     await connectDB();
@@ -57,9 +59,10 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const { userId } = await params; // ✅ FIXED: await params
     const body = await request.json();
-    const user = await User.findById(params.userId);
     
+    const user = await User.findById(userId);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -96,7 +99,7 @@ export async function PUT(
         userId: decoded.userId,
         module: 'admin',
         entity: 'users',
-        recordId: params.userId,
+        recordId: userId, // ✅ FIXED: use userId from params
         action: 'UPDATE',
         changes
       });
@@ -118,7 +121,7 @@ export async function PUT(
 // DELETE user
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> } // ✅ FIXED: Promise wrap
 ) {
   try {
     await connectDB();
@@ -133,8 +136,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const user = await User.findById(params.userId);
-    
+    const { userId } = await params; // ✅ FIXED: await params
+
+    const user = await User.findById(userId);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -153,14 +157,14 @@ export async function DELETE(
     await user.save();
 
     // Also delete permissions
-    await UserPermissionModel.deleteOne({ userId: params.userId });
+    await UserPermissionModel.deleteOne({ userId });
 
     // Log activity
     await ActivityService.log({
       userId: decoded.userId,
       module: 'admin',
       entity: 'users',
-      recordId: params.userId,
+      recordId: userId,
       action: 'DELETE',
       changes: [{ field: 'status', oldValue: 'active', newValue: 'deleted' }]
     });

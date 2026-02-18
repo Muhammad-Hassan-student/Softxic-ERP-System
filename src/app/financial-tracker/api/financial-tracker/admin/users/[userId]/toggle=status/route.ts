@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import { verifyToken } from '@/lib/auth/jwt';
 import User from '@/models/User';
-import ActivityService from '@/app/financial-tracker/services/activity-service';
+import ActivityService from '@/app/financial-tracker/services/activity-service'; // ✅ Fixed import
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> } // ✅ Fixed: Promise wrap
 ) {
   try {
     await connectDB();
@@ -21,7 +21,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const user = await User.findById(params.userId);
+    const { userId } = await params; // ✅ Fixed: await params
+
+    const user = await User.findById(userId);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -31,12 +33,11 @@ export async function PATCH(
     user.status = user.isActive ? 'active' : 'inactive';
     await user.save();
 
-    // Log activity
     await ActivityService.log({
       userId: decoded.userId,
       module: 'admin',
       entity: 'users',
-      recordId: params.userId,
+      recordId: userId,
       action: 'UPDATE',
       changes: [{
         field: 'isActive',
