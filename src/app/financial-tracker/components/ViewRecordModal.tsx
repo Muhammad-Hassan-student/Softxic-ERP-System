@@ -1,0 +1,160 @@
+// src/app/financial-tracker/components/user/ViewRecordModal.tsx
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { X, Eye, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { format } from 'date-fns';
+import { useFields } from '../hooks/useField';
+
+interface ViewRecordModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  module: 're' | 'expense';
+  entity: string;
+  record: any;
+}
+
+export const ViewRecordModal: React.FC<ViewRecordModalProps> = ({
+  isOpen,
+  onClose,
+  module,
+  entity,
+  record
+}) => {
+  const { fields } = useFields(module, entity);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && record?._id) {
+      fetchHistory();
+    }
+  }, [isOpen, record]);
+
+  const fetchHistory = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/financial-tracker/activity-logs?recordId=${record._id}`, {
+        headers: {
+          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setHistory(data.logs);
+      }
+    } catch (error) {
+      console.error('Failed to fetch history:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs flex items-center"><CheckCircle className="h-3 w-3 mr-1" /> Approved</span>;
+      case 'rejected':
+        return <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs flex items-center"><XCircle className="h-3 w-3 mr-1" /> Rejected</span>;
+      case 'submitted':
+        return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs flex items-center"><Clock className="h-3 w-3 mr-1" /> Submitted</span>;
+      default:
+        return <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs flex items-center"><Eye className="h-3 w-3 mr-1" /> Draft</span>;
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+          <h2 className="text-xl font-bold text-gray-900">Record Details</h2>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="h-6 w-6 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Status & Metadata */}
+          <div className="flex items-center justify-between pb-4 border-b">
+            <div className="flex items-center space-x-3">
+              {getStatusBadge(record.status)}
+              <span className="text-xs text-gray-500">
+                Version: {record.version}
+              </span>
+            </div>
+            <div className="text-xs text-gray-500">
+              Created: {format(new Date(record.createdAt), 'PPpp')}
+              <br />
+              Updated: {format(new Date(record.updatedAt), 'PPpp')}
+            </div>
+          </div>
+
+          {/* Dynamic Fields */}
+          <div className="grid grid-cols-2 gap-4">
+            {fields
+              .filter((f:any) => f.visible)
+              .sort((a:any, b:any) => a.order - b.order)
+              .map((field:any) => (
+                <div key={field._id} className="border rounded-lg p-3">
+                  <label className="text-xs text-gray-500">{field.label}</label>
+                  <p className="text-sm font-medium text-gray-900 mt-1">
+                    {formatFieldValue(field.type, record.data[field.fieldKey])}
+                  </p>
+                </div>
+              ))}
+          </div>
+
+          {/* Activity History */}
+          <div className="border-t pt-4">
+            <h3 className="font-medium text-gray-900 mb-3">Activity History</h3>
+            {loading ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mx-auto"></div>
+              </div>
+            ) : history.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-4">No activity recorded</p>
+            ) : (
+              <div className="space-y-3">
+                {history.map((log: any) => (
+                  <div key={log._id} className="text-sm border-l-2 border-gray-200 pl-3">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-medium">{log.userId?.fullName || 'System'}</span>
+                      <span className="text-xs text-gray-500">
+                        {format(new Date(log.timestamp), 'PPpp')}
+                      </span>
+                    </div>
+                    <p className="text-gray-600 mt-1">{log.action}</p>
+                    {log.changes?.length > 0 && (
+                      <div className="mt-1 text-xs text-gray-500">
+                        {log.changes.map((c: any, i: number) => (
+                          <div key={i}>Changed {c.field}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+function formatFieldValue(type: string, value: any): string {
+  if (value === undefined || value === null || value === '') return '-';
+  
+  switch (type) {
+    case 'date':
+      return format(new Date(value), 'PP');
+    case 'number':
+      return value.toLocaleString();
+    case 'checkbox':
+      return value ? 'Yes' : 'No';
+    default:
+      return value.toString();
+  }
+}

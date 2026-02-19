@@ -1,17 +1,21 @@
+// src/app/financial-tracker/components/user/DynamicForm.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { toast } from 'react-hot-toast';
-import { Save, X } from 'lucide-react';
+import * as z from 'zod';
+import FieldRenderer from './DynamicForm/FieldRenderer'; // ✅ Fixed path - remove DynamicForm/
+import { usePermissions } from '../../hooks/usePermission';
 
-interface Field {
+// ✅ Define a simplified interface for frontend use
+export interface FormField {
   _id: string;
   fieldKey: string;
   label: string;
-  type: string;
+  type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'file' | 'image' | 'checkbox' | 'radio';
+  isSystem?: boolean;
+  isEnabled: boolean;
   required: boolean;
   readOnly: boolean;
   visible: boolean;
@@ -27,309 +31,157 @@ interface Field {
   };
 }
 
-interface DynamicEntryFormProps {
+export interface DynamicFormProps {
+  fields: FormField[];
+  initialData?: Record<string, any>;
   module: string;
   entity: string;
-  fields: Field[];
-  initialData?: Record<string, any>;
   onSubmit: (data: Record<string, any>) => Promise<void>;
-  onCancel?: () => void;
+  onCancel?: () => void;  // ✅ Added onCancel to props
+  readOnly?: boolean;
 }
 
-export const DynamicEntryForm: React.FC<DynamicEntryFormProps> = ({
-  module,
-  entity,
+const DynamicForm: React.FC<DynamicFormProps> = ({
   fields,
   initialData = {},
+  module,
+  entity,
   onSubmit,
-  onCancel
+  onCancel,  // ✅ Added onCancel parameter
+  readOnly = false
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [files, setFiles] = useState<Record<string, File>>({});
+  const { canEditColumn } = usePermissions(module, entity);
 
-  // Build validation schema
-  const buildSchema = () => {
-    const shape: Record<string, any> = {};
+  // Build validation schema dynamically
+  const buildValidationSchema = () => {
+    const schemaShape: Record<string, any> = {};
     
     fields.forEach(field => {
-      if (!field.visible) return;
+      if (!field.isEnabled || !field.visible) return;
 
-      let schema: any;
+      let fieldSchema: any;
       
       switch (field.type) {
         case 'text':
         case 'textarea':
-          schema = z.string();
-          if (field.required) schema = schema.min(1, 'Required');
-          if (field.validation?.min) schema = schema.min(field.validation.min);
-          if (field.validation?.max) schema = schema.max(field.validation.max);
+          fieldSchema = z.string();
+          if (field.required) fieldSchema = fieldSchema.min(1, 'Required');
+          if (field.validation?.min) fieldSchema = fieldSchema.min(field.validation.min);
+          if (field.validation?.max) fieldSchema = fieldSchema.max(field.validation.max);
           if (field.validation?.regex) {
-            schema = schema.regex(new RegExp(field.validation.regex));
+            fieldSchema = fieldSchema.regex(new RegExp(field.validation.regex));
           }
           break;
 
         case 'number':
-          schema = z.number();
-          if (field.required) schema = schema.min(1, 'Required');
+          fieldSchema = z.number();
+          if (field.required) fieldSchema = fieldSchema.min(1, 'Required');
           if (field.validation?.min !== undefined) {
-            schema = schema.min(field.validation.min);
+            fieldSchema = fieldSchema.min(field.validation.min);
           }
           if (field.validation?.max !== undefined) {
-            schema = schema.max(field.validation.max);
+            fieldSchema = fieldSchema.max(field.validation.max);
           }
           break;
 
         case 'date':
-          schema = z.date();
-          if (field.required) schema = schema.min(new Date('1900-01-01'));
+          fieldSchema = z.date();
+          if (field.required) fieldSchema = fieldSchema.min(new Date('1900-01-01'));
           break;
 
         case 'checkbox':
-          schema = z.boolean();
+          fieldSchema = z.boolean();
           break;
 
         case 'select':
         case 'radio':
-          schema = z.string();
-          if (field.required) schema = schema.min(1, 'Required');
+          fieldSchema = z.string();
+          if (field.required) fieldSchema = fieldSchema.min(1, 'Required');
           if (field.options?.length) {
-            schema = schema.refine((val: string) => field.options?.includes(val), {
-              message: 'Invalid option'
-            });
+            fieldSchema = fieldSchema.refine(
+              (val: string) => field.options?.includes(val),
+              { message: 'Invalid option' }
+            );
           }
           break;
 
         case 'file':
         case 'image':
-          schema = z.any();
+          fieldSchema = z.any();
           if (field.required) {
-            schema = schema.refine((val: any) => val !== null, { message: 'Required' });
+            fieldSchema = fieldSchema.refine(
+              (val: any) => val !== null && val !== undefined,
+              { message: 'Required' }
+            );
           }
           break;
 
         default:
-          schema = z.any();
+          fieldSchema = z.any();
       }
 
       if (!field.required) {
-        schema = schema.optional();
+        fieldSchema = fieldSchema.optional();
       }
 
-      shape[field.fieldKey] = schema;
+      schemaShape[field.fieldKey] = fieldSchema;
     });
 
-    return z.object(shape);
+    return z.object(schemaShape);
   };
 
-  const schema = buildSchema();
+  const schema = buildValidationSchema();
   
   const {
-    register,
+    control,
     handleSubmit,
     formState: { errors },
-    setValue,
-    watch,
-    reset
+    watch
   } = useForm({
     resolver: zodResolver(schema),
     defaultValues: initialData
   });
 
-  useEffect(() => {
-    reset(initialData);
-  }, [initialData, reset]);
-
-  const handleFileUpload = async (fieldKey: string, file: File) => {
-    // Validate file type
-    const field = fields.find(f => f.fieldKey === fieldKey);
-    if (field?.validation?.allowedFileTypes) {
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      if (!field.validation.allowedFileTypes.includes(ext || '')) {
-        toast.error(`Invalid file type. Allowed: ${field.validation.allowedFileTypes.join(', ')}`);
-        return;
-      }
-    }
-
-    // Validate file size
-    if (field?.validation?.maxFileSize && file.size > field.validation.maxFileSize) {
-      toast.error(`File too large. Max size: ${field.validation.maxFileSize / 1024 / 1024}MB`);
-      return;
-    }
-
-    // Convert to base64
-    const reader = new FileReader();
-    reader.onload = () => {
-      setValue(fieldKey, reader.result);
-    };
-    reader.readAsDataURL(file);
-    
-    setFiles(prev => ({ ...prev, [fieldKey]: file }));
-  };
+  const formValues = watch();
 
   const handleFormSubmit = async (data: Record<string, any>) => {
     setIsSubmitting(true);
     try {
       await onSubmit(data);
-      toast.success('Record saved successfully');
-      reset();
-    } catch (error) {
-      toast.error('Failed to save record');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Sort fields by order
-  const sortedFields = [...fields]
-    .filter(f => f.visible)
-    .sort((a, b) => a.order - b.order);
+  // Filter and sort visible fields
+  const visibleFields = [...fields]
+    .filter(f => f.isEnabled && f.visible)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-      {sortedFields.map((field) => (
-        <div key={field._id} className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">
-            {field.label}
-            {field.required && <span className="text-red-500 ml-1">*</span>}
-          </label>
-
-          {/* Render different input types */}
-          {field.type === 'text' && (
-            <input
-              type="text"
-              {...register(field.fieldKey)}
-              readOnly={field.readOnly}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder={`Enter ${field.label.toLowerCase()}`}
-            />
-          )}
-
-          {field.type === 'number' && (
-            <input
-              type="number"
-              {...register(field.fieldKey, { valueAsNumber: true })}
-              readOnly={field.readOnly}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder={`Enter ${field.label.toLowerCase()}`}
-            />
-          )}
-
-          {field.type === 'date' && (
-            <input
-              type="date"
-              {...register(field.fieldKey)}
-              readOnly={field.readOnly}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
-          )}
-
-          {field.type === 'textarea' && (
-            <textarea
-              {...register(field.fieldKey)}
-              readOnly={field.readOnly}
-              rows={4}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder={`Enter ${field.label.toLowerCase()}`}
-            />
-          )}
-
-          {field.type === 'select' && (
-            <select
-              {...register(field.fieldKey)}
-              disabled={field.readOnly}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select...</option>
-              {field.options?.map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-          )}
-
-          {field.type === 'checkbox' && (
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                {...register(field.fieldKey)}
-                disabled={field.readOnly}
-                className="h-4 w-4 text-blue-600 rounded border-gray-300"
+    <form id="dynamic-form" onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+      {visibleFields.map((field) => {
+        const canEdit = !readOnly && canEditColumn(field.fieldKey);
+        
+        return (
+          <Controller
+            key={field._id || field.fieldKey}
+            name={field.fieldKey}
+            control={control}
+            render={({ field: formField }) => (
+              <FieldRenderer
+                field={field as any}
+                value={formValues[field.fieldKey]}
+                onChange={formField.onChange}
+                error={errors[field.fieldKey]?.message as string}
+                disabled={!canEdit}
               />
-              <span className="ml-2 text-sm text-gray-600">Yes</span>
-            </div>
-          )}
-
-          {field.type === 'radio' && (
-            <div className="space-y-2">
-              {field.options?.map(opt => (
-                <label key={opt} className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    value={opt}
-                    {...register(field.fieldKey)}
-                    disabled={field.readOnly}
-                    className="h-4 w-4 text-blue-600 border-gray-300"
-                  />
-                  <span className="text-sm text-gray-700">{opt}</span>
-                </label>
-              ))}
-            </div>
-          )}
-
-          {(field.type === 'file' || field.type === 'image') && (
-            <div>
-              <input
-                type="file"
-                accept={field.validation?.allowedFileTypes?.map(t => `.${t}`).join(',')}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileUpload(field.fieldKey, file);
-                }}
-                disabled={field.readOnly}
-                className="w-full px-3 py-2 border rounded-lg"
-              />
-              {watch(field.fieldKey) && (
-                <div className="mt-2">
-                  {field.type === 'image' ? (
-                    <img 
-                      src={watch(field.fieldKey) as string} 
-                      alt="Preview" 
-                      className="max-h-32 rounded"
-                    />
-                  ) : (
-                    <a 
-                      href={watch(field.fieldKey) as string} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline text-sm"
-                    >
-                      View File
-                    </a>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Error Message */}
-          {errors[field.fieldKey] && (
-            <p className="text-sm text-red-600">
-              {errors[field.fieldKey]?.message as string}
-            </p>
-          )}
-
-          {/* Validation Hint */}
-          {field.validation && (
-            <p className="text-xs text-gray-500">
-              {field.validation.min !== undefined && `Min: ${field.validation.min} `}
-              {field.validation.max !== undefined && `Max: ${field.validation.max} `}
-              {field.validation.regex && 'Pattern required '}
-              {field.validation.allowedFileTypes && 
-                `Allowed: ${field.validation.allowedFileTypes.join(', ')}`}
-            </p>
-          )}
-        </div>
-      ))}
-
+            )}
+          />
+        );
+      })}
+      
       {/* Form Actions */}
       <div className="flex justify-end space-x-3 pt-4">
         {onCancel && (
@@ -337,8 +189,8 @@ export const DynamicEntryForm: React.FC<DynamicEntryFormProps> = ({
             type="button"
             onClick={onCancel}
             className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+            disabled={isSubmitting}
           >
-            <X className="h-4 w-4 inline mr-2" />
             Cancel
           </button>
         )}
@@ -347,19 +199,11 @@ export const DynamicEntryForm: React.FC<DynamicEntryFormProps> = ({
           disabled={isSubmitting}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
-          {isSubmitting ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline mr-2"></div>
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 inline mr-2" />
-              Save Record
-            </>
-          )}
+          {isSubmitting ? 'Saving...' : 'Save'}
         </button>
       </div>
     </form>
   );
 };
+
+export default DynamicForm;

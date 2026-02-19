@@ -1,4 +1,4 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface IEntity extends Document {
     module: string; // 're' | 'expense'
@@ -7,7 +7,7 @@ export interface IEntity extends Document {
     description: string;
     isEnabled: boolean;
     enableApproval: boolean;
-    branchId?: string; // Multity-entity support
+    branchId?: string; // Multi-entity support
     createdBy: mongoose.Types.ObjectId;
     updatedBy: mongoose.Types.ObjectId;
     createdAt: Date;
@@ -17,8 +17,8 @@ export interface IEntity extends Document {
 const EntitySchema = new Schema<IEntity>({
     module: {
         type: String,
-        requried: true,
-        enum: ['red', 'expense']
+        required: true,
+        enum: ['re', 'expense']  // ✅ FIXED: 'red' → 're'
     },
     entityKey: {
         type: String,
@@ -28,6 +28,7 @@ const EntitySchema = new Schema<IEntity>({
     }, 
     name: { type: String, required: true },
     description: String,
+    isEnabled: { type: Boolean, default: true },
     enableApproval: { type: Boolean, default: false },
     branchId: { type: String, index: true },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -36,7 +37,7 @@ const EntitySchema = new Schema<IEntity>({
     timestamps: true
 })
 
-// Unique constraint per module + entitiyKey + branch
-EntitySchema.index({ module: 1, entityKey: 1, branchId: 1 }, { unique: true } );
+// Unique constraint per module + entityKey + branch
+EntitySchema.index({ module: 1, entityKey: 1, branchId: 1 }, { unique: true });
 
 export default mongoose.models.Entity || mongoose.model<IEntity>('Entity', EntitySchema, 'financial_entities')

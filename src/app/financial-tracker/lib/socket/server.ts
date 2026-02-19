@@ -1,24 +1,46 @@
-import { Server as SocketServer } from "socket.io"
-import { Server as HttpServer } from "http"
+import { Server as SocketServer } from "socket.io";
+import { Server as HttpServer } from "http";
 import { createClient } from "redis";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { verifyToken } from "@/lib/auth/jwt";
 import PermissionService from "../../services/permission-service";
 
-export const initializeSocket = (httpServer: HttpServer) => {
+// Global IO instance
+export let io: SocketServer;
+
+export const initializeSocket = async (httpServer: HttpServer) => {
   const io = new SocketServer(httpServer, {
     path: '/api/financial-tracker/socket',
     cors: {
-      origin: process.env.NEXT_PUBLIC_APP_URL,
-      credentials: true
-    }
+      origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      credentials: true,
+      methods: ['GET', 'POST']
+    },
+    transports: ['websocket', 'polling']
   });
 
-  // Redis adapter for horizontal scaling
-  const pubClient = createClient({ url: process.env.REDIS_URL });
-  const subClient = pubClient.duplicate();
+  // Redis adapter for horizontal scaling (v7+ syntax)
+  const pubClient = createClient({ 
+    url: process.env.REDIS_URL || 'redis://localhost:6379',
+    socket: {
+      reconnectStrategy: (retries) => Math.min(retries * 100, 3000)
+    }
+  });
   
-  io.adapter(createAdapter(pubClient, subClient));
+  const subClient = pubClient.duplicate();
+
+  // Handle Redis connection errors
+  pubClient.on('error', (err) => console.error('Redis Pub Error:', err));
+  subClient.on('error', (err) => console.error('Redis Sub Error:', err));
+
+  try {
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log('✅ Redis Adapter Connected');
+  } catch (error) {
+    console.error('❌ Redis Adapter Error:', error);
+    console.warn('⚠️ Running without Redis adapter - single server only');
+  }
 
   // Authentication middleware
   io.use(async (socket, next) => {
@@ -48,6 +70,9 @@ export const initializeSocket = (httpServer: HttpServer) => {
   // Connection handler
   io.on('connection', (socket) => {
     console.log(`🔌 User ${socket.data.userId} connected`);
+
+    // Join user-specific room for notifications
+    socket.join(`user:${socket.data.userId}`);
 
     // Join room: module:entity
     socket.on('joinRoom', async ({ module, entity }) => {
@@ -86,9 +111,6 @@ export const initializeSocket = (httpServer: HttpServer) => {
 
   return io;
 };
-
-// Global IO instance
-export let io: SocketServer;
 
 export const setIO = (socketIO: SocketServer) => {
   io = socketIO;
