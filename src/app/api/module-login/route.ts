@@ -1,3 +1,4 @@
+// src/app/api/financial-tracker/module-login/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import { generateToken } from '@/lib/auth/jwt';
@@ -44,7 +45,8 @@ export async function POST(request: NextRequest) {
     // Generate token
     const token = generateToken(user._id.toString(), 'module-user');
 
-    return NextResponse.json({
+    // Create response
+    const response = NextResponse.json({
       token,
       user: {
         id: user._id,
@@ -56,10 +58,51 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Set cookies
+    response.cookies.set({
+      name: 'token',
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
+    });
+
+    response.cookies.set({
+      name: 'module',
+      value: user.module,
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    });
+
+    response.cookies.set({
+      name: 'userType',
+      value: 'module',
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    });
+
+    return response;
+
   } catch (error: any) {
+    console.error('Module login error:', error);
     return NextResponse.json(
       { error: 'Login failed', details: error.message },
       { status: 500 }
     );
   }
+}
+
+// ✅ OPTIONAL: Add GET for testing
+export async function GET() {
+  return NextResponse.json({ 
+    message: 'Module login API is working. Use POST to login.' 
+  });
 }

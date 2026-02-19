@@ -1,3 +1,4 @@
+// src/app/module-login/page.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -27,22 +28,21 @@ export default function ModuleLoginPage() {
         body: JSON.stringify(formData)
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Login failed');
+        throw new Error(data.error || 'Login failed');
       }
 
-      const data = await response.json();
-      
-      // Set cookies
-      document.cookie = `token=${data.token}; path=/; max-age=86400`;
-      document.cookie = `module=${data.user.module}; path=/; max-age=86400`;
-      document.cookie = `userType=module; path=/; max-age=86400`;
+      // Set cookies using js-cookie or document.cookie
+      document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+      document.cookie = `module=${data.user.module}; path=/; max-age=604800; SameSite=Lax`;
+      document.cookie = `userType=module; path=/; max-age=604800; SameSite=Lax`;
       
       toast.success('Login successful');
       
-      // Redirect to module dashboard
-      router.push(`/user-system/${data.user.module}/dashboard`);
+      // Redirect to entity selector
+      router.push('/user-system');
 
     } catch (error: any) {
       toast.error(error.message);
