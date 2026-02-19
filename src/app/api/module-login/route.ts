@@ -11,6 +11,14 @@ export async function POST(request: NextRequest) {
 
     const { email, password, module } = await request.json();
 
+    // Validate input
+    if (!email || !password || !module) {
+      return NextResponse.json(
+        { error: 'Email, password and module are required' },
+        { status: 400 }
+      );
+    }
+
     // Find user
     const user = await ModuleUser.findOne({ email, module }).select('+password');
     
@@ -45,18 +53,22 @@ export async function POST(request: NextRequest) {
     // Generate token
     const token = generateToken(user._id.toString(), 'module-user');
 
-    // Create response
-    const response = NextResponse.json({
+    // Create response with proper JSON
+    const responseData = {
+      success: true,
       token,
       user: {
-        id: user._id,
+        id: user._id.toString(),
         fullName: user.fullName,
         email: user.email,
         module: user.module,
-        entities: user.entities,
-        permissions: user.permissions
+        entities: user.entities || [],
+        permissions: user.permissions || {}
       }
-    });
+    };
+
+    // Create response
+    const response = NextResponse.json(responseData);
 
     // Set cookies
     response.cookies.set({

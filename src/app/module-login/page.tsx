@@ -22,19 +22,28 @@ export default function ModuleLoginPage() {
     try {
       setIsLoading(true);
 
-      const response = await fetch('/api/financial-tracker/module-login', {
+      const response = await fetch('/api/module-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
 
-      const data = await response.json();
-
+      // Check if response is ok
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+        const errorData = await response.json().catch(() => ({ 
+          error: `HTTP error ${response.status}` 
+        }));
+        throw new Error(errorData.error || 'Login failed');
       }
 
-      // Set cookies using js-cookie or document.cookie
+      // Parse response
+      const data = await response.json();
+      
+      if (!data.token) {
+        throw new Error('Invalid response from server');
+      }
+
+      // Set cookies
       document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
       document.cookie = `module=${data.user.module}; path=/; max-age=604800; SameSite=Lax`;
       document.cookie = `userType=module; path=/; max-age=604800; SameSite=Lax`;
@@ -45,7 +54,8 @@ export default function ModuleLoginPage() {
       router.push('/user-system');
 
     } catch (error: any) {
-      toast.error(error.message);
+      console.error('Login error:', error);
+      toast.error(error.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }
