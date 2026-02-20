@@ -1,11 +1,12 @@
 // src/app/access-denied/page.tsx
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, ArrowLeft, Home, LogOut } from 'lucide-react';
 
-export default function AccessDeniedPage() {
+// ✅ Separate component that uses useSearchParams
+function AccessDeniedContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get('from') || 'this page';
@@ -67,5 +68,32 @@ export default function AccessDeniedPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ✅ Loading fallback component
+function AccessDeniedLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
+        <div className="animate-pulse">
+          <div className="w-20 h-20 bg-gray-200 rounded-full mx-auto mb-4"></div>
+          <div className="h-8 bg-gray-200 rounded w-48 mx-auto mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded w-64 mx-auto mb-4"></div>
+          <div className="h-10 bg-gray-200 rounded w-full mb-2"></div>
+          <div className="h-10 bg-gray-200 rounded w-full mb-2"></div>
+          <div className="h-10 bg-gray-200 rounded w-full"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ✅ Main page with Suspense wrapper
+export default function AccessDeniedPage() {
+  return (
+    <Suspense fallback={<AccessDeniedLoading />}>
+      <AccessDeniedContent />
+    </Suspense>
   );
 }
