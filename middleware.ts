@@ -8,7 +8,7 @@ import { verifyToken } from "@/lib/auth/jwt";
 // 1. PUBLIC ROUTES (No auth required)
 const PUBLIC_ROUTES = [
   "/login",
-  "/module-login",           // ✅ ADD THIS - MODULE LOGIN PAGE
+  "/module-login",
   "/",
   "/forgot-password",
   "/reset-password",
@@ -17,7 +17,7 @@ const PUBLIC_ROUTES = [
   "/api/auth/check",
   "/api/auth/debug",
   "/api/auth/logout",
-  "/api/module-login", // ✅ ADD THIS - MODULE LOGIN API
+  "/api/module-login",
 ];
 
 // 2. DASHBOARD PATHS for each role
@@ -28,7 +28,7 @@ const DASHBOARD_PATHS: Record<string, string> = {
   accounts: "/accounts/dashboard",
   support: "/support/dashboard",
   marketing: "/marketing/dashboard",
-  "module-user": "/user-system",           // ✅ ADD THIS - MODULE USERS
+  "module-user": "/user-system",
 };
 
 // ==================== HELPER FUNCTIONS ====================
@@ -114,7 +114,7 @@ export async function middleware(request: NextRequest) {
 
   console.log(`\n🔐 Middleware checking: ${pathname}`);
 
-  // ✅ CHECK IF IT'S A PUBLIC ROUTE (INCLUDING MODULE-LOGIN)
+  // ✅ CHECK IF IT'S A PUBLIC ROUTE
   const isPublicPage = PUBLIC_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(route),
   );
@@ -157,7 +157,7 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
-    // ✅ FIXED: Get correct user role
+    // ✅ Get correct user role
     const role = getUserRole(request, decoded);
     
     console.log(`✅ User authenticated: ${role} (ID: ${decoded.userId})`);
@@ -166,7 +166,7 @@ export async function middleware(request: NextRequest) {
     if (!canAccessRoute(role, pathname)) {
       console.log(`⛔ Access denied for ${role} to ${pathname}`);
 
-      // ✅ FIXED: Redirect to appropriate login
+      // ✅ Redirect to appropriate login
       const loginPath = role === "module-user" ? "/module-login" : "/login";
       const loginUrl = new URL(loginPath, request.url);
       loginUrl.searchParams.set("redirect", pathname);
