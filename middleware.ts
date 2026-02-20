@@ -8,11 +8,11 @@ import { verifyToken } from "@/lib/auth/jwt";
 // 1. PUBLIC ROUTES (No auth required)
 const PUBLIC_ROUTES = [
   "/login",
-  "/module-login",
+  "/module-login",           // ✅ Added module login page
   "/",
   "/forgot-password",
   "/reset-password",
-  "/access-denied",
+  "/access-denied",           // ✅ Access denied page
   "/api/auth/login",
   "/api/auth/me",
   "/api/auth/check",
@@ -28,14 +28,7 @@ const STATIC_PATHS = [
   "/favicon.ico",
   "/robots.txt",
   "/sitemap.xml",
-  ".svg",
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".gif",
-  ".webp",
-  ".css",
-  ".js",
+  ".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".css", ".js",
 ];
 
 // 3. DASHBOARD PATHS for each role
@@ -51,7 +44,7 @@ const DASHBOARD_PATHS: Record<string, string> = {
 
 // 4. ROLE-BASED ACCESS RULES
 const ROLE_ACCESS: Record<string, string[]> = {
-  admin: ["/admin", "/hr", "/employee", "/accounts", "/support", "/marketing", "/user-system", "/profile", "/dashboard","/financial-tracker"],
+  admin: ["/admin", "/hr", "/employee", "/accounts", "/support", "/marketing", "/user-system", "/profile", "/dashboard"],
   "module-user": ["/user-system", "/profile"],
   hr: ["/hr", "/employee", "/profile", "/dashboard"],
   employee: ["/employee", "/profile", "/dashboard"],
@@ -94,6 +87,21 @@ function getUserRole(request: NextRequest, decoded: any): string {
   
   // Otherwise use role from token or userRole cookie
   return decoded?.role || request.cookies.get("userRole")?.value || "";
+}
+
+function getLoginPath(pathname: string, role?: string): string {
+  // Module users trying to access ERP routes → module login
+  if (role === "module-user" && !pathname.startsWith("/user-system")) {
+    return "/module-login";
+  }
+  
+  // User-system routes → module login
+  if (pathname.startsWith("/user-system")) {
+    return "/module-login";
+  }
+  
+  // Default → ERP login
+  return "/login";
 }
 
 function clearAuthCookies(response: NextResponse): void {
@@ -149,8 +157,8 @@ export async function middleware(request: NextRequest) {
   if (!token) {
     console.log("❌ No token, redirecting to login");
     
-    // Determine which login page to redirect to
-    const loginPath = pathname.startsWith("/user-system") ? "/module-login" : "/login";
+    // ✅ FIXED: Determine correct login page
+    const loginPath = getLoginPath(pathname);
     const loginUrl = new URL(loginPath, request.url);
     loginUrl.searchParams.set("redirect", pathname);
     
@@ -163,7 +171,7 @@ export async function middleware(request: NextRequest) {
 
     if (!decoded) {
       console.log("❌ Invalid token");
-      const loginPath = pathname.startsWith("/user-system") ? "/module-login" : "/login";
+      const loginPath = getLoginPath(pathname);
       const response = NextResponse.redirect(new URL(loginPath, request.url));
       clearAuthCookies(response);
       return response;
@@ -178,10 +186,14 @@ export async function middleware(request: NextRequest) {
     if (!canAccessRoute(role, pathname)) {
       console.log(`⛔ Access denied for ${role} to ${pathname}`);
 
-      const deniedUrl = new URL("/access-denied", request.url);
-      deniedUrl.searchParams.set("from", pathname);
-      deniedUrl.searchParams.set("role", role);
-      return NextResponse.redirect(deniedUrl);
+      // ✅ FIXED: Redirect to login (not dashboard)
+      const loginPath = getLoginPath(pathname, role);
+      const loginUrl = new URL(loginPath, request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      loginUrl.searchParams.set("reason", "access-denied");
+      loginUrl.searchParams.set("role", role);
+      
+      return NextResponse.redirect(loginUrl);
     }
 
     console.log(`✅ Access granted to ${pathname}`);
@@ -205,7 +217,7 @@ export async function middleware(request: NextRequest) {
   } catch (error: any) {
     console.error("❌ Middleware error:", error.message);
 
-    const loginPath = pathname.startsWith("/user-system") ? "/module-login" : "/login";
+    const loginPath = getLoginPath(pathname);
     const response = NextResponse.redirect(new URL(loginPath, request.url));
     clearAuthCookies(response);
     return response;
