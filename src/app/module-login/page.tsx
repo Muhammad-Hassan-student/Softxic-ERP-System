@@ -22,7 +22,7 @@ export default function ModuleLoginPage() {
     try {
       setIsLoading(true);
 
-      const response = await fetch('/api/financial-tracker/module-login', {
+      const response = await fetch('/api/module-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
