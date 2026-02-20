@@ -22,6 +22,7 @@ export default function ModuleLoginPage() {
     try {
       setIsLoading(true);
 
+      // ✅ FIXED: Correct API endpoint
       const response = await fetch('/api/module-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -30,10 +31,16 @@ export default function ModuleLoginPage() {
 
       // Check if response is ok
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ 
-          error: `HTTP error ${response.status}` 
-        }));
-        throw new Error(errorData.error || 'Login failed');
+        // Try to parse error, but handle case where response is not JSON
+        let errorMessage = `Login failed (${response.status})`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       // Parse response
@@ -43,7 +50,7 @@ export default function ModuleLoginPage() {
         throw new Error('Invalid response from server');
       }
 
-      // Set cookies
+      // Set cookies with proper options
       document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
       document.cookie = `module=${data.user.module}; path=/; max-age=604800; SameSite=Lax`;
       document.cookie = `userType=module; path=/; max-age=604800; SameSite=Lax`;
