@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     user.lastLogin = new Date();
     await user.save();
 
-    // Generate token
+    // ✅ Generate token with role 'module-user'
     const token = generateToken(user._id.toString(), 'module-user');
 
     // Create response with proper JSON
@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
         fullName: user.fullName,
         email: user.email,
         module: user.module,
+        role: 'module-user',
         entities: user.entities || [],
         permissions: user.permissions || {}
       }
@@ -78,6 +79,16 @@ export async function POST(request: NextRequest) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
+    });
+
+    response.cookies.set({
+      name: 'userRole',
+      value: 'module-user',
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
       path: '/',
     });
 
@@ -112,7 +123,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ✅ OPTIONAL: Add GET for testing
 export async function GET() {
   return NextResponse.json({ 
     message: 'Module login API is working. Use POST to login.' 

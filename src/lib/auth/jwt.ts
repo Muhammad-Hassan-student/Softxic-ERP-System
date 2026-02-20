@@ -1,3 +1,4 @@
+// src/lib/auth/jwt.ts
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production-minimum-32-chars';
@@ -49,6 +50,7 @@ export function verifyToken(token: string): JwtPayload | null {
       return null;
     }
 
+    console.log('✅ Token verified for:', { userId: decoded.userId, role: decoded.role });
     return decoded;
 
   } catch (error: any) {

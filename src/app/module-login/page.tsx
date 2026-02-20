@@ -22,8 +22,7 @@ export default function ModuleLoginPage() {
     try {
       setIsLoading(true);
 
-      // ✅ FIXED: Correct API endpoint
-      const response = await fetch('/api/module-login', {
+      const response = await fetch('/api/financial-tracker/module-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -31,13 +30,11 @@ export default function ModuleLoginPage() {
 
       // Check if response is ok
       if (!response.ok) {
-        // Try to parse error, but handle case where response is not JSON
         let errorMessage = `Login failed (${response.status})`;
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
         } catch {
-          // If response is not JSON, use status text
           errorMessage = response.statusText || errorMessage;
         }
         throw new Error(errorMessage);
@@ -50,14 +47,15 @@ export default function ModuleLoginPage() {
         throw new Error('Invalid response from server');
       }
 
-      // Set cookies with proper options
+      // ✅ Set cookies properly
       document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+      document.cookie = `userRole=${data.user.role}; path=/; max-age=604800; SameSite=Lax`;
       document.cookie = `module=${data.user.module}; path=/; max-age=604800; SameSite=Lax`;
       document.cookie = `userType=module; path=/; max-age=604800; SameSite=Lax`;
       
       toast.success('Login successful');
       
-      // Redirect to entity selector
+      // ✅ Redirect to user-system (entity selector)
       router.push('/user-system');
 
     } catch (error: any) {
