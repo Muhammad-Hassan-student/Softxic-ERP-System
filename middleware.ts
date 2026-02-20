@@ -8,21 +8,34 @@ import { verifyToken } from "@/lib/auth/jwt";
 // 1. PUBLIC ROUTES (No auth required)
 const PUBLIC_ROUTES = [
   "/login",
-  "/module-login",           // ✅ Added module login page
+  "/module-login",
   "/",
   "/forgot-password",
   "/reset-password",
+  "/access-denied",
   "/api/auth/login",
   "/api/auth/me",
   "/api/auth/check",
   "/api/auth/debug",
   "/api/auth/logout",
+  "/api/financial-tracker/module-login",
 ];
 
-// 2. API ROUTES THAT DON'T NEED AUTH (or have their own auth)
-const PUBLIC_API_ROUTES = [
-  "/api/financial-tracker/module-login",  // ✅ Module login API
-  "/api/module-login",                     // Fallback
+// 2. STATIC ASSETS (Always skip)
+const STATIC_PATHS = [
+  "/_next",
+  "/public",
+  "/favicon.ico",
+  "/robots.txt",
+  "/sitemap.xml",
+  ".svg",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".css",
+  ".js",
 ];
 
 // 3. DASHBOARD PATHS for each role
@@ -33,61 +46,61 @@ const DASHBOARD_PATHS: Record<string, string> = {
   accounts: "/accounts/dashboard",
   support: "/support/dashboard",
   marketing: "/marketing/dashboard",
-  "module-user": "/user-system",           // ✅ Module users go to entity selector
+  "module-user": "/user-system",
+};
+
+// 4. ROLE-BASED ACCESS RULES
+const ROLE_ACCESS: Record<string, string[]> = {
+  admin: ["/admin", "/hr", "/employee", "/accounts", "/support", "/marketing", "/user-system", "/profile", "/dashboard","/financial-tracker"],
+  "module-user": ["/user-system", "/profile"],
+  hr: ["/hr", "/employee", "/profile", "/dashboard"],
+  employee: ["/employee", "/profile", "/dashboard"],
+  accounts: ["/accounts", "/finance", "/profile", "/dashboard"],
+  support: ["/support", "/profile", "/dashboard"],
+  marketing: ["/marketing", "/profile", "/dashboard"],
 };
 
 // ==================== HELPER FUNCTIONS ====================
 
-// Check if route is accessible for user role
+function isStaticAsset(pathname: string): boolean {
+  return STATIC_PATHS.some(path => 
+    pathname.startsWith(path) || pathname.endsWith(path)
+  );
+}
+
+function isPublicRoute(pathname: string): boolean {
+  return PUBLIC_ROUTES.some(route => 
+    pathname === route || pathname.startsWith(route + "/")
+  );
+}
+
 function canAccessRoute(userRole: string, pathname: string): boolean {
   // Admin can access everything
   if (userRole === "admin") return true;
 
-  // Module users can only access user-system routes
-  if (userRole === "module-user") {
-    if (pathname.startsWith("/user-system")) return true;
-    if (pathname === "/profile") return true;
-    return false;
-  }
+  // Get allowed paths for this role
+  const allowedPaths = ROLE_ACCESS[userRole] || [];
+  
+  // Check if current path starts with any allowed path
+  return allowedPaths.some(path => pathname.startsWith(path));
+}
 
-  // HR can access HR routes and employee dashboard
-  if (userRole === "hr") {
-    if (pathname.startsWith("/hr")) return true;
-    if (pathname === "/employee/dashboard") return true;
-    if (pathname === "/profile") return true;
-    if (pathname === "/dashboard") return true;
+function getUserRole(request: NextRequest, decoded: any): string {
+  // Check userType cookie first (for module users)
+  const userType = request.cookies.get("userType")?.value;
+  if (userType === "module") {
+    return "module-user";
   }
+  
+  // Otherwise use role from token or userRole cookie
+  return decoded?.role || request.cookies.get("userRole")?.value || "";
+}
 
-  // Employee can access only employee routes
-  if (userRole === "employee") {
-    if (pathname.startsWith("/employee")) return true;
-    if (pathname === "/profile") return true;
-    if (pathname === "/dashboard") return true;
-  }
-
-  // Accounts can access accounts routes
-  if (userRole === "accounts") {
-    if (pathname.startsWith("/accounts")) return true;
-    if (pathname.startsWith("/finance")) return true;
-    if (pathname === "/profile") return true;
-    if (pathname === "/dashboard") return true;
-  }
-
-  // Support can access support routes
-  if (userRole === "support") {
-    if (pathname.startsWith("/support")) return true;
-    if (pathname === "/profile") return true;
-    if (pathname === "/dashboard") return true;
-  }
-
-  // Marketing can access marketing routes
-  if (userRole === "marketing") {
-    if (pathname.startsWith("/marketing")) return true;
-    if (pathname === "/profile") return true;
-    if (pathname === "/dashboard") return true;
-  }
-
-  return false;
+function clearAuthCookies(response: NextResponse): void {
+  response.cookies.delete("token");
+  response.cookies.delete("userRole");
+  response.cookies.delete("userType");
+  response.cookies.delete("module");
 }
 
 // ==================== MAIN MIDDLEWARE ====================
@@ -95,30 +108,15 @@ function canAccessRoute(userRole: string, pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip static files and assets COMPLETELY
-  if (
-    pathname.startsWith("/_next/") ||
-    pathname.startsWith("/public/") ||
-    pathname.includes(".") ||
-    pathname === "/favicon.ico" ||
-    pathname === "/robots.txt" ||
-    pathname === "/sitemap.xml"
-  ) {
+  // 1️⃣ SKIP STATIC ASSETS
+  if (isStaticAsset(pathname)) {
     return NextResponse.next();
   }
 
   console.log(`\n🔐 Middleware checking: ${pathname}`);
 
-  // Check if it's a public API route
-  const isPublicApi = PUBLIC_API_ROUTES.some(route => pathname.startsWith(route));
-  
-  // Check if it's a public page
-  const isPublicPage = PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route),
-  );
-
-  // PUBLIC PATHS: No auth required
-  if (isPublicApi || isPublicPage) {
+  // 2️⃣ CHECK PUBLIC ROUTES
+  if (isPublicRoute(pathname)) {
     console.log(`🌐 Public path: ${pathname}`);
 
     // If already logged in and trying to access login, redirect to dashboard
@@ -129,23 +127,11 @@ export async function middleware(request: NextRequest) {
       try {
         const decoded = verifyToken(token);
         if (decoded) {
-          // Determine role - use cookie if available, otherwise from token
           const role = userType === "module" ? "module-user" : decoded.role;
-          
           const dashboardPath = DASHBOARD_PATHS[role] || "/dashboard";
+          
           console.log(`↪️ Already logged in as ${role}, redirecting to: ${dashboardPath}`);
-
-          const response = NextResponse.redirect(new URL(dashboardPath, request.url));
-
-          // Preserve cookies
-          request.cookies.getAll().forEach((cookie) => {
-            response.cookies.set(cookie.name, cookie.value || "", {
-              httpOnly: cookie.name === "token",
-              path: "/",
-            });
-          });
-
-          return response;
+          return NextResponse.redirect(new URL(dashboardPath, request.url));
         }
       } catch (error) {
         console.log("⚠️ Invalid token on public path");
@@ -154,7 +140,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // PROTECTED PATHS: Require authentication
+  // 3️⃣ PROTECTED PATHS - CHECK AUTHENTICATION
   const token = request.cookies.get("token")?.value;
   const userType = request.cookies.get("userType")?.value;
   
@@ -171,7 +157,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Verify token
+  // 4️⃣ VERIFY TOKEN
   try {
     const decoded = verifyToken(token);
 
@@ -179,36 +165,35 @@ export async function middleware(request: NextRequest) {
       console.log("❌ Invalid token");
       const loginPath = pathname.startsWith("/user-system") ? "/module-login" : "/login";
       const response = NextResponse.redirect(new URL(loginPath, request.url));
-      response.cookies.delete("token");
-      response.cookies.delete("userRole");
-      response.cookies.delete("userType");
-      response.cookies.delete("module");
+      clearAuthCookies(response);
       return response;
     }
 
-    // Determine role (module-user or erp role)
-    const role = userType === "module" ? "module-user" : decoded.role;
+    // Get user role
+    const role = getUserRole(request, decoded);
     
     console.log(`✅ User authenticated: ${role} (ID: ${decoded.userId})`);
 
-    // Check if user can access this route
+    // 5️⃣ CHECK AUTHORIZATION
     if (!canAccessRoute(role, pathname)) {
       console.log(`⛔ Access denied for ${role} to ${pathname}`);
 
-      // Redirect to user's dashboard
-      const dashboardPath = DASHBOARD_PATHS[role] || "/dashboard";
-      console.log(`↪️ Redirecting to: ${dashboardPath}`);
-      return NextResponse.redirect(new URL(dashboardPath, request.url));
+      const deniedUrl = new URL("/access-denied", request.url);
+      deniedUrl.searchParams.set("from", pathname);
+      deniedUrl.searchParams.set("role", role);
+      return NextResponse.redirect(deniedUrl);
     }
 
     console.log(`✅ Access granted to ${pathname}`);
 
-    // Add user info to headers
+    // 6️⃣ ADD USER INFO TO HEADERS
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-user-id", decoded.userId);
     requestHeaders.set("x-user-role", role);
+    
     if (userType === "module") {
       requestHeaders.set("x-user-type", "module");
+      requestHeaders.set("x-module", request.cookies.get("module")?.value || "");
     }
 
     return NextResponse.next({
@@ -216,16 +201,13 @@ export async function middleware(request: NextRequest) {
         headers: requestHeaders,
       },
     });
+
   } catch (error: any) {
     console.error("❌ Middleware error:", error.message);
 
-    // Clear cookies and redirect to appropriate login
     const loginPath = pathname.startsWith("/user-system") ? "/module-login" : "/login";
     const response = NextResponse.redirect(new URL(loginPath, request.url));
-    response.cookies.delete("token");
-    response.cookies.delete("userRole");
-    response.cookies.delete("userType");
-    response.cookies.delete("module");
+    clearAuthCookies(response);
     return response;
   }
 }
@@ -234,6 +216,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Match all routes except static files
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|public).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)",
   ],
 };
