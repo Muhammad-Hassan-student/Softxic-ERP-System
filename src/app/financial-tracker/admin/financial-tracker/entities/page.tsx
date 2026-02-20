@@ -82,9 +82,10 @@ export default function EntitiesPage() {
       if (selectedModule !== 'all') params.append('module', selectedModule);
       
       const token = getToken();
-      const response = await fetch(`/api/financial-tracker/entities?${params.toString()}`, {
+      console.log(token)
+      const response = await fetch(`/financial-tracker/api/financial-tracker/entities?${params.toString()}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token
         }
       });
 
@@ -132,10 +133,10 @@ export default function EntitiesPage() {
   const handleToggleStatus = async (entityId: string, currentStatus: boolean) => {
     try {
       const token = getToken();
-      const response = await fetch(`/api/financial-tracker/entities/${entityId}/toggle`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/entities/${entityId}/toggle`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token
         }
       });
 
@@ -154,10 +155,10 @@ export default function EntitiesPage() {
 
     try {
       const token = getToken();
-      const response = await fetch(`/api/financial-tracker/entities/${entityId}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/entities/${entityId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token
         }
       });
 
@@ -177,9 +178,9 @@ export default function EntitiesPage() {
       if (selectedModule !== 'all') params.append('module', selectedModule);
       
       const token = getToken();
-      const response = await fetch(`/api/financial-tracker/entities/export?${params.toString()}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/entities/export?${params.toString()}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token
         }
       });
 

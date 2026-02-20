@@ -18,7 +18,12 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react';
-
+// ✅ Token utility function
+const getToken = (): string => {
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(/token=([^;]+)/);
+  return match ? match[1] : '';
+};
 interface Category {
   _id: string;
   module: 're' | 'expense';
@@ -60,6 +65,8 @@ export default function CategoriesPage() {
   const fetchCategories = async () => {
     try {
       setIsLoading(true);
+       const token = getToken();
+
       const params = new URLSearchParams();
       if (selectedModule !== 'all') params.append('module', selectedModule);
       if (selectedEntity !== 'all') params.append('entity', selectedEntity);
@@ -67,7 +74,7 @@ export default function CategoriesPage() {
 
       const response = await fetch(`/financial-tracker/api/financial-tracker/categories?${params.toString()}`, {
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': token
         }
       });
 
@@ -128,6 +135,7 @@ export default function CategoriesPage() {
       toast.error('System categories cannot be deleted');
       return;
     }
+    const token = getToken();
 
     if (!confirm(`Are you sure you want to delete "${category.name}"?`)) return;
 
@@ -135,7 +143,7 @@ export default function CategoriesPage() {
       const response = await fetch(`/financial-tracker/api/financial-tracker/categories/${category._id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': token
         }
       });
 
@@ -151,10 +159,12 @@ export default function CategoriesPage() {
   // Handle toggle active
   const handleToggleActive = async (category: Category) => {
     try {
+      const token = getToken();
+
       const response = await fetch(`/financial-tracker/api/financial-tracker/categories/${category._id}/toggle`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': token
         }
       });
 

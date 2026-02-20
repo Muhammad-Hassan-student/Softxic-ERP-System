@@ -29,6 +29,12 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+// ✅ Token utility function
+const getToken = (): string => {
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(/token=([^;]+)/);
+  return match ? match[1] : '';
+};
 interface User {
   _id: string;
   fullName: string;
@@ -108,7 +114,7 @@ export default function PermissionsPage() {
       setIsLoading(true);
       const response = await fetch('/financial-tracker/api/financial-tracker/admin/users', {
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         }
       });
 
@@ -122,7 +128,7 @@ export default function PermissionsPage() {
       for (const user of data.users) {
         const permResponse = await fetch(`/financial-tracker/api/financial-tracker/admin/users/${user._id}/permissions`, {
           headers: {
-            'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+            'Authorization': getToken()
           }
         });
         if (permResponse.ok) {
@@ -246,7 +252,7 @@ export default function PermissionsPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         },
         body: JSON.stringify({ permissions: permissions[userId] })
       });
@@ -272,7 +278,7 @@ export default function PermissionsPage() {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+            'Authorization': getToken()
           },
           body: JSON.stringify({ permissions: permissions[userId] })
         });

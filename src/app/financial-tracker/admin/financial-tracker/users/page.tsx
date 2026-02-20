@@ -25,6 +25,12 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+// ✅ Token utility function
+const getToken = (): string => {
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(/token=([^;]+)/);
+  return match ? match[1] : '';
+};
 interface ERPUser {
   _id: string;
   fullName: string;
@@ -65,7 +71,7 @@ export default function UserManagementPage() {
       setIsLoading(true);
       const response = await fetch('/financial-tracker/api/financial-tracker/admin/users', {
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         }
       });
 
@@ -79,7 +85,7 @@ export default function UserManagementPage() {
       for (const user of data.users) {
         const permResponse = await fetch(`/financial-tracker/api/financial-tracker/admin/users/${user._id}/permissions`, {
           headers: {
-            'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+            'Authorization': getToken()
           }
         });
         if (permResponse.ok) {
@@ -138,7 +144,7 @@ export default function UserManagementPage() {
       const response = await fetch(`/financial-tracker/api/financial-tracker/admin/users/${userId}/toggle-status`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         }
       });
 
@@ -159,7 +165,7 @@ export default function UserManagementPage() {
       const response = await fetch(`/financial-tracker/api/financial-tracker/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         }
       });
 
@@ -178,7 +184,7 @@ export default function UserManagementPage() {
       const response = await fetch(`/financial-tracker/api/financial-tracker/admin/users/${userId}/generate-credentials`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         }
       });
 
@@ -211,7 +217,7 @@ export default function UserManagementPage() {
     try {
       const response = await fetch('/financial-tracker/api/financial-tracker/admin/users/export', {
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         }
       });
 

@@ -32,7 +32,12 @@ interface ModuleUser {
   lastLogin?: string;
   createdAt: string;
 }
-
+// ✅ Token utility function
+const getToken = (): string => {
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(/token=([^;]+)/);
+  return match ? match[1] : '';
+};
 export default function ModuleUsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<ModuleUser[]>([]);
@@ -54,7 +59,7 @@ export default function ModuleUsersPage() {
 
       const response = await fetch(`/financial-tracker/api/financial-tracker/module-users?${params.toString()}`, {
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization':  getToken()
         }
       });
 
@@ -74,7 +79,7 @@ export default function ModuleUsersPage() {
       const response = await fetch(`/financial-tracker/api/financial-tracker/module-users/${userId}/toggle`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         }
       });
 
@@ -94,7 +99,7 @@ export default function ModuleUsersPage() {
       const response = await fetch(`/financial-tracker/api/financial-tracker/module-users/${userId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         }
       });
 

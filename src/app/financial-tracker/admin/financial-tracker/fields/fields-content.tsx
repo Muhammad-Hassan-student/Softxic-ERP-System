@@ -260,7 +260,7 @@ export default function FieldsPage() {
     try {
       const response = await fetch(`/financial-tracker/api/financial-tracker/entities?module=${selectedModule}`, {
         headers: {
-          'Authorization': `Bearer ${getToken()}`
+          'Authorization': getToken()
         }
       });
       if (response.ok) {
@@ -283,7 +283,7 @@ export default function FieldsPage() {
         `/financial-tracker/api/financial-tracker/fields?module=${selectedModule}&entityId=${selectedEntity}`,
         {
           headers: {
-            'Authorization': `Bearer ${getToken()}`
+            'Authorization': getToken()
           }
         }
       );
@@ -317,7 +317,7 @@ export default function FieldsPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`
+            'Authorization': getToken()
           },
           body: JSON.stringify({
             entityId: selectedEntity,
@@ -345,7 +345,7 @@ export default function FieldsPage() {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getToken()}`
+          'Authorization': getToken()
         },
         body: JSON.stringify(formData)
       });
@@ -367,7 +367,7 @@ export default function FieldsPage() {
       const response = await fetch(`/financial-tracker/api/financial-tracker/fields/${fieldId}/toggle`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${getToken()}`
+          'Authorization': getToken()
         }
       });
       if (response.ok) {
@@ -390,7 +390,7 @@ export default function FieldsPage() {
       const response = await fetch(`/financial-tracker/api/financial-tracker/fields/${field._id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${getToken()}`
+          'Authorization': getToken()
         }
       });
       if (response.ok) {
@@ -426,7 +426,7 @@ export default function FieldsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getToken()}`
+          'Authorization': getToken()
         },
         body: JSON.stringify({
           entityId: selectedEntity,

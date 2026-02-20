@@ -49,9 +49,9 @@ export default function UserSystemPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/financial-tracker/entities?module=${module}&active=true`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/entities?module=${module}&active=true`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token
         }
       });
       

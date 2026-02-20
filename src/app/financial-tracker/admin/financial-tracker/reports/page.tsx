@@ -60,6 +60,13 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
+
+// ✅ Token utility function
+const getToken = (): string => {
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(/token=([^;]+)/);
+  return match ? match[1] : '';
+};
 interface ReportConfig {
   id?: string;
   name: string;
@@ -143,7 +150,7 @@ export default function ReportsPage() {
       setIsLoading(true);
       const response = await fetch('/financial-tracker/api/financial-tracker/reports', {
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         }
       });
 
@@ -169,7 +176,7 @@ export default function ReportsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         },
         body: JSON.stringify(config)
       });
@@ -194,7 +201,7 @@ export default function ReportsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         },
         body: JSON.stringify({ config, data: reportData })
       });
@@ -229,7 +236,7 @@ export default function ReportsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         },
         body: JSON.stringify(config)
       });
@@ -252,7 +259,7 @@ export default function ReportsPage() {
       const response = await fetch(`/financial-tracker/api/financial-tracker/reports/${reportId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         }
       });
 
@@ -310,7 +317,7 @@ export default function ReportsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         },
         body: JSON.stringify(config.schedule)
       });

@@ -22,6 +22,12 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+// ✅ Token utility function
+const getToken = (): string => {
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(/token=([^;]+)/);
+  return match ? match[1] : '';
+};
 export default function CreateModuleUserPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -100,7 +106,7 @@ export default function CreateModuleUserPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         },
         body: JSON.stringify({
           ...formData,

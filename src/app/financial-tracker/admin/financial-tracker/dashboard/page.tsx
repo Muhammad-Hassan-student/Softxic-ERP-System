@@ -172,9 +172,9 @@ export default function AdminDashboardPage() {
       }
 
       // Use the correct API endpoint
-      const response = await fetch(`/api/financial-tracker/dashboard/stats?range=${dateRange}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/dashboard/stats?range=${dateRange}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token
         }
       });
 
@@ -200,9 +200,9 @@ export default function AdminDashboardPage() {
   const fetchNotifications = async () => {
     try {
       const token = getToken();
-      const response = await fetch('/api/financial-tracker/notifications?limit=5', {
+      const response = await fetch('/financial-tracker/api/financial-tracker/notifications?limit=5', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token
         }
       });
 
@@ -220,10 +220,10 @@ export default function AdminDashboardPage() {
   const markAsRead = async (notificationId: string) => {
     try {
       const token = getToken();
-      await fetch(`/api/financial-tracker/notifications/${notificationId}/read`, {
+      await fetch(`/financial-tracker/api/financial-tracker/notifications/${notificationId}/read`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token
         }
       });
       
@@ -258,9 +258,9 @@ export default function AdminDashboardPage() {
   const handleExport = async (format: 'pdf' | 'excel' | 'csv') => {
     try {
       const token = getToken();
-      const response = await fetch(`/api/financial-tracker/dashboard/export?format=${format}&range=${dateRange}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/dashboard/export?format=${format}&range=${dateRange}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token
         }
       });
 

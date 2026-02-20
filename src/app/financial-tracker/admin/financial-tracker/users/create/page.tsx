@@ -22,6 +22,12 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+// ✅ Token utility function
+const getToken = (): string => {
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(/token=([^;]+)/);
+  return match ? match[1] : '';
+};
 export default function CreateUserPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -102,7 +108,7 @@ export default function CreateUserPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         },
         body: JSON.stringify(formData)
       });
@@ -175,7 +181,7 @@ Please change your password after first login.
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         },
         body: JSON.stringify({
           email: generatedCredentials.email,

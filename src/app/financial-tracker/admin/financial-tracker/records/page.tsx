@@ -145,7 +145,7 @@ export default function AdminRecordsPage() {
 
       const response = await fetch(`/api/financial-tracker/records?${params.toString()}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token
         }
       });
 
@@ -174,7 +174,7 @@ export default function AdminRecordsPage() {
       const token = getToken();
       const response = await fetch('/api/financial-tracker/notifications?limit=5', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token
         }
       });
 
@@ -195,7 +195,7 @@ export default function AdminRecordsPage() {
       await fetch(`/api/financial-tracker/notifications/${notificationId}/read`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token
         }
       });
       
@@ -228,7 +228,7 @@ export default function AdminRecordsPage() {
       const response = await fetch(`/api/financial-tracker/records/${recordId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token
         }
       });
 
@@ -259,7 +259,7 @@ export default function AdminRecordsPage() {
       
       const response = await fetch(`/api/financial-tracker/records/export?${params.toString()}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token
         }
       });
 

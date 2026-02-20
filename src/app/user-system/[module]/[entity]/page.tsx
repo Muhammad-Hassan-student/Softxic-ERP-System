@@ -34,6 +34,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+
+
 // ✅ IMPORT ALL REQUIRED COMPONENTS
 import ExcelTable from '@/app/financial-tracker/components/user/ExcelTable';
 import { CreateRecordModal } from '@/app/financial-tracker/components/user/CreateRecordModal';
@@ -279,9 +281,9 @@ export default function UserEntityPage() {
       if (searchTerm) params.append('search', searchTerm);
       
       const token = getToken();
-      const response = await fetch(`/api/financial-tracker/records/export?${params.toString()}`, {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/records/export?${params.toString()}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': token
         }
       });
 

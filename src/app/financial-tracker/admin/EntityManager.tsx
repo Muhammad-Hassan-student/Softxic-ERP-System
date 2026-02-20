@@ -1,4 +1,4 @@
-'use client';
+'use client'
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -6,7 +6,12 @@ import {
   ChevronDown, ChevronRight, Save, X, AlertCircle 
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-
+// ✅ Token utility function
+const getToken = (): string => {
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(/token=([^;]+)/);
+  return match ? match[1] : '';
+};
 interface Entity {
   _id: string;
   module: 're' | 'expense';
@@ -51,7 +56,7 @@ const EntityManager: React.FC<EntityManagerProps> = ({ module }) => {
         `/financial-tracker/api/financial-tracker/entities?module=${module}${!showInactive ? '&active=true' : ''}`,
         {
           headers: {
-            'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+            'Authorization':getToken()
           }
         }
       );
@@ -81,7 +86,7 @@ const EntityManager: React.FC<EntityManagerProps> = ({ module }) => {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': getToken()
         },
         body: JSON.stringify({
           ...formData,
@@ -106,7 +111,7 @@ const EntityManager: React.FC<EntityManagerProps> = ({ module }) => {
       const response = await fetch(`/financial-tracker/api/financial-tracker/entities/${entityId}/toggle`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization':getToken()
         }
       });
 
