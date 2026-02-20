@@ -1,7 +1,7 @@
+// src/app/admin/financial-tracker/categories/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
 import { toast } from 'react-hot-toast';
 import {
   Plus,
@@ -16,14 +16,19 @@ import {
   Type,
   AlignLeft,
   CheckCircle,
-  XCircle
+  XCircle,
+  RefreshCw,
+  Download,
+  Filter
 } from 'lucide-react';
+
 // ✅ Token utility function
 const getToken = (): string => {
   if (typeof document === 'undefined') return '';
   const match = document.cookie.match(/token=([^;]+)/);
   return match ? match[1] : '';
 };
+
 interface Category {
   _id: string;
   module: 're' | 'expense';
@@ -36,12 +41,13 @@ interface Category {
   color: string;
   icon?: string;
   parentCategory?: Category;
+  createdBy?: { fullName: string };
+  updatedBy?: { fullName: string };
   createdAt: string;
   updatedAt: string;
 }
 
 export default function CategoriesPage() {
-  const { user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,17 +67,24 @@ export default function CategoriesPage() {
     isActive: true
   });
 
-  // Fetch categories
+  // Entity options
+  const entityOptions = {
+    re: ['dealer', 'fhh-client', 'cp-client', 'builder', 'project'],
+    expense: ['dealer', 'fhh-client', 'cp-client', 'office', 'project', 'all']
+  };
+
+  // ✅ Fetch categories
   const fetchCategories = async () => {
     try {
       setIsLoading(true);
-       const token = getToken();
+      const token = getToken();
 
       const params = new URLSearchParams();
       if (selectedModule !== 'all') params.append('module', selectedModule);
       if (selectedEntity !== 'all') params.append('entity', selectedEntity);
       if (!showInactive) params.append('active', 'true');
 
+      // ✅ CORRECT API ENDPOINT
       const response = await fetch(`/financial-tracker/api/financial-tracker/categories?${params.toString()}`, {
         headers: {
           'Authorization': token
@@ -81,7 +94,7 @@ export default function CategoriesPage() {
       if (!response.ok) throw new Error('Failed to fetch categories');
       
       const data = await response.json();
-      setCategories(data.categories);
+      setCategories(data.categories || []);
     } catch (error) {
       toast.error('Failed to load categories');
       console.error(error);
@@ -94,11 +107,12 @@ export default function CategoriesPage() {
     fetchCategories();
   }, [selectedModule, selectedEntity, showInactive]);
 
-  // Handle form submit
+  // ✅ Handle form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
+      const token = getToken();
       const url = editingCategory 
         ? `/financial-tracker/api/financial-tracker/categories/${editingCategory._id}`
         : '/financial-tracker/api/financial-tracker/categories';
@@ -109,14 +123,14 @@ export default function CategoriesPage() {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${document.cookie.split('token=')[1]?.split(';')[0]}`
+          'Authorization': token
         },
         body: JSON.stringify(formData)
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to save category');
+        throw new Error(error.error || 'Failed to save category');
       }
 
       toast.success(editingCategory ? 'Category updated successfully' : 'Category created successfully');
@@ -129,17 +143,19 @@ export default function CategoriesPage() {
     }
   };
 
-  // Handle delete
+  // ✅ Handle delete
   const handleDelete = async (category: Category) => {
     if (category.isSystem) {
       toast.error('System categories cannot be deleted');
       return;
     }
-    const token = getToken();
 
     if (!confirm(`Are you sure you want to delete "${category.name}"?`)) return;
 
     try {
+      const token = getToken();
+
+      // ✅ CORRECT API ENDPOINT
       const response = await fetch(`/financial-tracker/api/financial-tracker/categories/${category._id}`, {
         method: 'DELETE',
         headers: {
@@ -156,11 +172,12 @@ export default function CategoriesPage() {
     }
   };
 
-  // Handle toggle active
+  // ✅ Handle toggle active
   const handleToggleActive = async (category: Category) => {
     try {
       const token = getToken();
 
+      // ✅ CORRECT API ENDPOINT
       const response = await fetch(`/financial-tracker/api/financial-tracker/categories/${category._id}/toggle`, {
         method: 'PATCH',
         headers: {
@@ -174,6 +191,39 @@ export default function CategoriesPage() {
       fetchCategories();
     } catch (error) {
       toast.error('Failed to toggle category');
+    }
+  };
+
+  // ✅ Handle export
+  const handleExport = async () => {
+    try {
+      const token = getToken();
+      const params = new URLSearchParams();
+      if (selectedModule !== 'all') params.append('module', selectedModule);
+      if (selectedEntity !== 'all') params.append('entity', selectedEntity);
+
+      // ✅ CORRECT API ENDPOINT
+      const response = await fetch(`/financial-tracker/api/financial-tracker/categories/export?${params.toString()}`, {
+        headers: {
+          'Authorization': token
+        }
+      });
+
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `categories-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Categories exported successfully');
+    } catch (error) {
+      toast.error('Failed to export categories');
     }
   };
 
@@ -210,92 +260,108 @@ export default function CategoriesPage() {
   // Filter categories based on search
   const filteredCategories = categories.filter(cat =>
     cat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cat.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    cat.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cat.entity.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Entity options
-  const entityOptions = {
-    re: ['dealer', 'fhh-client', 'cp-client', 'builder', 'project'],
-    expense: ['dealer', 'fhh-client', 'cp-client', 'office', 'project', 'all']
-  };
-
   return (
-    <div className="p-6">
+    <div className="p-6 min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="mb-6 flex justify-between items-center">
+      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Category Management</h1>
           <p className="text-gray-600 mt-1">Manage categories for RE and Expense modules</p>
         </div>
-        <button
-          onClick={() => {
-            setEditingCategory(null);
-            resetForm();
-            setIsModalOpen(true);
-          }}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          New Category
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleExport}
+            className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Download className="h-4 w-4 mr-2 text-gray-500" />
+            Export
+          </button>
+          <button
+            onClick={fetchCategories}
+            className="p-2 border rounded-lg hover:bg-gray-50"
+            title="Refresh"
+          >
+            <RefreshCw className="h-4 w-4 text-gray-500" />
+          </button>
+          <button
+            onClick={() => {
+              setEditingCategory(null);
+              resetForm();
+              setIsModalOpen(true);
+            }}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            New Category
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search categories..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
+      <div className="mb-6 bg-white rounded-lg border p-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="relative col-span-2">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search categories..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <select
+            value={selectedModule}
+            onChange={(e) => {
+              setSelectedModule(e.target.value as any);
+              setSelectedEntity('all');
+            }}
+            className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Modules</option>
+            <option value="re">RE Module</option>
+            <option value="expense">Expense Module</option>
+          </select>
+
+          <select
+            value={selectedEntity}
+            onChange={(e) => setSelectedEntity(e.target.value)}
+            className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Entities</option>
+            {selectedModule !== 'all' ? (
+              entityOptions[selectedModule].map(entity => (
+                <option key={entity} value={entity}>
+                  {entity.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="dealer">Dealer</option>
+                <option value="fhh-client">FHH Client</option>
+                <option value="cp-client">CP Client</option>
+                <option value="builder">Builder</option>
+                <option value="project">Project</option>
+                <option value="office">Office</option>
+              </>
+            )}
+          </select>
+
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700">Show inactive</span>
+          </label>
         </div>
-
-        <select
-          value={selectedModule}
-          onChange={(e) => setSelectedModule(e.target.value as any)}
-          className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">All Modules</option>
-          <option value="re">RE Module</option>
-          <option value="expense">Expense Module</option>
-        </select>
-
-        <select
-          value={selectedEntity}
-          onChange={(e) => setSelectedEntity(e.target.value)}
-          className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">All Entities</option>
-          {selectedModule === 'all' ? (
-            <>
-              <option value="dealer">Dealer</option>
-              <option value="fhh-client">FHH Client</option>
-              <option value="cp-client">CP Client</option>
-              <option value="builder">Builder</option>
-              <option value="project">Project</option>
-              <option value="office">Office</option>
-            </>
-          ) : (
-            entityOptions[selectedModule as 're' | 'expense'].map(entity => (
-              <option key={entity} value={entity}>
-                {entity.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-              </option>
-            ))
-          )}
-        </select>
-
-        <label className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={showInactive}
-            onChange={(e) => setShowInactive(e.target.checked)}
-            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          />
-          <span className="text-sm text-gray-700">Show inactive</span>
-        </label>
       </div>
 
       {/* Categories Grid */}
@@ -303,12 +369,29 @@ export default function CategoriesPage() {
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
+      ) : filteredCategories.length === 0 ? (
+        <div className="bg-white rounded-lg border p-12 text-center">
+          <FolderTree className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No categories found</h3>
+          <p className="text-gray-500 mb-4">Get started by creating your first category</p>
+          <button
+            onClick={() => {
+              setEditingCategory(null);
+              resetForm();
+              setIsModalOpen(true);
+            }}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Category
+          </button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredCategories.map((category) => (
             <div
               key={category._id}
-              className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow ${
+              className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all ${
                 !category.isActive ? 'opacity-60' : ''
               }`}
             >
@@ -328,6 +411,7 @@ export default function CategoriesPage() {
                       </p>
                     </div>
                   </div>
+                  
                   <div className="relative group">
                     <button className="p-1 hover:bg-gray-100 rounded">
                       <MoreVertical className="h-4 w-4 text-gray-500" />
@@ -346,12 +430,12 @@ export default function CategoriesPage() {
                       >
                         {category.isActive ? (
                           <>
-                            <EyeOff className="h-4 w-4 mr-2 text-gray-500" />
+                            <EyeOff className="h-4 w-4 mr-2 text-orange-500" />
                             Deactivate
                           </>
                         ) : (
                           <>
-                            <Eye className="h-4 w-4 mr-2 text-gray-500" />
+                            <Eye className="h-4 w-4 mr-2 text-green-500" />
                             Activate
                           </>
                         )}
@@ -370,10 +454,10 @@ export default function CategoriesPage() {
                 </div>
 
                 {category.description && (
-                  <p className="mt-2 text-sm text-gray-600">{category.description}</p>
+                  <p className="mt-2 text-sm text-gray-600 line-clamp-2">{category.description}</p>
                 )}
 
-                <div className="mt-3 flex items-center space-x-3">
+                <div className="mt-3 flex items-center flex-wrap gap-2">
                   <span className={`px-2 py-1 text-xs rounded-full ${
                     category.type === 'income' ? 'bg-green-100 text-green-800' :
                     category.type === 'expense' ? 'bg-red-100 text-red-800' :
@@ -388,30 +472,29 @@ export default function CategoriesPage() {
                   )}
                 </div>
 
-                <div className="mt-3 text-xs text-gray-400">
-                  Last updated: {new Date(category.updatedAt).toLocaleDateString()}
+                <div className="mt-3 flex items-center justify-between text-xs text-gray-400">
+                  <span>Updated: {new Date(category.updatedAt).toLocaleDateString()}</span>
+                  {category.updatedBy && (
+                    <span>by {category.updatedBy.fullName}</span>
+                  )}
                 </div>
               </div>
             </div>
           ))}
-
-          {filteredCategories.length === 0 && (
-            <div className="col-span-full text-center py-12 text-gray-500">
-              No categories found. Create your first category!
-            </div>
-          )}
         </div>
       )}
 
       {/* Create/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-full max-w-md p-6">
-            <h2 className="text-xl font-bold mb-4">
-              {editingCategory ? 'Edit Category' : 'Create New Category'}
-            </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4">
+              <h2 className="text-xl font-bold text-gray-900">
+                {editingCategory ? 'Edit Category' : 'Create New Category'}
+              </h2>
+            </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -519,7 +602,7 @@ export default function CategoriesPage() {
                 </label>
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex justify-end space-x-3 pt-4 border-t">
                 <button
                   type="button"
                   onClick={() => {
@@ -533,8 +616,9 @@ export default function CategoriesPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
                 >
+                  <CheckCircle className="h-4 w-4 mr-2" />
                   {editingCategory ? 'Update' : 'Create'} Category
                 </button>
               </div>
