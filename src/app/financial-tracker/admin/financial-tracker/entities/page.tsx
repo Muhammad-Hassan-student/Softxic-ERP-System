@@ -82,7 +82,9 @@ export default function EntitiesPage() {
       if (selectedModule !== 'all') params.append('module', selectedModule);
       
       const token = getToken();
-      console.log(token)
+      console.log(token);
+      
+      // ✅ FIXED: Correct API path
       const response = await fetch(`/financial-tracker/api/financial-tracker/entities?${params.toString()}`, {
         headers: {
           'Authorization': token
@@ -133,6 +135,7 @@ export default function EntitiesPage() {
   const handleToggleStatus = async (entityId: string, currentStatus: boolean) => {
     try {
       const token = getToken();
+      // ✅ FIXED: Correct API path
       const response = await fetch(`/financial-tracker/api/financial-tracker/entities/${entityId}/toggle`, {
         method: 'PATCH',
         headers: {
@@ -155,6 +158,7 @@ export default function EntitiesPage() {
 
     try {
       const token = getToken();
+      // ✅ FIXED: Correct API path
       const response = await fetch(`/financial-tracker/api/financial-tracker/entities/${entityId}`, {
         method: 'DELETE',
         headers: {
@@ -178,6 +182,7 @@ export default function EntitiesPage() {
       if (selectedModule !== 'all') params.append('module', selectedModule);
       
       const token = getToken();
+      // ✅ FIXED: Correct API path
       const response = await fetch(`/financial-tracker/api/financial-tracker/entities/export?${params.toString()}`, {
         headers: {
           'Authorization': token
@@ -357,7 +362,7 @@ export default function EntitiesPage() {
                           onClick={() => handleEdit(entity)}
                           className="p-1 text-blue-600 hover:bg-blue-50 rounded"
                         >
-                          <Edit   className="h-4 w-4" />
+                          <Edit className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
