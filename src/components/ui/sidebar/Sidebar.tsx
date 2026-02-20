@@ -28,7 +28,10 @@ import {
   FolderTree,
   FileSpreadsheet,
   PieChart,
-  Building2
+  Building2,
+  KeyRound,
+  Database,
+  Settings2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_TEXTS } from "@/lib/constants/text";
@@ -54,7 +57,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       icon: FolderTree,
       label: 'Categories',
-      href: '/admin/financial-tracker/categories',
+      href: '/financial-tracker/admin/financial-tracker/categories',
+    },
+    {
+      icon: Users,
+      label: 'User Management',
+      href: '/finance-tracker/admin/financial-tracker/module-users',
+    },
+    {
+      icon: KeyRound,
+      label: 'Permissions',
+      href: '/financial-tracker/admin/financial-tracker/permissions',
+    },
+    {
+      icon: Database,
+      label: 'Entities',
+      href: '/financial-tracker/admin/financial-tracker/entities',
+    },
+    {
+      icon: Settings2,
+      label: 'Custom Fields',
+      href: '/financial-tracker/admin/financial-tracker/fields',
+    },
+    {
+      icon: PieChart,
+      label: 'Reports',
+      href: '/financial-tracker/admin/financial-tracker/reports',
     },
     {
       icon: FileSpreadsheet,
@@ -65,21 +93,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Wallet,
       label: 'Expense Module',
       href: '/admin/financial-tracker/expense',
-    },
-    {
-      icon: Users,
-      label: 'User Management',
-      href: '/admin/financial-tracker/users',
-    },
-    {
-      icon: Shield,
-      label: 'Permissions',
-      href: '/admin/financial-tracker/permissions',
-    },
-    {
-      icon: PieChart,
-      label: 'Reports',
-      href: '/admin/financial-tracker/reports',
     },
   ];
 

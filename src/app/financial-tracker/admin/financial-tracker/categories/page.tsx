@@ -33,7 +33,8 @@ import {
   Zap,
   Shield,
   Globe,
-  Menu
+  Menu,
+  Loader2
 } from 'lucide-react';
 
 // ✅ Token utility function
@@ -94,17 +95,21 @@ export default function CategoriesPage() {
     isActive: true
   });
 
-  // ✅ Fetch entities from database
+  // ✅ Fetch entities from database using correct endpoint
   const fetchEntities = async () => {
     try {
       const token = getToken();
       const response = await fetch(`/financial-tracker/api/financial-tracker/entities`, {
         headers: { 'Authorization': token }
       });
-      if (response.ok) {
-        const data = await response.json();
-        setEntities(data.entities || []);
+      
+      if (!response.ok) {
+        console.error('Failed to fetch entities:', response.status);
+        return;
       }
+      
+      const data = await response.json();
+      setEntities(data.entities || []);
     } catch (error) {
       console.error('Failed to fetch entities:', error);
     }
@@ -146,6 +151,7 @@ export default function CategoriesPage() {
     }
   };
 
+  // Load data on mount and when filters change
   useEffect(() => {
     fetchEntities();
     fetchCategories();
@@ -161,8 +167,19 @@ export default function CategoriesPage() {
 
   // ✅ Validate if entity is valid for selected module
   const isValidEntity = (module: 're' | 'expense', entityKey: string) => {
+    // If no entity selected, it's not valid
+    if (!entityKey) return false;
+    
     const entity = entities.find(e => e.entityKey === entityKey);
-    return entity && entity.module === module;
+    
+    // If entity not found in our list, try to check if it exists in the database
+    if (!entity) {
+      // Check if any entity with this key exists in the module
+      const exists = entities.some(e => e.entityKey === entityKey && e.module === module);
+      return exists;
+    }
+    
+    return entity.module === module;
   };
 
   // ✅ Handle form submit with dynamic validation
@@ -176,14 +193,14 @@ export default function CategoriesPage() {
 
     // ✅ Dynamic validation - check if entity belongs to selected module
     if (!isValidEntity(formData.module, formData.entity)) {
-      toast.error(`Invalid entity for ${formData.module} module`);
+      toast.error(`Invalid entity for ${formData.module} module. Please select a valid entity.`);
       return;
     }
 
     try {
       const token = getToken();
       const url = editingCategory 
-        ? `/financial-tracker/api/financial-tracker/categories/${editingCategory._id}`
+        ? `/finanial-tracker/api/financial-tracker/categories/${editingCategory._id}`
         : '/financial-tracker/api/financial-tracker/categories';
       
       const method = editingCategory ? 'PUT' : 'POST';
@@ -225,7 +242,7 @@ export default function CategoriesPage() {
       const token = getToken();
       const response = await fetch(`/financial-tracker/api/financial-tracker/categories/${category._id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': token }
+        headers: { 'Authorization':  token }
       });
 
       if (!response.ok) throw new Error('Failed to delete category');
@@ -348,7 +365,7 @@ export default function CategoriesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header - Fully Responsive */}
+      {/* Header */}
       <div className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-10">
         <div className="px-4 sm:px-6 py-4">
           {/* Mobile Header */}
@@ -429,9 +446,9 @@ export default function CategoriesPage() {
             </div>
           )}
 
-          {/* Filters - Fully Responsive Grid */}
+          {/* Filters */}
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 lg:gap-4">
-            {/* Search - Full width on mobile, 4 cols on desktop */}
+            {/* Search */}
             <div className="sm:col-span-2 lg:col-span-4">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Search</label>
               <div className="relative">
@@ -457,9 +474,9 @@ export default function CategoriesPage() {
                 }}
                 className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-purple-500 bg-white shadow-sm"
               >
-                <option value="all">All</option>
-                <option value="re">RE</option>
-                <option value="expense">Expense</option>
+                <option value="all">All Modules</option>
+                <option value="re">RE Module</option>
+                <option value="expense">Expense Module</option>
               </select>
             </div>
 
@@ -474,13 +491,13 @@ export default function CategoriesPage() {
                 <option value="all">All Entities</option>
                 {getEntityOptions().map(entity => (
                   <option key={entity._id} value={entity.entityKey}>
-                    {entity.name}
+                    {entity.name} ({entity.entityKey})
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Actions - Stack on mobile, row on desktop */}
+            {/* Actions */}
             <div className="sm:col-span-2 lg:col-span-3">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">&nbsp;</label>
               <div className="flex flex-wrap items-center gap-2">
@@ -491,10 +508,10 @@ export default function CategoriesPage() {
                     onChange={(e) => setShowInactive(e.target.checked)}
                     className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                   />
-                  <span className="text-xs sm:text-sm text-gray-700 whitespace-nowrap">Inactive</span>
+                  <span className="text-xs sm:text-sm text-gray-700 whitespace-nowrap">Show inactive</span>
                 </label>
 
-                {/* View Toggle - Hidden on mobile, visible on sm+ */}
+                {/* View Toggle */}
                 <div className="hidden sm:flex border border-gray-300 rounded-lg sm:rounded-xl overflow-hidden bg-white shadow-sm">
                   <button
                     onClick={() => setViewMode('grid')}
@@ -536,7 +553,7 @@ export default function CategoriesPage() {
                   className="flex-1 sm:flex-initial flex items-center justify-center px-3 sm:px-4 py-2 sm:py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg sm:rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all shadow-lg shadow-purple-500/25 text-sm sm:text-base font-medium"
                 >
                   <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
-                  <span className="sm:inline">New</span>
+                  <span>New Category</span>
                 </button>
               </div>
             </div>
@@ -544,11 +561,11 @@ export default function CategoriesPage() {
         </div>
       </div>
 
-      {/* Main Content - Responsive Grid */}
+      {/* Main Content */}
       <div className="p-3 sm:p-4 lg:p-6">
         {isLoading ? (
           <div className="flex justify-center items-center h-48 sm:h-64">
-            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-3 sm:border-4 border-purple-600 border-t-transparent"></div>
+            <Loader2 className="h-8 w-8 sm:h-12 sm:w-12 animate-spin text-purple-600" />
             <span className="ml-2 sm:ml-3 text-sm sm:text-base text-gray-600">Loading...</span>
           </div>
         ) : filteredCategories.length === 0 ? (
@@ -571,7 +588,7 @@ export default function CategoriesPage() {
             </button>
           </div>
         ) : viewMode === 'grid' ? (
-          // Grid View - Responsive
+          // Grid View
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
             {filteredCategories.map((category) => (
               <div
@@ -605,13 +622,13 @@ export default function CategoriesPage() {
                       </div>
                     </div>
                     
-                    {/* Mobile dropdown - touch friendly */}
+                    {/* Dropdown Menu */}
                     <div className="relative">
                       <button className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg sm:rounded-xl transition-colors">
                         <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
                       </button>
                       
-                      <div className="absolute right-0 mt-1 sm:mt-2 w-40 sm:w-56 bg-white rounded-lg sm:rounded-xl shadow-lg border border-gray-200 hidden group-focus-within:block z-20">
+                      <div className="absolute right-0 mt-1 sm:mt-2 w-40 sm:w-56 bg-white rounded-lg sm:rounded-xl shadow-lg border border-gray-200 hidden group-hover:block z-20">
                         <div className="py-0.5 sm:py-1">
                           <button
                             onClick={() => handleEdit(category)}
@@ -688,7 +705,7 @@ export default function CategoriesPage() {
                       {new Date(category.updatedAt).toLocaleDateString()}
                     </span>
                     {category.updatedBy && (
-                      <span className="text-gray-400 truncate max-w-[60px] sm:max-w-[120px]" title={category.updatedBy.email}>
+                      <span className="text-gray-400 truncate max-w-[60px] sm:max-w-[120px]">
                         {category.updatedBy.fullName?.split(' ')[0]}
                       </span>
                     )}
@@ -698,18 +715,18 @@ export default function CategoriesPage() {
             ))}
           </div>
         ) : (
-          // List View - Horizontal scroll on mobile, normal on desktop
+          // List View
           <div className="bg-white rounded-xl sm:rounded-2xl border shadow-lg sm:shadow-xl overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Module</th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Entity</th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Type</th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Updated</th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Category</th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">Module</th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Entity</th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Type</th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">Updated</th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -766,7 +783,7 @@ export default function CategoriesPage() {
                       {new Date(category.updatedAt).toLocaleDateString()}
                     </td>
                     <td className="px-3 sm:px-6 py-2 sm:py-4 text-right">
-                      <div className="flex items-center justify-end space-x-1 sm:space-x-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end space-x-1 sm:space-x-2">
                         <button
                           onClick={() => handleEdit(category)}
                           className="p-1 sm:p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
@@ -792,7 +809,7 @@ export default function CategoriesPage() {
         )}
       </div>
 
-      {/* Create/Edit Modal - Responsive */}
+      {/* Create/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
           <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto">
@@ -845,7 +862,7 @@ export default function CategoriesPage() {
                     <span className={`text-xs sm:text-sm font-medium ${
                       formData.module === 're' ? 'text-blue-700' : 'text-gray-600'
                     }`}>
-                      RE
+                      RE Module
                     </span>
                   </button>
 
@@ -864,7 +881,7 @@ export default function CategoriesPage() {
                     <span className={`text-xs sm:text-sm font-medium ${
                       formData.module === 'expense' ? 'text-green-700' : 'text-gray-600'
                     }`}>
-                      Expense
+                      Expense Module
                     </span>
                   </button>
                 </div>
@@ -886,11 +903,14 @@ export default function CategoriesPage() {
                     .filter(e => e.module === formData.module)
                     .map(entity => (
                       <option key={entity._id} value={entity.entityKey}>
-                        {entity.name}
+                        {entity.name} ({entity.entityKey})
                       </option>
                     ))
                   }
                 </select>
+                {formData.entity && !isValidEntity(formData.module, formData.entity) && (
+                  <p className="text-xs text-red-500 mt-1">Selected entity is not valid for this module</p>
+                )}
               </div>
 
               {/* Category Name */}
