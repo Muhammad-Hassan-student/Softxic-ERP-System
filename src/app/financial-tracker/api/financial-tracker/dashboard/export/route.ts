@@ -113,7 +113,8 @@ export async function GET(request: NextRequest) {
       });
     }
     else if (format === 'pdf') {
-      return new Promise((resolve) => {
+      // ✅ FIXED: Return type properly defined
+      return new Promise<NextResponse>((resolve) => {
         const doc = new PDFDocument();
         const chunks: Buffer[] = [];
         
