@@ -31,7 +31,7 @@ import {
   Building2,
   KeyRound,
   Database,
-  Settings2
+  Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_TEXTS } from "@/lib/constants/text";
@@ -51,48 +51,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const financialItems = [
     {
       icon: LayoutDashboard,
-      label: 'Financial Dashboard',
-      href: '/admin/financial-tracker/dashboard',
+      label: "Financial Dashboard",
+      href: "/admin/financial-tracker/dashboard",
     },
     {
       icon: FolderTree,
-      label: 'Categories',
-      href: '/financial-tracker/admin/financial-tracker/categories',
+      label: "Categories",
+      href: "/financial-tracker/admin/financial-tracker/categories",
     },
     {
       icon: Users,
-      label: 'User Management',
-      href: '/finance-tracker/admin/financial-tracker/module-users',
+      label: "User Management",
+      href: "/financial-tracker/admin/financial-tracker/module-users",
     },
     {
       icon: KeyRound,
-      label: 'Permissions',
-      href: '/financial-tracker/admin/financial-tracker/permissions',
+      label: "Permissions",
+      href: "/financial-tracker/admin/financial-tracker/permissions",
     },
     {
       icon: Database,
-      label: 'Entities',
-      href: '/financial-tracker/admin/financial-tracker/entities',
+      label: "Entities",
+      href: "/financial-tracker/admin/financial-tracker/entities",
     },
     {
       icon: Settings2,
-      label: 'Custom Fields',
-      href: '/financial-tracker/admin/financial-tracker/fields',
+      label: "Custom Fields",
+      href: "/financial-tracker/admin/financial-tracker/fields",
     },
     {
       icon: PieChart,
-      label: 'Reports',
-      href: '/financial-tracker/admin/financial-tracker/reports',
+      label: "Reports",
+      href: "/financial-tracker/admin/financial-tracker/reports",
     },
     {
       icon: FileSpreadsheet,
-      label: 'RE Module',
-      href: '/admin/financial-tracker/re',
+      label: "RE Module",
+      href: "/admin/financial-tracker/re",
     },
     {
       icon: Wallet,
-      label: 'Expense Module',
-      href: '/admin/financial-tracker/expense',
+      label: "Expense Module",
+      href: "/admin/financial-tracker/expense",
     },
   ];
 

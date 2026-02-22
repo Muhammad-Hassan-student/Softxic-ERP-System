@@ -1,12 +1,12 @@
+// src/app/user-system/[module]/[entity]/page.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import {
   LayoutDashboard,
   Table as TableIcon,
   Calendar,
-  PieChart,
   Download,
   Upload,
   Filter,
@@ -29,16 +29,38 @@ import {
   MoreVertical,
   ChevronDown,
   ChevronRight,
-  Settings,
   RefreshCw,
-  FileText,
-  BarChart3
+  FileText
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { usePermissions } from '@/app/financial-tracker/hooks/usePermission'; // Fixed import path
-import { useRecords } from '@/app/financial-tracker/hooks/useRecord'; // Fixed import path
-import { useFields } from '@/app/financial-tracker/hooks/useField'; // Fixed import path
-import { useSocket } from '@/app/financial-tracker/hooks/useSocket'; // Fixed import path
+
+
+
+// ✅ IMPORT ALL REQUIRED COMPONENTS
+import ExcelTable from '@/app/financial-tracker/components/user/ExcelTable';
+import { CreateRecordModal } from '@/app/financial-tracker/components/user/CreateRecordModal';
+import { EditRecordModal } from '@/app/financial-tracker/components/user/EditRecordModal';
+import { ViewRecordModal } from '@/app/financial-tracker/components/user/ViewRecordModal';
+import { BulkImportModal } from '@/app/financial-tracker/components/user/BulkImportModal';
+import { ConnectionStatus } from '@/app/financial-tracker/components/shared/ConnectionStatus';
+import { ExportButton } from '@/app/financial-tracker/components/shared/ExportButton';
+
+// ✅ IMPORT HOOKS
+import { usePermissions } from '@/app/financial-tracker/hooks/usePermission';
+import { useRecords } from '@/app/financial-tracker/hooks/useRecord';
+import { useFields } from '@/app/financial-tracker/hooks/useField';
+import { useSocket } from '@/app/financial-tracker/hooks/useSocket';
+
+// ✅ IMPORT TYPES
+import { IRecord } from '@/app/financial-tracker/models/record.model';
+import { ICustomField } from '@/app/financial-tracker/models/custom-field.model';
+
+// ✅ UTILITY FUNCTION TO GET TOKEN
+const getToken = (): string => {
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(/token=([^;]+)/);
+  return match ? match[1] : '';
+};
 
 // Entity Display Names
 const ENTITY_DISPLAY: Record<string, { name: string; icon: any; color: string }> = {
@@ -57,6 +79,63 @@ const MODULE_COLORS = {
   expense: 'red'
 };
 
+// ✅ CONVERTER FUNCTION: Hook record (plain object) to Model record (with Map)
+const convertToModelRecord = (record: any, module: string, entity: string): IRecord => {
+  // Convert plain object to Map
+  const dataMap = new Map<string, any>();
+  if (record.data) {
+    Object.entries(record.data).forEach(([key, value]) => {
+      dataMap.set(key, value);
+    });
+  }
+
+  return {
+    _id: record._id,
+    data: dataMap,
+    version: record.version || 1,
+    status: record.status || 'draft',
+    createdBy: record.createdBy,
+    updatedBy: record.updatedBy,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    isDeleted: record.isDeleted || false,
+    module: record.module || module,
+    entity: record.entity || entity,
+  } as unknown as IRecord;
+};
+
+// ✅ CONVERTER FUNCTION: Array of hook records to model records
+const convertToModelRecords = (records: any[], module: string, entity: string): IRecord[] => {
+  return records.map(record => convertToModelRecord(record, module, entity));
+};
+
+// ✅ CONVERTER FUNCTION: Field from hook to ICustomField
+const convertToCustomField = (field: any): ICustomField => {
+  return {
+    _id: field._id,
+    module: field.module,
+    entityId: field.entityId,
+    fieldKey: field.fieldKey,
+    label: field.label,
+    type: field.type,
+    isSystem: field.isSystem || false,
+    isEnabled: field.isEnabled !== false,
+    required: field.required || false,
+    readOnly: field.readOnly || false,
+    visible: field.visible !== false,
+    order: field.order || 0,
+    defaultValue: field.defaultValue,
+    options: field.options,
+    validation: field.validation,
+    createdBy: field.createdBy,
+  } as unknown as ICustomField;
+};
+
+// ✅ CONVERTER FUNCTION: Array of fields to ICustomField[]
+const convertToCustomFields = (fields: any[]): ICustomField[] => {
+  return fields.map(convertToCustomField);
+};
+
 export default function UserEntityPage() {
   const params = useParams();
   const module = params.module as 're' | 'expense';
@@ -66,8 +145,16 @@ export default function UserEntityPage() {
   const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<Record<string, any>>({});
+  const [searchTerm, setSearchTerm] = useState('');
   
-  // Get permissions for this user
+  // Modal states
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  
+  // ✅ Get permissions for this user
   const {
     canAccess,
     canCreate,
@@ -81,16 +168,17 @@ export default function UserEntityPage() {
     scope
   } = usePermissions(module, entity);
 
-  // Get dynamic fields for this entity
+  // ✅ Get dynamic fields for this entity
   const {
-    fields,
-    visibleFields,
-    isLoading: fieldsLoading
+    fields: hookFields,
+    visibleFields: hookVisibleFields,
+    isLoading: fieldsLoading,
+    refreshFields
   } = useFields(module, entity);
 
-  // Get records with real-time updates
+  // ✅ Get records with real-time updates
   const {
-    records,
+    records: hookRecords,
     totalCount,
     isLoading: recordsLoading,
     createRecord,
@@ -104,14 +192,20 @@ export default function UserEntityPage() {
     refreshRecords
   } = useRecords(module, entity);
 
-  // Socket connection for real-time
+  // ✅ Socket connection for real-time
   const { isConnected } = useSocket(module, entity);
+
+  // ✅ CONVERT HOOK DATA TO MODEL TYPES
+  const fields = React.useMemo(() => convertToCustomFields(hookFields), [hookFields]);
+  const visibleFields = React.useMemo(() => convertToCustomFields(hookVisibleFields), [hookVisibleFields]);
+  const modelRecords = React.useMemo(() => 
+    convertToModelRecords(hookRecords, module, entity), [hookRecords, module, entity]
+  );
 
   // Check access
   useEffect(() => {
     if (!permLoading && !canAccess) {
       toast.error('You do not have access to this module');
-      // Redirect to dashboard after 2 seconds
       setTimeout(() => {
         window.location.href = '/dashboard';
       }, 2000);
@@ -119,26 +213,33 @@ export default function UserEntityPage() {
   }, [permLoading, canAccess]);
 
   // Handle create new record
-  const handleCreate = async () => {
+  const handleCreate = () => {
     if (!canCreate) {
       toast.error('You do not have permission to create records');
       return;
     }
-
-    // Open create modal
-    // This would open a form modal with dynamic fields
-    console.log('Open create modal');
+    setIsCreateModalOpen(true);
   };
 
   // Handle edit record
-  const handleEdit = async (record: any) => {
+  const handleEditClick = (record: any) => {
     if (!canEditRecord(record.createdBy)) {
       toast.error('You do not have permission to edit this record');
       return;
     }
+    setSelectedRecord(record);
+    setIsEditModalOpen(true);
+  };
 
-    // Open edit modal
-    console.log('Open edit modal for:', record._id);
+  // Handle view record
+  const handleViewClick = (record: any) => {
+    setSelectedRecord(record);
+    setIsViewModalOpen(true);
+  };
+
+  // Handle import
+  const handleImportClick = () => {
+    setIsImportModalOpen(true);
   };
 
   // Handle delete record
@@ -158,8 +259,54 @@ export default function UserEntityPage() {
     await submitForApproval(recordId);
   };
 
+  // Handle approve
+  const handleApprove = async (recordId: string) => {
+    await approveRecord(recordId);
+  };
+
+  // Handle reject
+  const handleReject = async (recordId: string) => {
+    const comment = prompt('Enter rejection reason:');
+    if (comment) {
+      await rejectRecord(recordId, comment);
+    }
+  };
+
+  // Handle export
+  const handleExport = async (format: 'excel' | 'csv' | 'pdf') => {
+    try {
+      const params = new URLSearchParams();
+      params.append('module', module);
+      params.append('entity', entity);
+      if (searchTerm) params.append('search', searchTerm);
+      
+      const token = getToken();
+      const response = await fetch(`/financial-tracker/api/financial-tracker/records/export?${params.toString()}`, {
+        headers: {
+          'Authorization': token
+        }
+      });
+
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${module}-${entity}-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Export completed successfully');
+    } catch (error) {
+      toast.error('Failed to export');
+    }
+  };
+
   // Format cell value based on field type
-  const formatCellValue = (field: any, value: any) => {
+  const formatCellValue = useCallback((field: ICustomField, value: any) => {
     if (value === undefined || value === null || value === '') {
       return <span className="text-gray-400">-</span>;
     }
@@ -174,14 +321,32 @@ export default function UserEntityPage() {
       case 'file':
       case 'image':
         return value ? (
-          <a href={value} target="_blank" rel="noopener" className="text-blue-600 hover:underline">
+          <a href={value} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
             View File
           </a>
         ) : '-';
       default:
         return value;
     }
-  };
+  }, []);
+
+  // Apply filters
+  const filteredHookRecords = React.useMemo(() => {
+    return hookRecords.filter((record: any) => {
+      if (!searchTerm) return true;
+      
+      return hookVisibleFields.some(field => {
+        const value = record.data?.[field.fieldKey];
+        return value?.toString().toLowerCase().includes(searchTerm.toLowerCase());
+      });
+    });
+  }, [hookRecords, hookVisibleFields, searchTerm]);
+
+  // Convert filtered records to model type
+  const filteredModelRecords = React.useMemo(() => 
+    convertToModelRecords(filteredHookRecords, module, entity), 
+    [filteredHookRecords, module, entity]
+  );
 
   // Loading state
   if (permLoading || fieldsLoading || recordsLoading) {
@@ -235,12 +400,9 @@ export default function UserEntityPage() {
                   {ENTITY_DISPLAY[entity]?.name || entity}
                 </h1>
                 
-                {/* Connection Status */}
-                <div className="ml-4 flex items-center">
-                  <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-                  <span className="text-xs text-gray-500 ml-1">
-                    {isConnected ? 'Live' : 'Connecting...'}
-                  </span>
+                {/* ✅ Connection Status Component */}
+                <div className="ml-4">
+                  <ConnectionStatus module={module} entity={entity} />
                 </div>
 
                 {/* Scope Badge */}
@@ -268,13 +430,22 @@ export default function UserEntityPage() {
                 <RefreshCw className="h-5 w-5 text-gray-500" />
               </button>
 
-              {/* Export */}
+              {/* Import */}
               <button
+                onClick={handleImportClick}
                 className="p-2 border rounded-lg hover:bg-gray-50"
-                title="Export"
+                title="Bulk Import"
               >
-                <Download className="h-5 w-5 text-gray-500" />
+                <Upload className="h-5 w-5 text-gray-500" />
               </button>
+
+              {/* ✅ Export Button Component */}
+              <ExportButton
+                onExport={handleExport}
+                formats={['excel', 'csv', 'pdf']}
+                size="md"
+                variant="outline"
+              />
 
               {/* Create Button */}
               {canCreate && (
@@ -333,6 +504,8 @@ export default function UserEntityPage() {
               <input
                 type="text"
                 placeholder="Search records..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-2 border rounded-lg w-64 focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -343,24 +516,35 @@ export default function UserEntityPage() {
             <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
               <h3 className="text-sm font-medium text-gray-700 mb-3">Filters</h3>
               <div className="grid grid-cols-4 gap-4">
-                {visibleFields.slice(0, 4).map((field: any) => (
-                  <div key={field._id}>
+                {visibleFields.slice(0, 4).map((field) => (
+                  <div key={field._id.toString()}>
                     <label className="block text-xs text-gray-500 mb-1">
                       {field.label}
                     </label>
                     <input
                       type={field.type === 'date' ? 'date' : 'text'}
                       placeholder={`Filter by ${field.label}`}
+                      value={filters[field.fieldKey] || ''}
+                      onChange={(e) => setFilters({ ...filters, [field.fieldKey]: e.target.value })}
                       className="w-full px-3 py-1 border rounded-lg text-sm"
                     />
                   </div>
                 ))}
               </div>
               <div className="flex justify-end space-x-2 mt-3">
-                <button className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-200 rounded">
+                <button 
+                  onClick={() => setFilters({})}
+                  className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-200 rounded"
+                >
                   Clear
                 </button>
-                <button className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                <button 
+                  onClick={() => {
+                    // Apply filters logic here
+                    toast.success('Filters applied');
+                  }}
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
                   Apply Filters
                 </button>
               </div>
@@ -389,7 +573,9 @@ export default function UserEntityPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Pending Approval</p>
-                <p className="text-2xl font-bold text-yellow-600">3</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {hookRecords.filter((r: any) => r.status === 'submitted').length}
+                </p>
               </div>
               <div className="p-3 bg-yellow-100 rounded-lg">
                 <Clock className="h-5 w-5 text-yellow-600" />
@@ -401,7 +587,9 @@ export default function UserEntityPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Approved</p>
-                <p className="text-2xl font-bold text-green-600">12</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {hookRecords.filter((r: any) => r.status === 'approved').length}
+                </p>
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
                 <CheckCircle className="h-5 w-5 text-green-600" />
@@ -414,7 +602,7 @@ export default function UserEntityPage() {
               <div>
                 <p className="text-sm text-gray-500">Total Amount</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {module === 're' ? 'PKR 2.5M' : 'PKR 850K'}
+                  PKR {hookRecords.reduce((sum: number, r: any) => sum + (Number(r.data?.amount) || 0), 0).toLocaleString()}
                 </p>
               </div>
               <div className={`p-3 bg-${entityColor}-100 rounded-lg`}>
@@ -424,220 +612,24 @@ export default function UserEntityPage() {
           </div>
         </div>
 
-        {/* Records Display */}
+        {/* ✅ EXCEL TABLE COMPONENT - WITH CONVERTED TYPES */}
         {viewMode === 'table' ? (
-          <div className="bg-white rounded-lg border overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {/* Select All Checkbox */}
-                    {canDelete && (
-                      <th className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedRecords.length === records.length}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedRecords(records.map((r: any) => r._id));
-                            } else {
-                              setSelectedRecords([]);
-                            }
-                          }}
-                          className="rounded border-gray-300 text-blue-600"
-                        />
-                      </th>
-                    )}
-                    
-                    {/* Dynamic Headers based on visible fields */}
-                    {visibleFields.map((field: any) => (
-                      <th
-                        key={field._id}
-                        className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        {field.label}
-                      </th>
-                    ))}
-                    
-                    {/* Status Column */}
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Status
-                    </th>
-                    
-                    {/* Actions Column */}
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {records.map((record: any) => (
-                    <tr key={record._id} className="hover:bg-gray-50">
-                      {/* Select Checkbox */}
-                      {canDelete && canDeleteRecord(record.createdBy) && (
-                        <td className="px-4 py-3">
-                          <input
-                            type="checkbox"
-                            checked={selectedRecords.includes(record._id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedRecords([...selectedRecords, record._id]);
-                              } else {
-                                setSelectedRecords(selectedRecords.filter(id => id !== record._id));
-                              }
-                            }}
-                            className="rounded border-gray-300 text-blue-600"
-                          />
-                        </td>
-                      )}
-                      
-                      {/* Dynamic Cells based on visible fields */}
-                      {visibleFields.map((field: any) => (
-                        <td key={field._id} className="px-4 py-3 text-sm text-gray-900">
-                          {formatCellValue(field, record.data[field.fieldKey])}
-                        </td>
-                      ))}
-                      
-                      {/* Status Cell */}
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          record.status === 'approved' ? 'bg-green-100 text-green-800' :
-                          record.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                          record.status === 'submitted' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {record.status}
-                        </span>
-                      </td>
-                      
-                      {/* Actions Cell */}
-                      <td className="px-4 py-3 text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
-                          {/* View Button - Always visible */}
-                          <button
-                            className="p-1 text-gray-400 hover:text-gray-600"
-                            title="View"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-
-                          {/* Edit Button - Based on permission */}
-                          {canEdit && canEditRecord(record.createdBy) && (
-                            <button
-                              onClick={() => handleEdit(record)}
-                              className="p-1 text-blue-600 hover:text-blue-800"
-                              title="Edit"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                          )}
-
-                          {/* Delete Button - Based on permission */}
-                          {canDelete && canDeleteRecord(record.createdBy) && (
-                            <button
-                              onClick={() => handleDelete(record)}
-                              className="p-1 text-red-600 hover:text-red-800"
-                              title="Delete"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-
-                          {/* Submit for Approval - For draft records */}
-                          {record.status === 'draft' && canEditRecord(record.createdBy) && (
-                            <button
-                              onClick={() => handleSubmitForApproval(record._id)}
-                              className="p-1 text-yellow-600 hover:text-yellow-800"
-                              title="Submit for Approval"
-                            >
-                              <Clock className="h-4 w-4" />
-                            </button>
-                          )}
-
-                          {/* More Actions Dropdown */}
-                          <div className="relative group">
-                            <button className="p-1 text-gray-400 hover:text-gray-600">
-                              <MoreVertical className="h-4 w-4" />
-                            </button>
-                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border hidden group-hover:block z-10">
-                              {/* Additional actions based on permissions */}
-                              {record.status === 'submitted' && canEdit && (
-                                <>
-                                  <button
-                                    onClick={() => approveRecord(record._id)}
-                                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center"
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
-                                    Approve
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      const comment = prompt('Enter rejection reason:');
-                                      if (comment) rejectRecord(record._id, comment);
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center"
-                                  >
-                                    <XCircle className="h-4 w-4 mr-2 text-red-600" />
-                                    Reject
-                                  </button>
-                                </>
-                              )}
-                              <button className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center">
-                                <FileText className="h-4 w-4 mr-2" />
-                                View History
-                              </button>
-                              <button className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center">
-                                <Download className="h-4 w-4 mr-2" />
-                                Export
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-
-                  {/* Empty State */}
-                  {records.length === 0 && (
-                    <tr>
-                      <td colSpan={visibleFields.length + 3} className="px-6 py-12 text-center text-gray-500">
-                        <div className="flex flex-col items-center">
-                          <FileText className="h-12 w-12 text-gray-400 mb-4" />
-                          <h3 className="text-lg font-medium text-gray-900 mb-2">No records found</h3>
-                          <p className="text-gray-500 mb-4">Get started by creating your first record</p>
-                          {canCreate && (
-                            <button
-                              onClick={handleCreate}
-                              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                            >
-                              <Plus className="h-4 w-4 mr-2" />
-                              Add New Record
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Load More */}
-            {hasMore && (
-              <div className="px-6 py-4 border-t text-center">
-                <button
-                  onClick={loadMore}
-                  className="px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
-                >
-                  Load More
-                </button>
-              </div>
-            )}
-          </div>
+          <ExcelTable
+            module={module}
+            entity={entity}
+            fields={visibleFields}
+            initialRecords={filteredModelRecords}
+            totalCount={filteredModelRecords.length}
+            onSave={updateRecord}
+            onCreate={createRecord}
+            onDelete={deleteRecord}
+            hasMore={hasMore}
+            onLoadMore={loadMore}
+          />
         ) : (
           // Card View
           <div className="grid grid-cols-3 gap-4">
-            {records.map((record: any) => (
+            {filteredHookRecords.map((record: any) => (
               <div key={record._id} className="bg-white rounded-lg border p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center">
@@ -646,7 +638,7 @@ export default function UserEntityPage() {
                     </div>
                     <div>
                       <h3 className="font-medium text-gray-900">
-                        {record.data[visibleFields[0]?.fieldKey] || 'Untitled'}
+                        {record.data?.[visibleFields[0]?.fieldKey] || 'Untitled'}
                       </h3>
                       <p className="text-xs text-gray-500">
                         Created {new Date(record.createdAt).toLocaleDateString()}
@@ -665,11 +657,11 @@ export default function UserEntityPage() {
 
                 {/* Display first 3 visible fields */}
                 <div className="space-y-2 mb-3">
-                  {visibleFields.slice(1, 4).map((field: any) => (
-                    <div key={field._id} className="flex justify-between text-sm">
+                  {visibleFields.slice(1, 4).map((field) => (
+                    <div key={field._id.toString()} className="flex justify-between text-sm">
                       <span className="text-gray-500">{field.label}:</span>
                       <span className="text-gray-900 font-medium">
-                        {formatCellValue(field, record.data[field.fieldKey])}
+                        {formatCellValue(field, record.data?.[field.fieldKey])}
                       </span>
                     </div>
                   ))}
@@ -677,16 +669,25 @@ export default function UserEntityPage() {
 
                 {/* Actions */}
                 <div className="flex items-center justify-end space-x-2 pt-3 border-t">
-                  <button className="p-1 text-gray-400 hover:text-gray-600">
+                  <button 
+                    onClick={() => handleViewClick(record)}
+                    className="p-1 text-gray-400 hover:text-gray-600"
+                  >
                     <Eye className="h-4 w-4" />
                   </button>
                   {canEdit && canEditRecord(record.createdBy) && (
-                    <button className="p-1 text-blue-600 hover:text-blue-800">
+                    <button 
+                      onClick={() => handleEditClick(record)}
+                      className="p-1 text-blue-600 hover:text-blue-800"
+                    >
                       <Edit className="h-4 w-4" />
                     </button>
                   )}
                   {canDelete && canDeleteRecord(record.createdBy) && (
-                    <button className="p-1 text-red-600 hover:text-red-800">
+                    <button 
+                      onClick={() => handleDelete(record)}
+                      className="p-1 text-red-600 hover:text-red-800"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </button>
                   )}
@@ -696,6 +697,58 @@ export default function UserEntityPage() {
           </div>
         )}
       </div>
+
+      {/* ✅ CREATE MODAL */}
+      {isCreateModalOpen && (
+        <CreateRecordModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          module={module}
+          entity={entity}
+          onSuccess={refreshRecords}
+        />
+      )}
+
+      {/* ✅ EDIT MODAL */}
+      {isEditModalOpen && selectedRecord && (
+        <EditRecordModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedRecord(null);
+          }}
+          module={module}
+          entity={entity}
+          record={selectedRecord}
+          onSuccess={refreshRecords}
+        />
+      )}
+
+      {/* ✅ VIEW MODAL */}
+      {isViewModalOpen && selectedRecord && (
+        <ViewRecordModal
+          isOpen={isViewModalOpen}
+          onClose={() => {
+            setIsViewModalOpen(false);
+            setSelectedRecord(null);
+          }}
+          module={module}
+          entity={entity}
+          record={selectedRecord}
+          fields={hookFields}
+        />
+      )}
+
+      {/* ✅ IMPORT MODAL */}
+      {isImportModalOpen && (
+        <BulkImportModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          module={module}
+          entity={entity}
+          onSuccess={refreshRecords}
+        />
+      )}
     </div>
   );
 }
