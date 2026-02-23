@@ -41,7 +41,47 @@ import {
   Copy,
   Globe,
   Zap,
-  Star
+  Star,
+  Settings,
+  Sliders,
+  Menu,
+  ChevronDown,
+  ChevronUp,
+  MoreVertical,
+  Clock,
+  User,
+  Tag,
+  Bookmark,
+  Flag,
+  Bell,
+  Briefcase,
+  Building,
+  Code,
+  Database,
+  Gift,
+  Key,
+  Lightbulb,
+  Link,
+  Server,
+  ShoppingBag,
+  ShoppingCart,
+  Signal,
+  Smartphone,
+  ThumbsUp,
+  ThumbsDown,
+  Ticket,
+  Timer,
+  Wifi,
+  ArrowUpDown,
+  CheckCircle,
+  XCircle,
+  HelpCircle,
+  Info,
+  Moon,
+  Sun,
+  Monitor,
+  Tablet,
+  Smartphone as MobileIcon
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
@@ -106,7 +146,53 @@ interface Entity {
   description?: string;
 }
 
-// ✅ Beautiful Sortable Field Item
+// ✅ Global helper functions (defined outside components)
+const getTypeIcon = (type: string) => {
+  switch (type) {
+    case 'text': return <Type className="h-4 w-4" />;
+    case 'number': return <Hash className="h-4 w-4" />;
+    case 'date': return <Calendar className="h-4 w-4" />;
+    case 'select': return <ListChecks className="h-4 w-4" />;
+    case 'textarea': return <FileText className="h-4 w-4" />;
+    case 'file': return <Upload className="h-4 w-4" />;
+    case 'image': return <ImageIcon className="h-4 w-4" />;
+    case 'checkbox': return <CheckSquare className="h-4 w-4" />;
+    case 'radio': return <CircleDot className="h-4 w-4" />;
+    default: return <Type className="h-4 w-4" />;
+  }
+};
+
+const getTypeColor = (type: string) => {
+  switch (type) {
+    case 'text': return 'bg-blue-50 text-blue-600 border-blue-200 ring-blue-100';
+    case 'number': return 'bg-emerald-50 text-emerald-600 border-emerald-200 ring-emerald-100';
+    case 'date': return 'bg-purple-50 text-purple-600 border-purple-200 ring-purple-100';
+    case 'select': return 'bg-amber-50 text-amber-600 border-amber-200 ring-amber-100';
+    case 'textarea': return 'bg-orange-50 text-orange-600 border-orange-200 ring-orange-100';
+    case 'file': return 'bg-indigo-50 text-indigo-600 border-indigo-200 ring-indigo-100';
+    case 'image': return 'bg-pink-50 text-pink-600 border-pink-200 ring-pink-100';
+    case 'checkbox': return 'bg-teal-50 text-teal-600 border-teal-200 ring-teal-100';
+    case 'radio': return 'bg-cyan-50 text-cyan-600 border-cyan-200 ring-cyan-100';
+    default: return 'bg-gray-50 text-gray-600 border-gray-200 ring-gray-100';
+  }
+};
+
+const getTypeBadgeColor = (type: string) => {
+  switch (type) {
+    case 'text': return 'bg-blue-100 text-blue-700';
+    case 'number': return 'bg-emerald-100 text-emerald-700';
+    case 'date': return 'bg-purple-100 text-purple-700';
+    case 'select': return 'bg-amber-100 text-amber-700';
+    case 'textarea': return 'bg-orange-100 text-orange-700';
+    case 'file': return 'bg-indigo-100 text-indigo-700';
+    case 'image': return 'bg-pink-100 text-pink-700';
+    case 'checkbox': return 'bg-teal-100 text-teal-700';
+    case 'radio': return 'bg-cyan-100 text-cyan-700';
+    default: return 'bg-gray-100 text-gray-700';
+  }
+};
+
+// ✅ Beautiful Sortable Field Item with Enterprise Design
 const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, index, totalItems, onMove }: any) => {
   const {
     attributes,
@@ -124,161 +210,156 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
     zIndex: isDragging ? 50 : 1
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'text': return <Type className="h-4 w-4" />;
-      case 'number': return <Hash className="h-4 w-4" />;
-      case 'date': return <Calendar className="h-4 w-4" />;
-      case 'select': return <ListChecks className="h-4 w-4" />;
-      case 'textarea': return <FileText className="h-4 w-4" />;
-      case 'file': return <Upload className="h-4 w-4" />;
-      case 'image': return <ImageIcon className="h-4 w-4" />;
-      case 'checkbox': return <CheckSquare className="h-4 w-4" />;
-      case 'radio': return <CircleDot className="h-4 w-4" />;
-      default: return <Type className="h-4 w-4" />;
-    }
-  };
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'text': return 'bg-blue-100 text-blue-600 border-blue-200';
-      case 'number': return 'bg-green-100 text-green-600 border-green-200';
-      case 'date': return 'bg-purple-100 text-purple-600 border-purple-200';
-      case 'select': return 'bg-yellow-100 text-yellow-600 border-yellow-200';
-      case 'textarea': return 'bg-orange-100 text-orange-600 border-orange-200';
-      case 'file': return 'bg-indigo-100 text-indigo-600 border-indigo-200';
-      case 'image': return 'bg-pink-100 text-pink-600 border-pink-200';
-      case 'checkbox': return 'bg-teal-100 text-teal-600 border-teal-200';
-      case 'radio': return 'bg-cyan-100 text-cyan-600 border-cyan-200';
-      default: return 'bg-gray-100 text-gray-600 border-gray-200';
-    }
-  };
-
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-white rounded-2xl border shadow-sm hover:shadow-lg transition-all duration-200 ${
-        !field.isEnabled ? 'opacity-60' : ''
-      } ${isDragging ? 'shadow-2xl ring-2 ring-blue-500 ring-opacity-50 scale-[1.02]' : ''}`}
+      className={`group relative bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${
+        !field.isEnabled ? 'opacity-70 bg-gray-50/50' : ''
+      } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : 'border-gray-200 hover:border-blue-300'}`}
     >
-      <div className="p-5">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-4 flex-1">
-            {/* Drag Handle */}
+      {/* Status Indicator Bar */}
+      <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${
+        field.isEnabled 
+          ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500' 
+          : 'bg-gradient-to-r from-gray-400 to-gray-500'
+      }`}></div>
+
+      <div className="p-6">
+        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+          {/* Left Section - Drag Handle and Icon */}
+          <div className="flex items-start space-x-3">
             <div
               {...attributes}
               {...listeners}
-              className="mt-2 cursor-move text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-xl transition-colors"
+              className="mt-1 cursor-move text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-xl transition-colors group-hover:bg-gray-50"
             >
               <GripVertical className="h-5 w-5" />
             </div>
 
-            {/* Field Icon with Gradient */}
-            <div className={`p-3 rounded-xl border ${getTypeColor(field.type)}`}>
+            <div className={`p-3.5 rounded-xl border-2 shadow-sm ${getTypeColor(field.type)}`}>
               {getTypeIcon(field.type)}
             </div>
+          </div>
 
-            {/* Field Details */}
-            <div className="flex-1">
-              <div className="flex items-center flex-wrap gap-2">
-                <h4 className="font-semibold text-gray-900">{field.label}</h4>
+          {/* Middle Section - Field Details */}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-lg font-semibold text-gray-900 truncate">{field.label}</h4>
+                <span className="text-sm text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded-lg border border-gray-200">
+                  {field.fieldKey}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2 flex-wrap">
                 {field.required && (
-                  <span className="px-2 py-0.5 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs rounded-full font-medium shadow-sm">
+                  <span className="inline-flex items-center px-2.5 py-1 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-medium rounded-full shadow-sm shadow-red-500/25">
+                    <AlertCircle className="h-3 w-3 mr-1" />
                     Required
                   </span>
                 )}
                 {field.readOnly && (
-                  <span className="px-2 py-0.5 bg-gradient-to-r from-gray-500 to-gray-600 text-white text-xs rounded-full font-medium shadow-sm">
+                  <span className="inline-flex items-center px-2.5 py-1 bg-gradient-to-r from-gray-500 to-gray-600 text-white text-xs font-medium rounded-full shadow-sm shadow-gray-500/25">
+                    <Lock className="h-3 w-3 mr-1" />
                     Read Only
                   </span>
                 )}
                 {field.isSystem && (
-                  <span className="px-2 py-0.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white text-xs rounded-full font-medium shadow-sm flex items-center">
+                  <span className="inline-flex items-center px-2.5 py-1 bg-gradient-to-r from-purple-500 to-purple-600 text-white text-xs font-medium rounded-full shadow-sm shadow-purple-500/25">
                     <Shield className="h-3 w-3 mr-1" />
                     System
                   </span>
                 )}
                 {!field.visible && (
-                  <span className="px-2 py-0.5 bg-gradient-to-r from-gray-400 to-gray-500 text-white text-xs rounded-full font-medium shadow-sm">
+                  <span className="inline-flex items-center px-2.5 py-1 bg-gradient-to-r from-gray-400 to-gray-500 text-white text-xs font-medium rounded-full shadow-sm shadow-gray-400/25">
+                    <EyeOff className="h-3 w-3 mr-1" />
                     Hidden
                   </span>
                 )}
               </div>
-              
-              <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-sm text-gray-500 mt-2">
-                <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded-lg border border-gray-200">
-                  {field.fieldKey}
-                </span>
-                <span className={`capitalize px-2 py-1 rounded-lg text-xs font-medium border ${getTypeColor(field.type)}`}>
-                  {field.type}
-                </span>
-                {field.options && field.options.length > 0 && (
-                  <span className="text-xs bg-gray-100 px-2 py-1 rounded-lg border border-gray-200">
-                    {field.options.length} options
-                  </span>
-                )}
-                {field.validation && (
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-lg border border-green-200">
-                    Validated
-                  </span>
-                )}
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-lg border border-blue-200">
-                  Order: {field.order + 1}
-                </span>
-              </div>
+            </div>
 
-              {/* Validation Rules */}
-              {field.validation && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {field.validation.min !== undefined && (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200">
-                      Min: {field.validation.min}
-                    </span>
-                  )}
-                  {field.validation.max !== undefined && (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200">
-                      Max: {field.validation.max}
-                    </span>
-                  )}
-                  {field.validation.regex && (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200 font-mono">
-                      /{field.validation.regex}/
-                    </span>
-                  )}
-                  {field.validation.allowedFileTypes && field.validation.allowedFileTypes.length > 0 && (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200">
-                      {field.validation.allowedFileTypes.join(', ')}
-                    </span>
-                  )}
-                  {field.validation.maxFileSize && (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200">
-                      Max: {field.validation.maxFileSize / 1024 / 1024}MB
-                    </span>
-                  )}
-                </div>
+            {/* Tags and Metadata */}
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className={`px-3 py-1.5 rounded-lg text-xs font-medium border-2 ${getTypeColor(field.type)}`}>
+                {field.type.charAt(0).toUpperCase() + field.type.slice(1)}
+              </span>
+              
+              {field.options && field.options.length > 0 && (
+                <span className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg border border-gray-200 flex items-center">
+                  <ListChecks className="h-3 w-3 mr-1" />
+                  {field.options.length} Options
+                </span>
               )}
 
-              {/* Metadata */}
-              <div className="mt-3 flex items-center text-xs text-gray-400">
-                <span>ID: {field._id.slice(-8)}</span>
-                {field.updatedAt && (
-                  <>
-                    <span className="mx-2">•</span>
-                    <span>Updated {new Date(field.updatedAt).toLocaleDateString()}</span>
-                  </>
+              {field.validation && (
+                <span className="px-3 py-1.5 bg-green-100 text-green-700 text-xs font-medium rounded-lg border border-green-200 flex items-center">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Validated
+                </span>
+              )}
+
+              <span className="px-3 py-1.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-lg border border-blue-200 flex items-center">
+                <ArrowUpDown className="h-3 w-3 mr-1" />
+                Order: {field.order + 1}
+              </span>
+            </div>
+
+            {/* Validation Rules */}
+            {field.validation && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {field.validation.min !== undefined && (
+                  <span className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200 flex items-center">
+                    <span className="font-medium mr-1">Min:</span> {field.validation.min}
+                  </span>
+                )}
+                {field.validation.max !== undefined && (
+                  <span className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200 flex items-center">
+                    <span className="font-medium mr-1">Max:</span> {field.validation.max}
+                  </span>
+                )}
+                {field.validation.regex && (
+                  <span className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200 font-mono">
+                    /{field.validation.regex}/
+                  </span>
+                )}
+                {field.validation.allowedFileTypes && field.validation.allowedFileTypes.length > 0 && (
+                  <span className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200">
+                    {field.validation.allowedFileTypes.join(', ')}
+                  </span>
+                )}
+                {field.validation.maxFileSize && (
+                  <span className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200">
+                    Max: {field.validation.maxFileSize / 1024 / 1024}MB
+                  </span>
                 )}
               </div>
+            )}
+
+            {/* Footer Metadata */}
+            <div className="mt-4 flex items-center text-xs text-gray-400 border-t border-gray-100 pt-3">
+              <Clock className="h-3 w-3 mr-1" />
+              <span>Updated {new Date(field.updatedAt || '').toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}</span>
+              <span className="mx-2">•</span>
+              <User className="h-3 w-3 mr-1" />
+              <span>ID: {field._id.slice(-8)}</span>
             </div>
           </div>
 
-          {/* Actions with Tooltips */}
-          <div className="flex items-center space-x-1">
-            <div className="flex border border-gray-200 rounded-xl overflow-hidden mr-1 bg-white shadow-sm">
+          {/* Right Section - Actions */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            {/* Move Buttons */}
+            <div className="flex border-2 border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
               <button
                 onClick={() => onMove(field._id, 'up')}
                 disabled={index === 0}
-                className="p-2 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-2.5 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 title="Move up"
               >
                 <ArrowUp className="h-4 w-4" />
@@ -286,50 +367,53 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
               <button
                 onClick={() => onMove(field._id, 'down')}
                 disabled={index === totalItems - 1}
-                className="p-2 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed border-l border-gray-200 transition-colors"
+                className="p-2.5 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed border-l-2 border-gray-200 transition-colors"
                 title="Move down"
               >
                 <ArrowDown className="h-4 w-4" />
               </button>
             </div>
 
-            <button
-              onClick={() => onToggle(field._id)}
-              className={`p-2 rounded-xl transition-all ${
-                field.isEnabled 
-                  ? 'text-green-600 hover:bg-green-50 border border-green-200' 
-                  : 'text-gray-400 hover:bg-gray-50 border border-gray-200'
-              }`}
-              title={field.isEnabled ? 'Disable' : 'Enable'}
-            >
-              {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-            </button>
-
-            <button
-              onClick={() => onDuplicate?.(field)}
-              className="p-2 text-purple-600 hover:bg-purple-50 rounded-xl border border-purple-200 transition-all"
-              title="Duplicate"
-            >
-              <Copy className="h-4 w-4" />
-            </button>
-
-            <button
-              onClick={() => onEdit(field)}
-              className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl border border-blue-200 transition-all"
-              title="Edit"
-            >
-              <Edit className="h-4 w-4" />
-            </button>
-
-            {!field.isSystem && (
+            {/* Action Buttons */}
+            <div className="flex items-center gap-1.5">
               <button
-                onClick={() => onDelete(field)}
-                className="p-2 text-red-600 hover:bg-red-50 rounded-xl border border-red-200 transition-all"
-                title="Delete"
+                onClick={() => onToggle(field._id)}
+                className={`p-2.5 rounded-xl transition-all border-2 ${
+                  field.isEnabled 
+                    ? 'text-emerald-600 hover:bg-emerald-50 border-emerald-200 hover:border-emerald-300' 
+                    : 'text-gray-400 hover:bg-gray-50 border-gray-200 hover:border-gray-300'
+                }`}
+                title={field.isEnabled ? 'Disable field' : 'Enable field'}
               >
-                <Trash2 className="h-4 w-4" />
+                {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               </button>
-            )}
+
+              <button
+                onClick={() => onDuplicate?.(field)}
+                className="p-2.5 text-purple-600 hover:bg-purple-50 rounded-xl border-2 border-purple-200 hover:border-purple-300 transition-all"
+                title="Duplicate field"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+
+              <button
+                onClick={() => onEdit(field)}
+                className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-xl border-2 border-blue-200 hover:border-blue-300 transition-all"
+                title="Edit field"
+              >
+                <Edit className="h-4 w-4" />
+              </button>
+
+              {!field.isSystem && (
+                <button
+                  onClick={() => onDelete(field)}
+                  className="p-2.5 text-red-600 hover:bg-red-50 rounded-xl border-2 border-red-200 hover:border-red-300 transition-all"
+                  title="Delete field"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -337,7 +421,7 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
   );
 };
 
-// ✅ Main Fields Content Component
+// ✅ Main Fields Content Component with Enterprise UI
 export default function FieldsContent() {
   const searchParams = useSearchParams();
   const moduleParam = searchParams.get('module');
@@ -355,6 +439,8 @@ export default function FieldsContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showInactive, setShowInactive] = useState(false);
   const [activeTab, setActiveTab] = useState<'fields' | 'preview'>('fields');
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [stats, setStats] = useState({ total: 0, visible: 0, required: 0, system: 0 });
 
   const [formData, setFormData] = useState({
@@ -379,7 +465,11 @@ export default function FieldsContent() {
   });
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -401,7 +491,7 @@ export default function FieldsContent() {
       const token = getToken();
       const response = await fetch(`/financial-tracker/api/financial-tracker/entities?module=${selectedModule}`, {
         headers: {
-          'Authorization': token
+          'Authorization': `Bearer ${token}`
         }
       });
       if (response.ok) {
@@ -430,7 +520,7 @@ export default function FieldsContent() {
         `/financial-tracker/api/financial-tracker/fields?module=${selectedModule}&entityId=${selectedEntity}${!showInactive ? '' : '&includeDisabled=true'}`,
         {
           headers: {
-            'Authorization': token
+            'Authorization': `Bearer ${token}`
           }
         }
       );
@@ -456,7 +546,7 @@ export default function FieldsContent() {
       if (showInactive) params.append('includeDisabled', 'true');
       
       const response = await fetch(`/financial-tracker/api/financial-tracker/fields/export?${params.toString()}`, {
-        headers: { 'Authorization': token }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       
       if (!response.ok) throw new Error('Export failed');
@@ -477,31 +567,31 @@ export default function FieldsContent() {
     }
   };
 
-  // ✅ Fixed handleDuplicate function
-const handleDuplicate = async (field: Field) => {
-  setFormData({
-    module: field.module,
-    entityId: field.entityId,
-    fieldKey: `${field.fieldKey}-copy`,
-    label: `${field.label} (Copy)`,
-    type: field.type,
-    required: field.required,
-    readOnly: field.readOnly,
-    visible: field.visible,
-    isEnabled: field.isEnabled,
-    defaultValue: field.defaultValue || '',
-    options: field.options || [''],
-    validation: {
-      min: field.validation?.min,
-      max: field.validation?.max,
-      regex: field.validation?.regex || '',
-      allowedFileTypes: field.validation?.allowedFileTypes || [],
-      maxFileSize: field.validation?.maxFileSize
-    }
-  });
-  setEditingField(null);
-  setIsModalOpen(true);
-};
+  const handleDuplicate = async (field: Field) => {
+    setFormData({
+      module: field.module,
+      entityId: field.entityId,
+      fieldKey: `${field.fieldKey}-copy`,
+      label: `${field.label} (Copy)`,
+      type: field.type,
+      required: field.required,
+      readOnly: field.readOnly,
+      visible: field.visible,
+      isEnabled: field.isEnabled,
+      defaultValue: field.defaultValue || '',
+      options: field.options || [''],
+      validation: {
+        min: field.validation?.min,
+        max: field.validation?.max,
+        regex: field.validation?.regex || '',
+        allowedFileTypes: field.validation?.allowedFileTypes || [],
+        maxFileSize: field.validation?.maxFileSize
+      }
+    });
+    setEditingField(null);
+    setIsModalOpen(true);
+  };
+
   useEffect(() => {
     if (selectedEntity) {
       const entity = entities.find(e => e._id === selectedEntity);
@@ -531,7 +621,7 @@ const handleDuplicate = async (field: Field) => {
 
       try {
         const token = getToken();
-        const fieldOrders = newFields.map((field:any, index:any) => ({
+        const fieldOrders = newFields.map((field: any, index: any) => ({
           fieldId: field._id,
           order: index
         }));
@@ -540,7 +630,7 @@ const handleDuplicate = async (field: Field) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': token
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
             entityId: selectedEntity,
@@ -549,7 +639,14 @@ const handleDuplicate = async (field: Field) => {
         });
 
         if (!response.ok) throw new Error('Failed to save order');
-        toast.success('Fields reordered successfully');
+        toast.success('Fields reordered successfully', {
+          icon: '🔄',
+          style: {
+            borderRadius: '10px',
+            background: '#333',
+            color: '#fff',
+          },
+        });
       } catch (error) {
         toast.error('Failed to save field order');
         fetchFields();
@@ -584,7 +681,7 @@ const handleDuplicate = async (field: Field) => {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': token
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           ...formData,
@@ -603,7 +700,14 @@ const handleDuplicate = async (field: Field) => {
         throw new Error(error.error || 'Failed to save field');
       }
 
-      toast.success(editingField ? 'Field updated successfully' : 'Field created successfully');
+      toast.success(editingField ? 'Field updated successfully' : 'Field created successfully', {
+        icon: editingField ? '✏️' : '✨',
+        style: {
+          borderRadius: '10px',
+          background: '#333',
+          color: '#fff',
+        },
+      });
       setIsModalOpen(false);
       setEditingField(null);
       resetForm();
@@ -619,13 +723,15 @@ const handleDuplicate = async (field: Field) => {
       const response = await fetch(`/financial-tracker/api/financial-tracker/fields/${fieldId}/toggle`, {
         method: 'PATCH',
         headers: {
-          'Authorization': token
+          'Authorization': `Bearer ${token}`
         }
       });
 
       if (!response.ok) throw new Error('Failed to toggle field');
 
-      toast.success('Field toggled successfully');
+      toast.success('Field status updated successfully', {
+        icon: '✅',
+      });
       fetchFields();
     } catch (error) {
       toast.error('Failed to toggle field');
@@ -645,13 +751,15 @@ const handleDuplicate = async (field: Field) => {
       const response = await fetch(`/financial-tracker/api/financial-tracker/fields/${field._id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': token
+          'Authorization': `Bearer ${token}`
         }
       });
 
       if (!response.ok) throw new Error('Failed to delete field');
 
-      toast.success('Field deleted successfully');
+      toast.success('Field deleted successfully', {
+        icon: '🗑️',
+      });
       fetchFields();
     } catch (error) {
       toast.error('Failed to delete field');
@@ -688,7 +796,7 @@ const handleDuplicate = async (field: Field) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': token
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           entityId: selectedEntity,
@@ -772,51 +880,93 @@ const handleDuplicate = async (field: Field) => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-10">
-        <div className="px-6 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30">
+      {/* Enterprise Header */}
+      <div className="bg-white/90 backdrop-blur-xl border-b border-gray-200/80 sticky top-0 z-40 shadow-sm">
+        <div className="px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg shadow-blue-500/25">
-                <Layers className="h-6 w-6 text-white" />
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur-lg opacity-30"></div>
+                <div className="relative p-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-lg">
+                  <Layers className="h-7 w-7 text-white" />
+                </div>
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent">
                   Dynamic Fields
                 </h1>
-                <p className="text-gray-600 mt-0.5">Configure custom fields for each entity</p>
+                <p className="text-sm text-gray-500 mt-0.5 flex items-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2 animate-pulse"></span>
+                  Configure custom fields for each entity
+                </p>
               </div>
             </div>
             
-            {/* Stats Badges */}
+            {/* Desktop Stats */}
             {selectedEntity && (
-              <div className="flex items-center space-x-3">
-                <div className="px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-xl text-sm">
-                  <span className="text-blue-600 font-medium">{stats.total}</span>
-                  <span className="text-gray-500 ml-1">Total</span>
+              <div className="hidden lg:flex items-center space-x-3">
+                <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-1.5 bg-blue-100 rounded-lg">
+                      <Tag className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500">Total</span>
+                      <span className="text-xl font-bold text-blue-600 block leading-5">{stats.total}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="px-3 py-1.5 bg-green-50 border border-green-200 rounded-xl text-sm">
-                  <span className="text-green-600 font-medium">{stats.visible}</span>
-                  <span className="text-gray-500 ml-1">Visible</span>
+                <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-1.5 bg-green-100 rounded-lg">
+                      <Eye className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500">Visible</span>
+                      <span className="text-xl font-bold text-green-600 block leading-5">{stats.visible}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="px-3 py-1.5 bg-red-50 border border-red-200 rounded-xl text-sm">
-                  <span className="text-red-600 font-medium">{stats.required}</span>
-                  <span className="text-gray-500 ml-1">Required</span>
+                <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-1.5 bg-red-100 rounded-lg">
+                      <AlertCircle className="h-4 w-4 text-red-600" />
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500">Required</span>
+                      <span className="text-xl font-bold text-red-600 block leading-5">{stats.required}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-xl text-sm">
-                  <span className="text-purple-600 font-medium">{stats.system}</span>
-                  <span className="text-gray-500 ml-1">System</span>
+                <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-1.5 bg-purple-100 rounded-lg">
+                      <Shield className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500">System</span>
+                      <span className="text-xl font-bold text-purple-600 block leading-5">{stats.system}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
+              className="lg:hidden p-2.5 bg-white rounded-xl border border-gray-200 shadow-sm hover:bg-gray-50"
+            >
+              <Menu className="h-5 w-5 text-gray-600" />
+            </button>
           </div>
 
-          {/* Module and Entity Selection */}
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-12 gap-4">
-            <div className="md:col-span-3">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Module</label>
-              <div className="flex rounded-xl overflow-hidden bg-white border border-gray-200 shadow-sm">
+          {/* Module and Entity Selection - Desktop */}
+          <div className="hidden lg:grid lg:grid-cols-12 gap-4 mt-6">
+            <div className="col-span-3">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Module</label>
+              <div className="flex rounded-xl overflow-hidden bg-white border-2 border-gray-200 shadow-sm">
                 <button
                   onClick={() => {
                     setSelectedModule('re');
@@ -824,7 +974,7 @@ const handleDuplicate = async (field: Field) => {
                   }}
                   className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
                     selectedModule === 're'
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
                   }`}
                 >
@@ -838,7 +988,7 @@ const handleDuplicate = async (field: Field) => {
                   }}
                   className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
                     selectedModule === 'expense'
-                      ? 'bg-gradient-to-r from-green-600 to-green-700 text-white'
+                      ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/25'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
                   }`}
                 >
@@ -848,15 +998,15 @@ const handleDuplicate = async (field: Field) => {
               </div>
             </div>
 
-            <div className="md:col-span-3">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Entity</label>
+            <div className="col-span-3">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Entity</label>
               <select
                 value={selectedEntity}
                 onChange={(e) => {
                   setSelectedEntity(e.target.value);
                   setFormData(prev => ({ ...prev, entityId: e.target.value }));
                 }}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm text-gray-700 font-medium"
               >
                 <option value="">Select Entity</option>
                 {entities.map(entity => (
@@ -867,8 +1017,8 @@ const handleDuplicate = async (field: Field) => {
               </select>
             </div>
 
-            <div className="md:col-span-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+            <div className="col-span-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Search</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
@@ -876,28 +1026,28 @@ const handleDuplicate = async (field: Field) => {
                   placeholder="Search by label, key, or type..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
+                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm text-gray-900 placeholder-gray-400"
                 />
               </div>
             </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">&nbsp;</label>
+            <div className="col-span-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">&nbsp;</label>
               <div className="flex items-center space-x-2">
-                <label className="flex items-center space-x-2 bg-white px-4 py-3 border border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 shadow-sm flex-1">
+                <label className="flex items-center space-x-2 bg-white px-4 py-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 shadow-sm flex-1 transition-all">
                   <input
                     type="checkbox"
                     checked={showInactive}
                     onChange={(e) => setShowInactive(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-gray-700">Show inactive</span>
+                  <span className="text-sm font-medium text-gray-700">Show inactive</span>
                 </label>
                 
                 <button
                   onClick={handleExport}
                   disabled={!selectedEntity}
-                  className="p-3 border border-gray-300 rounded-xl hover:bg-gray-50 bg-white shadow-sm disabled:opacity-50"
+                  className="p-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 bg-white shadow-sm disabled:opacity-50 transition-all hover:shadow-md"
                   title="Export"
                 >
                   <Download className="h-5 w-5 text-gray-500" />
@@ -905,7 +1055,7 @@ const handleDuplicate = async (field: Field) => {
 
                 <button
                   onClick={fetchFields}
-                  className="p-3 border border-gray-300 rounded-xl hover:bg-gray-50 bg-white shadow-sm"
+                  className="p-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 bg-white shadow-sm transition-all hover:shadow-md"
                   title="Refresh"
                 >
                   <RefreshCw className="h-5 w-5 text-gray-500" />
@@ -914,9 +1064,120 @@ const handleDuplicate = async (field: Field) => {
             </div>
           </div>
 
-          {/* Tabs */}
+          {/* Mobile Filters Panel */}
+          {isMobileFiltersOpen && (
+            <div className="lg:hidden mt-4 space-y-4 p-4 bg-white rounded-xl border-2 border-gray-200 shadow-lg animate-slideDown">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900 flex items-center">
+                  <Filter className="h-4 w-4 mr-2 text-blue-600" />
+                  Filters
+                </h3>
+                <button
+                  onClick={() => setIsMobileFiltersOpen(false)}
+                  className="p-1.5 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="h-5 w-5 text-gray-400" />
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Module</label>
+                <div className="flex rounded-xl overflow-hidden bg-white border-2 border-gray-200">
+                  <button
+                    onClick={() => {
+                      setSelectedModule('re');
+                      setSelectedEntity('');
+                    }}
+                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${
+                      selectedModule === 're'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
+                        : 'bg-white text-gray-700'
+                    }`}
+                  >
+                    RE
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedModule('expense');
+                      setSelectedEntity('');
+                    }}
+                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${
+                      selectedModule === 'expense'
+                        ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white'
+                        : 'bg-white text-gray-700'
+                    }`}
+                  >
+                    Expense
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Entity</label>
+                <select
+                  value={selectedEntity}
+                  onChange={(e) => {
+                    setSelectedEntity(e.target.value);
+                    setFormData(prev => ({ ...prev, entityId: e.target.value }));
+                  }}
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-700"
+                >
+                  <option value="">Select Entity</option>
+                  {entities.map(entity => (
+                    <option key={entity._id} value={entity._id}>
+                      {entity.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search fields..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900"
+                  />
+                </div>
+              </div>
+
+              <label className="flex items-center space-x-2 p-3 bg-gray-50 rounded-xl border-2 border-gray-200">
+                <input
+                  type="checkbox"
+                  checked={showInactive}
+                  onChange={(e) => setShowInactive(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600"
+                />
+                <span className="text-sm font-medium text-gray-700">Show inactive fields</span>
+              </label>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={handleExport}
+                  disabled={!selectedEntity}
+                  className="p-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 bg-white disabled:opacity-50 flex items-center justify-center"
+                >
+                  <Download className="h-5 w-5 text-gray-500 mr-2" />
+                  Export
+                </button>
+                <button
+                  onClick={fetchFields}
+                  className="p-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 bg-white flex items-center justify-center"
+                >
+                  <RefreshCw className="h-5 w-5 text-gray-500 mr-2" />
+                  Refresh
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Tabs and Actions */}
           {selectedEntity && (
-            <div className="mt-6 border-b border-gray-200">
+            <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200">
               <div className="flex space-x-6">
                 <button
                   onClick={() => setActiveTab('fields')}
@@ -941,63 +1202,120 @@ const handleDuplicate = async (field: Field) => {
                   <span>Preview</span>
                 </button>
               </div>
+
+              <div className="flex items-center space-x-3 mt-3 sm:mt-0">
+                {/* View Toggle */}
+                <div className="flex border-2 border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-2.5 transition-all ${
+                      viewMode === 'list'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
+                        : 'text-gray-500 hover:bg-gray-50'
+                    }`}
+                    title="List View"
+                  >
+                    <Menu className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${
+                      viewMode === 'grid'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
+                        : 'text-gray-500 hover:bg-gray-50'
+                    }`}
+                    title="Grid View"
+                  >
+                    <Grid3x3 className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setEditingField(null);
+                    resetForm();
+                    setIsModalOpen(true);
+                  }}
+                  className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-500/25 font-medium flex items-center border-2 border-blue-400"
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  New Field
+                </button>
+              </div>
             </div>
           )}
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="p-6">
+      <div className="px-4 sm:px-6 lg:px-8 py-6">
         {!selectedEntity ? (
-          <div className="bg-white rounded-2xl border shadow-xl p-16 text-center max-w-2xl mx-auto">
-            <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-500/25">
-              <FolderTree className="h-12 w-12 text-white" />
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl border-2 border-gray-200 shadow-xl p-12 text-center max-w-2xl mx-auto">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-3xl blur-2xl opacity-20 animate-pulse"></div>
+              <div className="relative w-28 h-28 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/30 ring-4 ring-white">
+                <FolderTree className="h-14 w-14 text-white" />
+              </div>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-3">Select an Entity</h3>
-            <p className="text-gray-500 mb-6">Choose a module and entity to manage its custom fields</p>
-            <div className="flex justify-center space-x-3">
+            <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-3">
+              Select an Entity
+            </h3>
+            <p className="text-gray-500 mb-8 text-lg">Choose a module and entity to manage its custom fields</p>
+            <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
               <button
                 onClick={() => setSelectedModule('re')}
-                className="px-6 py-3 bg-blue-50 text-blue-700 rounded-xl border border-blue-200 hover:bg-blue-100 transition-colors font-medium"
+                className="px-8 py-4 bg-blue-50 text-blue-700 rounded-xl border-2 border-blue-200 hover:bg-blue-100 transition-colors font-medium flex items-center justify-center"
               >
-                <DollarSign className="h-4 w-4 inline mr-2" />
+                <DollarSign className="h-5 w-5 mr-2" />
                 RE Module
               </button>
               <button
                 onClick={() => setSelectedModule('expense')}
-                className="px-6 py-3 bg-green-50 text-green-700 rounded-xl border border-green-200 hover:bg-green-100 transition-colors font-medium"
+                className="px-8 py-4 bg-emerald-50 text-emerald-700 rounded-xl border-2 border-emerald-200 hover:bg-emerald-100 transition-colors font-medium flex items-center justify-center"
               >
-                <CreditCard className="h-4 w-4 inline mr-2" />
+                <CreditCard className="h-5 w-5 mr-2" />
                 Expense Module
               </button>
             </div>
           </div>
         ) : activeTab === 'fields' ? (
           isLoading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-              <span className="ml-3 text-gray-600">Loading fields...</span>
+            <div className="flex justify-center items-center h-96">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur-xl opacity-20 animate-pulse"></div>
+                <div className="relative bg-white p-6 rounded-2xl shadow-xl border-2 border-gray-200">
+                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent"></div>
+                </div>
+              </div>
+              <span className="ml-4 text-lg font-medium text-gray-600">Loading fields...</span>
             </div>
           ) : filteredFields.length === 0 ? (
-            <div className="bg-white rounded-2xl border shadow-xl p-16 text-center max-w-lg mx-auto">
-              <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-purple-500/25">
-                <Sparkles className="h-12 w-12 text-white" />
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl border-2 border-gray-200 shadow-xl p-16 text-center max-w-lg mx-auto">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl blur-2xl opacity-20"></div>
+                <div className="relative w-32 h-32 bg-gradient-to-br from-purple-500 to-pink-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-purple-500/30 ring-4 ring-white">
+                  <Sparkles className="h-16 w-16 text-white" />
+                </div>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">No Fields Yet</h3>
-              <p className="text-gray-500 mb-6">Create your first custom field for {selectedEntityObj?.name}</p>
+              <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-3">
+                No Fields Yet
+              </h3>
+              <p className="text-gray-500 mb-8 text-lg">
+                Create your first custom field for <span className="font-semibold text-blue-600">{selectedEntityObj?.name}</span>
+              </p>
               <button
                 onClick={() => {
                   setEditingField(null);
                   resetForm();
                   setIsModalOpen(true);
                 }}
-                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-500/25 font-medium"
+                className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-xl shadow-blue-500/25 font-medium text-lg border-2 border-blue-400"
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Create First Field
               </button>
             </div>
-          ) : (
+          ) : viewMode === 'list' ? (
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
@@ -1024,12 +1342,85 @@ const handleDuplicate = async (field: Field) => {
                 </div>
               </SortableContext>
             </DndContext>
+          ) : (
+            /* Grid View */
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filteredFields.map((field, index) => (
+                <div
+                  key={field._id}
+                  className={`bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${
+                    !field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="p-5">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <div className={`p-2.5 rounded-xl border-2 ${field.isEnabled ? getTypeColor(field.type) : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                          {getTypeIcon(field.type)}
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900">{field.label}</h4>
+                          <p className="text-xs text-gray-500 font-mono">{field.fieldKey}</p>
+                        </div>
+                      </div>
+                      <div className="flex space-x-1">
+                        <button
+                          onClick={() => handleToggleField(field._id)}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                          }`}
+                        >
+                          {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                        </button>
+                        <button
+                          onClick={() => handleDuplicate(field)}
+                          className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(field)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${getTypeBadgeColor(field.type)}`}>
+                          {field.type}
+                        </span>
+                        {field.required && (
+                          <span className="px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full">Required</span>
+                        )}
+                        {field.isSystem && (
+                          <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full">System</span>
+                        )}
+                      </div>
+
+                      {field.options && field.options.length > 0 && (
+                        <p className="text-xs text-gray-500">
+                          {field.options.length} option{field.options.length > 1 ? 's' : ''}
+                        </p>
+                      )}
+
+                      <div className="flex items-center justify-between text-xs text-gray-400 border-t border-gray-100 pt-2">
+                        <span>Order: {field.order + 1}</span>
+                        <span>{new Date(field.updatedAt || '').toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )
         ) : (
           // Preview Mode
-          <div className="bg-white rounded-2xl border shadow-xl p-8 max-w-2xl mx-auto">
-            <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-200">
-              <div className="p-2 bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl shadow-lg shadow-purple-500/25">
+          <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-xl p-6 sm:p-8 max-w-3xl mx-auto">
+            <div className="flex items-center space-x-3 mb-6 pb-4 border-b-2 border-gray-200">
+              <div className="p-2.5 bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl shadow-lg shadow-purple-500/25">
                 <Eye className="h-5 w-5 text-white" />
               </div>
               <div>
@@ -1057,7 +1448,7 @@ const handleDuplicate = async (field: Field) => {
                     <input
                       type="text"
                       placeholder={`Enter ${field.label.toLowerCase()}`}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 transition-all"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900"
                       disabled
                     />
                   )}
@@ -1066,7 +1457,7 @@ const handleDuplicate = async (field: Field) => {
                     <input
                       type="number"
                       placeholder={`Enter ${field.label.toLowerCase()}`}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-900"
                       disabled
                     />
                   )}
@@ -1074,7 +1465,7 @@ const handleDuplicate = async (field: Field) => {
                   {field.type === 'date' && (
                     <input
                       type="date"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-900"
                       disabled
                     />
                   )}
@@ -1083,26 +1474,26 @@ const handleDuplicate = async (field: Field) => {
                     <textarea
                       rows={3}
                       placeholder={`Enter ${field.label.toLowerCase()}`}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-900"
                       disabled
                     />
                   )}
                   
                   {field.type === 'select' && (
-                    <select className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50" disabled>
+                    <select className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-900" disabled>
                       <option>Select {field.label}</option>
                     </select>
                   )}
                   
                   {field.type === 'checkbox' && (
-                    <div className="flex items-center space-x-3 p-3 border border-gray-200 rounded-xl bg-gray-50">
+                    <div className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-xl bg-gray-50">
                       <input type="checkbox" className="h-5 w-5 text-blue-600 border-gray-300 rounded" disabled />
                       <span className="text-sm text-gray-600">Enable {field.label}</span>
                     </div>
                   )}
                   
                   {field.type === 'radio' && field.options && (
-                    <div className="space-y-2 p-3 border border-gray-200 rounded-xl bg-gray-50">
+                    <div className="space-y-2 p-3 border-2 border-gray-200 rounded-xl bg-gray-50">
                       {field.options.slice(0, 2).map((opt, i) => (
                         <div key={i} className="flex items-center space-x-3">
                           <input type="radio" className="h-4 w-4 text-blue-600 border-gray-300" disabled />
@@ -1136,7 +1527,7 @@ const handleDuplicate = async (field: Field) => {
                   
                   {field.validation && (
                     <p className="text-xs text-gray-400 mt-1.5 flex items-center">
-                      <AlertCircle className="h-3 w-3 mr-1" />
+                      <Info className="h-3 w-3 mr-1" />
                       {field.validation.min !== undefined && `Min: ${field.validation.min} `}
                       {field.validation.max !== undefined && `Max: ${field.validation.max} `}
                       {field.validation.regex && 'Pattern required '}
@@ -1148,17 +1539,17 @@ const handleDuplicate = async (field: Field) => {
               {filteredFields.filter(f => f.visible).length === 0 && (
                 <div className="text-center py-12 text-gray-500">
                   <EyeOff className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p>No visible fields to preview</p>
+                  <p className="text-lg">No visible fields to preview</p>
                 </div>
               )}
             </div>
 
             {/* Preview Actions */}
-            <div className="mt-8 pt-4 border-t border-gray-200 flex justify-end space-x-3">
-              <button className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium">
+            <div className="mt-8 pt-4 border-t-2 border-gray-200 flex justify-end space-x-3">
+              <button className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium border-2 border-gray-200">
                 Cancel
               </button>
-              <button className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-500/25 font-medium">
+              <button className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-500/25 font-medium border-2 border-blue-400">
                 Save
               </button>
             </div>
@@ -1169,12 +1560,12 @@ const handleDuplicate = async (field: Field) => {
       {/* Create/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto animate-scaleIn border-2 border-gray-200">
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-2xl px-6 py-4 sticky top-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="bg-white/20 rounded-xl p-2">
+                  <div className="bg-white/20 rounded-xl p-2 backdrop-blur-sm">
                     {editingField ? <Edit className="h-5 w-5 text-white" /> : <Plus className="h-5 w-5 text-white" />}
                   </div>
                   <h2 className="text-xl font-semibold text-white">
@@ -1186,7 +1577,7 @@ const handleDuplicate = async (field: Field) => {
                     setIsModalOpen(false);
                     setEditingField(null);
                   }}
-                  className="text-white/80 hover:text-white transition-colors"
+                  className="text-white/80 hover:text-white transition-colors p-1 hover:bg-white/20 rounded-lg"
                 >
                   <X className="h-6 w-6" />
                 </button>
@@ -1196,7 +1587,7 @@ const handleDuplicate = async (field: Field) => {
             {/* Modal Body */}
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
               {/* Field Key & Label Grid */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Field Key <span className="text-red-500">*</span>
@@ -1208,12 +1599,12 @@ const handleDuplicate = async (field: Field) => {
                       ...formData,
                       fieldKey: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')
                     })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-mono"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 font-mono text-gray-900"
                     placeholder="e.g., office-rent"
                     required
                   />
                   <p className="text-xs text-gray-500 mt-1 flex items-center">
-                    <AlertCircle className="h-3 w-3 mr-1" />
+                    <Info className="h-3 w-3 mr-1" />
                     Lowercase letters, numbers, hyphens
                   </p>
                 </div>
@@ -1226,7 +1617,7 @@ const handleDuplicate = async (field: Field) => {
                     type="text"
                     value={formData.label}
                     onChange={(e) => setFormData({ ...formData, label: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-gray-900"
                     placeholder="e.g., Office Rent"
                     required
                   />
@@ -1238,12 +1629,12 @@ const handleDuplicate = async (field: Field) => {
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Field Type <span className="text-red-500">*</span>
                 </label>
-                <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                   {[
                     { type: 'text', label: 'Text', icon: Type, color: 'blue' },
-                    { type: 'number', label: 'Number', icon: Hash, color: 'green' },
+                    { type: 'number', label: 'Number', icon: Hash, color: 'emerald' },
                     { type: 'date', label: 'Date', icon: Calendar, color: 'purple' },
-                    { type: 'select', label: 'Select', icon: ListChecks, color: 'yellow' },
+                    { type: 'select', label: 'Select', icon: ListChecks, color: 'amber' },
                     { type: 'textarea', label: 'Textarea', icon: FileText, color: 'orange' },
                     { type: 'checkbox', label: 'Checkbox', icon: CheckSquare, color: 'teal' },
                     { type: 'radio', label: 'Radio', icon: CircleDot, color: 'cyan' },
@@ -1256,7 +1647,7 @@ const handleDuplicate = async (field: Field) => {
                       onClick={() => setFormData({ ...formData, type: type as any })}
                       className={`p-4 border-2 rounded-xl flex flex-col items-center transition-all ${
                         formData.type === type
-                          ? `border-${color}-500 bg-${color}-50`
+                          ? `border-${color}-500 bg-${color}-50 ring-2 ring-${color}-100`
                           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                       }`}
                     >
@@ -1275,7 +1666,7 @@ const handleDuplicate = async (field: Field) => {
 
               {/* Options for Select/Radio */}
               {(formData.type === 'select' || formData.type === 'radio') && (
-                <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+                <div className="bg-gray-50 p-5 rounded-xl border-2 border-gray-200">
                   <label className="block text-sm font-medium text-gray-700 mb-3">
                     Options <span className="text-red-500">*</span>
                   </label>
@@ -1285,13 +1676,13 @@ const handleDuplicate = async (field: Field) => {
                         type="text"
                         value={opt}
                         onChange={(e) => handleOptionChange(i, e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                         placeholder={`Option ${i + 1}`}
                       />
                       <button
                         type="button"
                         onClick={() => removeOption(i)}
-                        className="ml-2 p-2 text-red-600 hover:bg-red-50 rounded-lg border border-red-200"
+                        className="ml-2 p-2 text-red-600 hover:bg-red-50 rounded-lg border-2 border-red-200 hover:border-red-300"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -1317,18 +1708,18 @@ const handleDuplicate = async (field: Field) => {
                   type="text"
                   value={formData.defaultValue}
                   onChange={(e) => setFormData({ ...formData, defaultValue: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-gray-900"
                   placeholder="Optional default value"
                 />
               </div>
 
               {/* Validation */}
-              <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+              <div className="bg-gray-50 p-5 rounded-xl border-2 border-gray-200">
                 <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
                   <Shield className="h-4 w-4 mr-2 text-gray-500" />
                   Validation Rules
                 </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {(formData.type === 'number' || formData.type === 'text') && (
                     <>
                       <div>
@@ -1345,7 +1736,7 @@ const handleDuplicate = async (field: Field) => {
                               min: e.target.value ? parseInt(e.target.value) : undefined
                             }
                           })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                         />
                       </div>
                       <div>
@@ -1362,14 +1753,14 @@ const handleDuplicate = async (field: Field) => {
                               max: e.target.value ? parseInt(e.target.value) : undefined
                             }
                           })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                         />
                       </div>
                     </>
                   )}
 
                   {formData.type === 'text' && (
-                    <div className="col-span-2">
+                    <div className="sm:col-span-2">
                       <label className="block text-xs text-gray-500 mb-1">
                         Regex Pattern
                       </label>
@@ -1380,7 +1771,7 @@ const handleDuplicate = async (field: Field) => {
                           ...formData,
                           validation: { ...formData.validation, regex: e.target.value }
                         })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg font-mono focus:ring-2 focus:ring-blue-500 text-gray-900"
                         placeholder="^[A-Z0-9]+$"
                       />
                     </div>
@@ -1402,7 +1793,7 @@ const handleDuplicate = async (field: Field) => {
                               maxFileSize: e.target.value ? parseInt(e.target.value) * 1024 * 1024 : undefined
                             }
                           })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                         />
                       </div>
                       <div>
@@ -1419,7 +1810,7 @@ const handleDuplicate = async (field: Field) => {
                               allowedFileTypes: e.target.value.split(',').map(t => t.trim())
                             }
                           })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                           placeholder="jpg, png, pdf"
                         />
                       </div>
@@ -1429,9 +1820,9 @@ const handleDuplicate = async (field: Field) => {
               </div>
 
               {/* Settings */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
-                  { key: 'required', label: 'Required', description: 'Field must be filled', color: 'blue' },
+                  { key: 'required', label: 'Required', description: 'Field must be filled', color: 'red' },
                   { key: 'readOnly', label: 'Read Only', description: 'Cannot be edited', color: 'gray' },
                   { key: 'visible', label: 'Visible', description: 'Shown in forms', color: 'green' },
                   { key: 'isEnabled', label: 'Enabled', description: 'Field is active', color: 'green' }
@@ -1466,20 +1857,20 @@ const handleDuplicate = async (field: Field) => {
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-4 border-t-2 border-gray-200">
                 <button
                   type="button"
                   onClick={() => {
                     setIsModalOpen(false);
                     setEditingField(null);
                   }}
-                  className="px-6 py-3 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors font-medium"
+                  className="px-6 py-3 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors font-medium border-2 border-gray-200"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all font-medium shadow-lg shadow-blue-500/25 flex items-center"
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all font-medium shadow-lg shadow-blue-500/25 flex items-center justify-center border-2 border-blue-400"
                 >
                   <Save className="h-5 w-5 mr-2" />
                   {editingField ? 'Update Field' : 'Create Field'}
@@ -1489,6 +1880,54 @@ const handleDuplicate = async (field: Field) => {
           </div>
         </div>
       )}
+
+      {/* Custom CSS for animations */}
+      <style jsx>{`
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(5px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        .animate-slideDown {
+          animation: slideDown 0.2s ease-out;
+        }
+
+        .animate-fadeIn {
+          animation: fadeIn 0.15s ease-out;
+        }
+
+        .animate-scaleIn {
+          animation: scaleIn 0.2s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
