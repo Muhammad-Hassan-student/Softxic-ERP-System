@@ -119,7 +119,65 @@ import {
   Power as PowerIcon,
   PowerOff as PowerOffIcon,
   ToggleLeft as ToggleLeftIcon,
-  ToggleRight as ToggleRightIcon
+  ToggleRight as ToggleRightIcon,
+  History,
+  GitCompare,
+  Diff,
+  FileDiff,
+  Calendar,
+  ArrowLeft,
+  ArrowRight,
+  Maximize2,
+  Minimize2,
+  Columns,
+  PanelLeft,
+  PanelRight,
+  PanelTop,
+  PanelBottom,
+  Split,
+  Combine,
+  Share2,
+  Eye as ViewIcon,
+  PenTool,
+  Settings as SettingsIcon,
+  HelpCircle,
+  Info,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronRight as ChevronRightIcon,
+  ChevronsRight,
+  List,
+  Grid,
+  Table,
+  Map,
+  Compass,
+  Target,
+  Crosshair,
+  PieChart as PieChartIcon,
+  LineChart,
+  AreaChart,
+  BarChart,
+  ScatterChart,
+  Radar,
+  Sun,
+  Moon,
+  Sunrise,
+  Sunset,
+  CloudSun,
+  CloudMoon,
+  Wind,
+  Droplets,
+  Thermometer,
+  Gauge,
+  Ruler,
+  Weight,
+  Scale,
+  Clock as ClockIcon,
+  Timer as TimerIcon,
+
+  Square as SquareIcon,
+
+
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -138,9 +196,10 @@ interface User {
   department?: string;
   avatar?: string;
   lastActive?: string;
-  source: 'erp' | 'module'; // To identify user source
-  module?: 're' | 'expense' | 'both'; // For module users
+  source: 'erp' | 'module';
+  module?: 're' | 'expense' | 'both';
   isActive?: boolean;
+  createdAt?: string;
 }
 
 interface Permission {
@@ -171,6 +230,7 @@ interface Entity {
   isEnabled: boolean;
   icon?: string;
   color?: string;
+  createdAt?: string;
 }
 
 interface CustomField {
@@ -183,36 +243,59 @@ interface CustomField {
   isEnabled: boolean;
   required: boolean;
   order: number;
+  createdAt?: string;
+}
+
+interface ActivityLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: 'CREATE' | 'UPDATE' | 'DELETE';
+  entity: string;
+  changes: any;
+  timestamp: string;
 }
 
 // View modes
-type ViewMode = 'entities' | 'fields';
+type ViewMode = 'entities' | 'fields' | 'summary' | 'timeline';
 
 // User source filter
 type UserSource = 'all' | 'erp' | 'module';
+
+// Sort options
+type SortOption = 'name' | 'email' | 'role' | 'source' | 'created';
+type SortDirection = 'asc' | 'desc';
 
 export default function PermissionsPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [entities, setEntities] = useState<Entity[]>([]);
   const [customFields, setCustomFields] = useState<Record<string, CustomField[]>>({});
   const [permissions, setPermissions] = useState<UserPermissions>({});
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<string>('');
+  const [compareUser, setCompareUser] = useState<string | null>(null);
   const [selectedModule, setSelectedModule] = useState<'re' | 'expense'>('re');
   const [expandedEntities, setExpandedEntities] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [userSource, setUserSource] = useState<UserSource>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [isSaving, setIsSaving] = useState(false);
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('entities');
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [showPermissionMatrix, setShowPermissionMatrix] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json');
   const [stats, setStats] = useState({
     totalUsers: 0,
     erpUsers: 0,
     moduleUsers: 0,
     totalEntities: 0,
-    totalFields: 0
+    totalFields: 0,
+    activeUsers: 0,
+    inactiveUsers: 0
   });
 
   // Fetch all data
@@ -225,7 +308,8 @@ export default function PermissionsPage() {
       setIsLoading(true);
       await Promise.all([
         fetchUsers(),
-        fetchEntities()
+        fetchEntities(),
+        fetchActivityLogs()
       ]);
     } catch (error) {
       toast.error('Failed to load data');
@@ -243,7 +327,7 @@ export default function PermissionsPage() {
       });
 
       // Fetch Module users
-      const moduleResponse = await fetch('/financial-tracker/api/financial-tracker/admin/module-users', {
+      const moduleResponse = await fetch('/financial-tracker/api/financial-tracker/module-users', {
         headers: { 'Authorization': getToken() }
       });
 
@@ -256,12 +340,18 @@ export default function PermissionsPage() {
         ...moduleUsers.map((u: any) => ({ ...u, source: 'module' as const }))
       ];
 
-      setUsers(allUsers);
+      // Sort users
+      const sortedUsers = sortUsers(allUsers, sortBy, sortDirection);
+      setUsers(sortedUsers);
+      
+      const activeUsers = allUsers.filter(u => u.isActive !== false).length;
       setStats(prev => ({
         ...prev,
         totalUsers: allUsers.length,
         erpUsers: erpUsers.length,
-        moduleUsers: moduleUsers.length
+        moduleUsers: moduleUsers.length,
+        activeUsers,
+        inactiveUsers: allUsers.length - activeUsers
       }));
       
       // Fetch permissions for each user
@@ -319,6 +409,47 @@ export default function PermissionsPage() {
     } catch (error) {
       console.error('Error fetching entities:', error);
     }
+  };
+
+  // Fetch activity logs
+  const fetchActivityLogs = async () => {
+    try {
+      const response = await fetch('/financial-tracker/api/financial-tracker/admin/activity-logs?entity=permissions', {
+        headers: { 'Authorization': getToken() }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setActivityLogs(data.logs || []);
+      }
+    } catch (error) {
+      console.error('Error fetching activity logs:', error);
+    }
+  };
+
+  // Sort users
+  const sortUsers = (users: User[], by: SortOption, direction: SortDirection) => {
+    return [...users].sort((a, b) => {
+      let comparison = 0;
+      switch (by) {
+        case 'name':
+          comparison = a.fullName.localeCompare(b.fullName);
+          break;
+        case 'email':
+          comparison = a.email.localeCompare(b.email);
+          break;
+        case 'role':
+          comparison = (a.role || '').localeCompare(b.role || '');
+          break;
+        case 'source':
+          comparison = a.source.localeCompare(b.source);
+          break;
+        case 'created':
+          comparison = new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+          break;
+      }
+      return direction === 'asc' ? comparison : -comparison;
+    });
   };
 
   // Get entities for selected module
@@ -453,6 +584,7 @@ export default function PermissionsPage() {
       if (!response.ok) throw new Error('Failed to save permissions');
       
       toast.success('Permissions saved successfully');
+      fetchActivityLogs(); // Refresh activity logs
     } catch (error) {
       toast.error('Failed to save permissions');
     } finally {
@@ -465,20 +597,29 @@ export default function PermissionsPage() {
     try {
       setIsSaving(true);
       
+      let successCount = 0;
+      let failCount = 0;
+
       for (const userId of selectedUsers) {
-        await fetch(`/financial-tracker/api/financial-tracker/admin/users/${userId}/permissions`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': getToken()
-          },
-          body: JSON.stringify({ permissions: permissions[userId] })
-        });
+        try {
+          await fetch(`/financial-tracker/api/financial-tracker/admin/users/${userId}/permissions`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': getToken()
+            },
+            body: JSON.stringify({ permissions: permissions[userId] })
+          });
+          successCount++;
+        } catch {
+          failCount++;
+        }
       }
       
-      toast.success('Permissions saved for all selected users');
+      toast.success(`Permissions saved: ${successCount} successful, ${failCount} failed`);
       setBulkMode(false);
       setSelectedUsers([]);
+      fetchActivityLogs();
     } catch (error) {
       toast.error('Failed to save permissions');
     } finally {
@@ -498,9 +639,47 @@ export default function PermissionsPage() {
     toast.success('Permissions copied');
   };
 
+  // Export permissions
+  const exportPermissions = async () => {
+    try {
+      const data = exportFormat === 'json' 
+        ? JSON.stringify(permissions, null, 2)
+        : convertToCSV(permissions);
+
+      const blob = new Blob([data], { type: exportFormat === 'json' ? 'application/json' : 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `permissions-export-${new Date().toISOString().split('T')[0]}.${exportFormat}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Permissions exported successfully');
+    } catch (error) {
+      toast.error('Failed to export permissions');
+    }
+  };
+
+  // Convert permissions to CSV
+  const convertToCSV = (perms: UserPermissions): string => {
+    const rows: string[] = ['User ID,Module,Entity,Access,Create,Edit,Delete,Scope'];
+    
+    Object.entries(perms).forEach(([userId, userPerms]) => {
+      Object.entries(userPerms).forEach(([module, modulePerms]) => {
+        Object.entries(modulePerms).forEach(([entity, perm]) => {
+          rows.push(`${userId},${module},${entity},${perm.access},${perm.create},${perm.edit},${perm.delete},${perm.scope}`);
+        });
+      });
+    });
+    
+    return rows.join('\n');
+  };
+
   // Filter users by search and source
-  const filteredUsers = useMemo(() => 
-    users.filter(user => {
+  const filteredUsers = useMemo(() => {
+    let filtered = users.filter(user => {
       const matchesSearch = user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.role.toLowerCase().includes(searchTerm.toLowerCase());
@@ -508,8 +687,10 @@ export default function PermissionsPage() {
       const matchesSource = userSource === 'all' || user.source === userSource;
       
       return matchesSearch && matchesSource;
-    }), [users, searchTerm, userSource]
-  );
+    });
+
+    return sortUsers(filtered, sortBy, sortDirection);
+  }, [users, searchTerm, userSource, sortBy, sortDirection]);
 
   // Toggle entity expansion
   const toggleEntity = (entity: string) => {
@@ -524,9 +705,44 @@ export default function PermissionsPage() {
     });
   };
 
+  // Expand all entities
+  const expandAll = () => {
+    setExpandedEntities(new Set(filteredEntities.map(e => e._id)));
+  };
+
+  // Collapse all entities
+  const collapseAll = () => {
+    setExpandedEntities(new Set());
+  };
+
   // Get current user permissions
   const currentUserPerms = selectedUser ? permissions[selectedUser]?.[selectedModule] || {} : {};
+  const compareUserPerms = compareUser ? permissions[compareUser]?.[selectedModule] || {} : {};
   const selectedUserObj = users.find(u => u._id === selectedUser);
+  const compareUserObj = users.find(u => u._id === compareUser);
+
+  // Calculate permission stats
+  const permissionStats = useMemo(() => {
+    let totalAccess = 0;
+    let totalCreate = 0;
+    let totalEdit = 0;
+    let totalDelete = 0;
+    let totalColumns = 0;
+
+    Object.values(permissions).forEach(userPerms => {
+      Object.values(userPerms).forEach(modulePerms => {
+        Object.values(modulePerms).forEach(perm => {
+          if (perm.access) totalAccess++;
+          if (perm.create) totalCreate++;
+          if (perm.edit) totalEdit++;
+          if (perm.delete) totalDelete++;
+          totalColumns += Object.keys(perm.columns || {}).length;
+        });
+      });
+    });
+
+    return { totalAccess, totalCreate, totalEdit, totalDelete, totalColumns };
+  }, [permissions]);
 
   if (isLoading) {
     return (
@@ -583,11 +799,22 @@ export default function PermissionsPage() {
               </div>
               <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center space-x-2">
+                  <div className="p-1.5 bg-green-100 rounded-lg">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500">Active</span>
+                    <span className="text-xl font-bold text-green-600 block leading-5">{stats.activeUsers}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center space-x-2">
                   <div className="p-1.5 bg-emerald-100 rounded-lg">
                     <Globe className="h-4 w-4 text-emerald-600" />
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500">ERP Users</span>
+                    <span className="text-xs text-gray-500">ERP</span>
                     <span className="text-xl font-bold text-emerald-600 block leading-5">{stats.erpUsers}</span>
                   </div>
                 </div>
@@ -598,7 +825,7 @@ export default function PermissionsPage() {
                     <Box className="h-4 w-4 text-purple-600" />
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500">Module Users</span>
+                    <span className="text-xs text-gray-500">Module</span>
                     <span className="text-xl font-bold text-purple-600 block leading-5">{stats.moduleUsers}</span>
                   </div>
                 </div>
@@ -638,7 +865,7 @@ export default function PermissionsPage() {
 
           {/* Search and Filters */}
           <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <div className="lg:col-span-4">
+            <div className="lg:col-span-3">
               <label className="block text-sm font-semibold text-gray-700 mb-2">Search Users</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -665,59 +892,98 @@ export default function PermissionsPage() {
               </select>
             </div>
 
-            <div className="lg:col-span-3">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Module</label>
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Sort By</label>
               <div className="flex rounded-xl overflow-hidden bg-white border-2 border-gray-200 shadow-sm">
-                <button
-                  onClick={() => setSelectedModule('re')}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
-                    selectedModule === 're'
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  className="flex-1 px-3 py-3 text-sm border-r-2 border-gray-200 focus:outline-none bg-white text-gray-700"
                 >
-                  <DollarSign className="h-4 w-4 inline mr-1" />
-                  RE Module
-                </button>
+                  <option value="name">Name</option>
+                  <option value="email">Email</option>
+                  <option value="role">Role</option>
+                  <option value="source">Source</option>
+                  <option value="created">Created</option>
+                </select>
                 <button
-                  onClick={() => setSelectedModule('expense')}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
-                    selectedModule === 'expense'
-                      ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/25'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
+                  onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                  className="px-3 py-3 hover:bg-gray-50 transition-colors"
                 >
-                  <CreditCard className="h-4 w-4 inline mr-1" />
-                  Expense Module
+                  <ArrowUpDown className={`h-4 w-4 text-gray-500 transition-transform ${
+                    sortDirection === 'desc' ? 'rotate-180' : ''
+                  }`} />
                 </button>
               </div>
             </div>
 
             <div className="lg:col-span-3">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">View Mode</label>
-              <div className="flex rounded-xl overflow-hidden bg-white border-2 border-gray-200 shadow-sm">
-                <button
-                  onClick={() => setViewMode('entities')}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
-                    viewMode === 'entities'
-                      ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <LayoutDashboard className="h-4 w-4 inline mr-1" />
-                  Entities
-                </button>
-                <button
-                  onClick={() => setViewMode('fields')}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
-                    viewMode === 'fields'
-                      ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <Grid3x3 className="h-4 w-4 inline mr-1" />
-                  Fields
-                </button>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Module & View</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex rounded-xl overflow-hidden bg-white border-2 border-gray-200 shadow-sm">
+                  <button
+                    onClick={() => setSelectedModule('re')}
+                    className={`flex-1 px-3 py-3 text-sm font-medium transition-all ${
+                      selectedModule === 're'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    RE
+                  </button>
+                  <button
+                    onClick={() => setSelectedModule('expense')}
+                    className={`flex-1 px-3 py-3 text-sm font-medium transition-all ${
+                      selectedModule === 'expense'
+                        ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    EXP
+                  </button>
+                </div>
+                <div className="flex rounded-xl overflow-hidden bg-white border-2 border-gray-200 shadow-sm">
+                  <button
+                    onClick={() => setViewMode('entities')}
+                    className={`flex-1 px-2 py-3 text-xs font-medium transition-all ${
+                      viewMode === 'entities'
+                        ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    Entities
+                  </button>
+                  <button
+                    onClick={() => setViewMode('fields')}
+                    className={`flex-1 px-2 py-3 text-xs font-medium transition-all ${
+                      viewMode === 'fields'
+                        ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    Fields
+                  </button>
+                  <button
+                    onClick={() => setViewMode('summary')}
+                    className={`flex-1 px-2 py-3 text-xs font-medium transition-all ${
+                      viewMode === 'summary'
+                        ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    Summary
+                  </button>
+                  <button
+                    onClick={() => setViewMode('timeline')}
+                    className={`flex-1 px-2 py-3 text-xs font-medium transition-all ${
+                      viewMode === 'timeline'
+                        ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    Timeline
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -726,18 +992,39 @@ export default function PermissionsPage() {
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setBulkMode(!bulkMode)}
-                  className={`flex-1 px-4 py-3 border-2 rounded-xl transition-all ${
+                  className={`flex-1 px-3 py-3 border-2 rounded-xl transition-all text-sm ${
                     bulkMode 
                       ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-400 shadow-lg shadow-blue-500/25' 
                       : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:shadow-md'
                   }`}
                 >
-                  <Users className="h-4 w-4 inline mr-2" />
-                  {bulkMode ? 'Bulk On' : 'Bulk Mode'}
+                  <Users className="h-4 w-4 inline mr-1" />
+                  {bulkMode ? 'Bulk On' : 'Bulk'}
+                </button>
+                <button
+                  onClick={expandAll}
+                  className="p-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 bg-white shadow-sm"
+                  title="Expand All"
+                >
+                  <Maximize2 className="h-5 w-5 text-gray-500" />
+                </button>
+                <button
+                  onClick={collapseAll}
+                  className="p-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 bg-white shadow-sm"
+                  title="Collapse All"
+                >
+                  <Minimize2 className="h-5 w-5 text-gray-500" />
+                </button>
+                <button
+                  onClick={() => setShowPermissionMatrix(!showPermissionMatrix)}
+                  className="p-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 bg-white shadow-sm"
+                  title="Permission Matrix"
+                >
+                  <Grid3x3 className="h-5 w-5 text-gray-500" />
                 </button>
                 <button
                   onClick={fetchAllData}
-                  className="p-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 bg-white shadow-sm transition-all hover:shadow-md"
+                  className="p-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 bg-white shadow-sm"
                   title="Refresh"
                 >
                   <RefreshCw className="h-5 w-5 text-gray-500" />
@@ -803,7 +1090,7 @@ export default function PermissionsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">View</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   <button
                     onClick={() => setViewMode('entities')}
                     className={`p-2 border-2 rounded-xl text-xs font-medium ${
@@ -824,7 +1111,42 @@ export default function PermissionsPage() {
                   >
                     Fields
                   </button>
+                  <button
+                    onClick={() => setViewMode('summary')}
+                    className={`p-2 border-2 rounded-xl text-xs font-medium ${
+                      viewMode === 'summary'
+                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        : 'border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    Summary
+                  </button>
+                  <button
+                    onClick={() => setViewMode('timeline')}
+                    className={`p-2 border-2 rounded-xl text-xs font-medium ${
+                      viewMode === 'timeline'
+                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        : 'border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    Timeline
+                  </button>
                 </div>
+              </div>
+
+              <div className="flex space-x-2">
+                <button
+                  onClick={expandAll}
+                  className="flex-1 p-2 border-2 border-gray-200 rounded-xl hover:bg-gray-50 bg-white text-sm"
+                >
+                  Expand All
+                </button>
+                <button
+                  onClick={collapseAll}
+                  className="flex-1 p-2 border-2 border-gray-200 rounded-xl hover:bg-gray-50 bg-white text-sm"
+                >
+                  Collapse All
+                </button>
               </div>
 
               <button
@@ -843,88 +1165,230 @@ export default function PermissionsPage() {
         </div>
       </div>
 
+      {/* Permission Matrix Modal */}
+      {showPermissionMatrix && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto animate-scaleIn border-2 border-gray-200">
+            <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-t-2xl px-6 py-4 sticky top-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-white/20 rounded-xl p-2">
+                    <Grid3x3 className="h-5 w-5 text-white" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-white">
+                    Permission Matrix
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setShowPermissionMatrix(false)}
+                  className="text-white/80 hover:text-white transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y-2 divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">User</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Source</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Role</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase" colSpan={4}>Permissions</th>
+                    </tr>
+                    <tr className="bg-gray-100">
+                      <th></th>
+                      <th></th>
+                      <th></th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-600">Access</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-600">Create</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-600">Edit</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-600">Delete</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y-2 divide-gray-200">
+                    {filteredUsers.slice(0, 10).map((user) => {
+                      const userPerms = permissions[user._id]?.[selectedModule] || {};
+                      const hasAnyAccess = Object.values(userPerms).some(p => p.access);
+                      
+                      return (
+                        <tr key={user._id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-900">{user.fullName}</div>
+                            <div className="text-xs text-gray-500">{user.email}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              user.source === 'erp' 
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-purple-100 text-purple-700'
+                            }`}>
+                              {user.source}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 capitalize">{user.role}</td>
+                          <td className="px-4 py-3 text-center">
+                            {hasAnyAccess ? (
+                              <CheckCircle className="h-5 w-5 text-green-500 mx-auto" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-gray-300 mx-auto" />
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="text-sm font-medium">
+                              {Object.values(userPerms).filter(p => p.create).length}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="text-sm font-medium">
+                              {Object.values(userPerms).filter(p => p.edit).length}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="text-sm font-medium">
+                              {Object.values(userPerms).filter(p => p.delete).length}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={exportPermissions}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-500/25 flex items-center"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Matrix
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* User List */}
           <div className="lg:col-span-3 bg-white rounded-2xl border-2 border-gray-200 shadow-lg overflow-hidden">
             <div className="p-4 border-b-2 border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-              <h3 className="font-semibold text-gray-900 flex items-center">
-                <Users className="h-5 w-5 mr-2 text-blue-600" />
-                Users ({filteredUsers.length})
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900 flex items-center">
+                  <Users className="h-5 w-5 mr-2 text-blue-600" />
+                  Users ({filteredUsers.length})
+                </h3>
+                {compareUser && (
+                  <button
+                    onClick={() => setCompareUser(null)}
+                    className="text-xs text-red-600 hover:text-red-800"
+                  >
+                    Clear Compare
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="divide-y-2 divide-gray-100 max-h-[calc(100vh-300px)] overflow-y-auto">
-              {filteredUsers.map((user) => (
-                <div
-                  key={user._id}
-                  className={`p-4 cursor-pointer hover:bg-gray-50 transition-all ${
-                    selectedUser === user._id ? 'bg-blue-50 border-l-4 border-blue-600' : ''
-                  } ${bulkMode ? 'flex items-start space-x-3' : ''}`}
-                  onClick={() => !bulkMode && setSelectedUser(user._id)}
-                >
-                  {bulkMode && (
-                    <input
-                      type="checkbox"
-                      checked={selectedUsers.includes(user._id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedUsers([...selectedUsers, user._id]);
-                        } else {
-                          setSelectedUsers(selectedUsers.filter(id => id !== user._id));
-                        }
-                      }}
-                      className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-gray-900">{user.fullName}</h3>
-                          <span className={`px-2 py-0.5 text-xs rounded-full ${
-                            user.source === 'erp' 
-                              ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                              : 'bg-purple-100 text-purple-700 border border-purple-200'
-                          }`}>
-                            {user.source === 'erp' ? 'ERP' : 'Module'}
-                          </span>
-                          {user.source === 'module' && user.module && (
+              {filteredUsers.map((user) => {
+                const isSelected = selectedUser === user._id;
+                const isCompared = compareUser === user._id;
+                
+                return (
+                  <div
+                    key={user._id}
+                    className={`p-4 cursor-pointer hover:bg-gray-50 transition-all ${
+                      isSelected ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                    } ${isCompared ? 'bg-purple-50 border-l-4 border-purple-600' : ''} ${
+                      bulkMode ? 'flex items-start space-x-3' : ''
+                    }`}
+                    onClick={() => {
+                      if (bulkMode) return;
+                      if (isSelected && !isCompared && selectedUser) {
+                        setCompareUser(user._id);
+                      } else {
+                        setSelectedUser(user._id);
+                        setCompareUser(null);
+                      }
+                    }}
+                  >
+                    {bulkMode && (
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.includes(user._id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedUsers([...selectedUsers, user._id]);
+                          } else {
+                            setSelectedUsers(selectedUsers.filter(id => id !== user._id));
+                          }
+                        }}
+                        className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-gray-900">{user.fullName}</h3>
                             <span className={`px-2 py-0.5 text-xs rounded-full ${
-                              user.module === 're' 
-                                ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                                : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                              user.source === 'erp' 
+                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                : 'bg-purple-100 text-purple-700 border border-purple-200'
                             }`}>
-                              {user.module === 're' ? 'RE' : 'Expense'}
+                              {user.source === 'erp' ? 'ERP' : 'Module'}
                             </span>
-                          )}
+                            {user.source === 'module' && user.module && (
+                              <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                user.module === 're' 
+                                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                                  : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                              }`}>
+                                {user.module === 're' ? 'RE' : 'Expense'}
+                              </span>
+                            )}
+                            {user.isActive === false && (
+                              <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded-full">
+                                Inactive
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500">{user.email}</p>
                         </div>
-                        <p className="text-sm text-gray-500">{user.email}</p>
+                        {!bulkMode && (isSelected || isCompared) && (
+                          <button
+                            onClick={() => savePermissions(user._id)}
+                            disabled={isSaving}
+                            className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+                          >
+                            <Save className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
-                      {!bulkMode && selectedUser === user._id && (
-                        <button
-                          onClick={() => savePermissions(user._id)}
-                          disabled={isSaving}
-                          className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
-                        >
-                          <Save className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex items-center mt-2 space-x-2">
-                      <span className="text-xs bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 px-2.5 py-1 rounded-full font-medium capitalize border border-blue-300">
-                        {user.role}
-                      </span>
-                      {user.department && (
-                        <span className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full border border-gray-200">
-                          {user.department}
+                      <div className="flex items-center mt-2 space-x-2">
+                        <span className="text-xs bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 px-2.5 py-1 rounded-full font-medium capitalize border border-blue-300">
+                          {user.role}
                         </span>
+                        {user.department && (
+                          <span className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full border border-gray-200">
+                            {user.department}
+                          </span>
+                        )}
+                      </div>
+                      {user.lastActive && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          Last active: {new Date(user.lastActive).toLocaleDateString()}
+                        </p>
                       )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -951,14 +1415,33 @@ export default function PermissionsPage() {
                   {selectedUsers.length} user{selectedUsers.length !== 1 ? 's' : ''} selected
                 </p>
                 {selectedUsers.length > 0 && (
-                  <button
-                    onClick={bulkSavePermissions}
-                    disabled={isSaving}
-                    className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all shadow-lg shadow-green-500/25 font-medium"
-                  >
-                    <Save className="h-5 w-5 inline mr-2" />
-                    Save All Changes
-                  </button>
+                  <div className="space-y-3">
+                    <div className="bg-gray-50 p-4 rounded-xl text-left">
+                      <h4 className="font-medium text-gray-700 mb-2">Bulk Actions</h4>
+                      <div className="space-y-2">
+                        <label className="flex items-center justify-between p-2 hover:bg-white rounded-lg">
+                          <span className="text-sm text-gray-600">Enable Access for all entities</span>
+                          <input type="checkbox" className="rounded border-gray-300 text-blue-600" />
+                        </label>
+                        <label className="flex items-center justify-between p-2 hover:bg-white rounded-lg">
+                          <span className="text-sm text-gray-600">Set scope to All Records</span>
+                          <input type="checkbox" className="rounded border-gray-300 text-blue-600" />
+                        </label>
+                        <label className="flex items-center justify-between p-2 hover:bg-white rounded-lg">
+                          <span className="text-sm text-gray-600">Enable all Create permissions</span>
+                          <input type="checkbox" className="rounded border-gray-300 text-blue-600" />
+                        </label>
+                      </div>
+                    </div>
+                    <button
+                      onClick={bulkSavePermissions}
+                      disabled={isSaving}
+                      className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all shadow-lg shadow-green-500/25 font-medium w-full"
+                    >
+                      <Save className="h-5 w-5 inline mr-2" />
+                      {isSaving ? 'Saving...' : `Save All Changes (${selectedUsers.length})`}
+                    </button>
+                  </div>
                 )}
               </div>
             ) : (
@@ -986,20 +1469,69 @@ export default function PermissionsPage() {
                         <p className="text-gray-500">{selectedUserObj?.email}</p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        const sourceId = prompt('Enter user ID to copy permissions from:');
-                        if (sourceId && users.find(u => u._id === sourceId)) {
-                          copyPermissions(sourceId, selectedUser);
-                        } else if (sourceId) {
-                          toast.error('User not found');
-                        }
-                      }}
-                      className="flex items-center px-4 py-2 border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-all hover:border-blue-300 hover:shadow-md"
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copy from User
-                    </button>
+                    <div className="flex items-center space-x-3">
+                      {compareUser && compareUserObj && (
+                        <div className="flex items-center space-x-2 bg-purple-50 px-3 py-1.5 rounded-xl border-2 border-purple-200">
+                          <GitCompare className="h-4 w-4 text-purple-600" />
+                          <span className="text-sm text-purple-700">Comparing with {compareUserObj.fullName}</span>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => {
+                          const sourceId = prompt('Enter user ID to copy permissions from:');
+                          if (sourceId && users.find(u => u._id === sourceId)) {
+                            copyPermissions(sourceId, selectedUser);
+                          } else if (sourceId) {
+                            toast.error('User not found');
+                          }
+                        }}
+                        className="flex items-center px-4 py-2 border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-all hover:border-blue-300 hover:shadow-md"
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy from User
+                      </button>
+                      <button
+                        onClick={exportPermissions}
+                        className="p-2 border-2 border-gray-200 rounded-xl hover:bg-gray-50"
+                        title="Export"
+                      >
+                        <Download className="h-5 w-5 text-gray-500" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Permission Summary Cards */}
+                  <div className="mt-4 grid grid-cols-5 gap-3">
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-xs text-gray-500">Access</p>
+                      <p className="text-lg font-bold text-blue-600">
+                        {Object.values(currentUserPerms).filter(p => p.access).length}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-xs text-gray-500">Create</p>
+                      <p className="text-lg font-bold text-green-600">
+                        {Object.values(currentUserPerms).filter(p => p.create).length}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-xs text-gray-500">Edit</p>
+                      <p className="text-lg font-bold text-amber-600">
+                        {Object.values(currentUserPerms).filter(p => p.edit).length}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-xs text-gray-500">Delete</p>
+                      <p className="text-lg font-bold text-red-600">
+                        {Object.values(currentUserPerms).filter(p => p.delete).length}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-xs text-gray-500">Columns</p>
+                      <p className="text-lg font-bold text-purple-600">
+                        {Object.values(currentUserPerms).reduce((acc, p) => acc + Object.keys(p.columns || {}).length, 0)}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -1015,6 +1547,8 @@ export default function PermissionsPage() {
                         scope: 'own',
                         columns: {}
                       };
+                      
+                      const compareEntityPerms = compareUser ? compareUserPerms[entity._id] || null : null;
                       const isExpanded = expandedEntities.has(entity._id);
                       const fields = getEntityFields(entity._id);
 
@@ -1040,23 +1574,41 @@ export default function PermissionsPage() {
                                 </h3>
                                 <p className="text-sm text-gray-500">{entity.entityKey}</p>
                               </div>
+                              {compareEntityPerms && (
+                                <div className="flex items-center space-x-1 ml-4">
+                                  <div className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                                    {compareEntityPerms.access ? 'Has Access' : 'No Access'}
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                            <label className="flex items-center space-x-3 bg-white px-4 py-2 rounded-xl border-2 border-gray-200 cursor-pointer hover:border-blue-300 transition-all">
-                              <input
-                                type="checkbox"
-                                checked={entityPerms.access}
-                                onChange={(e) => {
-                                  updatePermission(selectedUser, selectedModule, entity._id, 'access', e.target.checked);
-                                  if (!e.target.checked) {
-                                    updatePermission(selectedUser, selectedModule, entity._id, 'create', false);
-                                    updatePermission(selectedUser, selectedModule, entity._id, 'edit', false);
-                                    updatePermission(selectedUser, selectedModule, entity._id, 'delete', false);
-                                  }
-                                }}
-                                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                              />
-                              <span className="text-sm font-medium text-gray-700">Enable Access</span>
-                            </label>
+                            <div className="flex items-center space-x-4">
+                              <label className="flex items-center space-x-3 bg-white px-4 py-2 rounded-xl border-2 border-gray-200 cursor-pointer hover:border-blue-300 transition-all">
+                                <input
+                                  type="checkbox"
+                                  checked={entityPerms.access}
+                                  onChange={(e) => {
+                                    updatePermission(selectedUser, selectedModule, entity._id, 'access', e.target.checked);
+                                    if (!e.target.checked) {
+                                      updatePermission(selectedUser, selectedModule, entity._id, 'create', false);
+                                      updatePermission(selectedUser, selectedModule, entity._id, 'edit', false);
+                                      updatePermission(selectedUser, selectedModule, entity._id, 'delete', false);
+                                    }
+                                  }}
+                                  className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="text-sm font-medium text-gray-700">Enable Access</span>
+                              </label>
+                              {compareEntityPerms && (
+                                <div className={`px-3 py-2 rounded-xl text-xs font-medium ${
+                                  JSON.stringify(entityPerms) === JSON.stringify(compareEntityPerms)
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-amber-100 text-amber-700'
+                                }`}>
+                                  {JSON.stringify(entityPerms) === JSON.stringify(compareEntityPerms) ? 'Match' : 'Different'}
+                                </div>
+                              )}
+                            </div>
                           </div>
 
                           {/* Permission Details */}
@@ -1189,6 +1741,11 @@ export default function PermissionsPage() {
                                         <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                                           Type
                                         </th>
+                                        {compareUser && (
+                                          <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                            Compare
+                                          </th>
+                                        )}
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y-2 divide-gray-200 bg-white">
@@ -1198,6 +1755,8 @@ export default function PermissionsPage() {
                                           view: true,
                                           edit: false
                                         };
+                                        
+                                        const compareColumnPerms = compareEntityPerms?.columns?.[col];
 
                                         return (
                                           <tr key={col} className="hover:bg-gray-50 transition-colors">
@@ -1240,6 +1799,28 @@ export default function PermissionsPage() {
                                                 System
                                               </span>
                                             </td>
+                                            {compareUser && (
+                                              <td className="px-6 py-3 text-center">
+                                                {compareColumnPerms ? (
+                                                  <div className="flex items-center justify-center space-x-1">
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={compareColumnPerms.view}
+                                                      readOnly
+                                                      className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                                                    />
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={compareColumnPerms.edit}
+                                                      readOnly
+                                                      className="w-4 h-4 rounded border-gray-300 text-green-600"
+                                                    />
+                                                  </div>
+                                                ) : (
+                                                  <span className="text-xs text-gray-400">—</span>
+                                                )}
+                                              </td>
+                                            )}
                                           </tr>
                                         );
                                       })}
@@ -1250,6 +1831,8 @@ export default function PermissionsPage() {
                                           view: true,
                                           edit: false
                                         };
+                                        
+                                        const compareColumnPerms = compareEntityPerms?.columns?.[field.fieldKey];
 
                                         return (
                                           <tr key={field._id} className="hover:bg-purple-50 transition-colors">
@@ -1298,6 +1881,28 @@ export default function PermissionsPage() {
                                                 {field.type}
                                               </span>
                                             </td>
+                                            {compareUser && (
+                                              <td className="px-6 py-3 text-center">
+                                                {compareColumnPerms ? (
+                                                  <div className="flex items-center justify-center space-x-1">
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={compareColumnPerms.view}
+                                                      readOnly
+                                                      className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                                                    />
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={compareColumnPerms.edit}
+                                                      readOnly
+                                                      className="w-4 h-4 rounded border-gray-300 text-green-600"
+                                                    />
+                                                  </div>
+                                                ) : (
+                                                  <span className="text-xs text-gray-400">—</span>
+                                                )}
+                                              </td>
+                                            )}
                                           </tr>
                                         );
                                       })}
@@ -1329,15 +1934,27 @@ export default function PermissionsPage() {
                       {filteredEntities.map((entity) => {
                         const fields = getEntityFields(entity._id);
                         const entityPerms = currentUserPerms[entity._id] || { columns: {} };
+                        const compareEntityPerms = compareUser ? compareUserPerms[entity._id] || null : null;
 
                         return (
-                          <div key={entity._id} className="border-2 border-gray-200 rounded-xl p-4">
-                            <h4 className="font-semibold text-gray-900 mb-2">{entity.name}</h4>
+                          <div key={entity._id} className="border-2 border-gray-200 rounded-xl p-4 hover:shadow-md transition-all">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-semibold text-gray-900">{entity.name}</h4>
+                              {compareEntityPerms && (
+                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                  JSON.stringify(entityPerms.columns) === JSON.stringify(compareEntityPerms.columns)
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-amber-100 text-amber-700'
+                                }`}>
+                                  {JSON.stringify(entityPerms.columns) === JSON.stringify(compareEntityPerms.columns) ? 'Match' : 'Diff'}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-sm text-gray-500 mb-3">{fields.length} custom fields</p>
                             <div className="space-y-2">
-                              {fields.slice(0, 3).map(field => (
+                              {fields.slice(0, 5).map(field => (
                                 <div key={field._id} className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-600">{field.label}</span>
+                                  <span className="text-gray-600 truncate max-w-[150px]">{field.label}</span>
                                   <div className="flex items-center space-x-2">
                                     {entityPerms.columns?.[field.fieldKey]?.view ? (
                                       <Eye className="h-4 w-4 text-green-500" />
@@ -1349,16 +1966,195 @@ export default function PermissionsPage() {
                                     ) : (
                                       <Edit3 className="h-4 w-4 text-gray-300" />
                                     )}
+                                    {compareEntityPerms && compareEntityPerms.columns?.[field.fieldKey] && (
+                                      <div className="flex items-center space-x-1 ml-1">
+                                        <span className="text-xs text-purple-600">vs</span>
+                                        <Eye className={`h-3 w-3 ${
+                                          compareEntityPerms.columns[field.fieldKey].view ? 'text-green-400' : 'text-gray-300'
+                                        }`} />
+                                        <Edit3 className={`h-3 w-3 ${
+                                          compareEntityPerms.columns[field.fieldKey].edit ? 'text-blue-400' : 'text-gray-300'
+                                        }`} />
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               ))}
-                              {fields.length > 3 && (
-                                <p className="text-xs text-gray-400">+{fields.length - 3} more fields</p>
+                              {fields.length > 5 && (
+                                <p className="text-xs text-gray-400">+{fields.length - 5} more fields</p>
                               )}
                             </div>
                           </div>
                         );
                       })}
+                    </div>
+                  </div>
+                )}
+
+                {viewMode === 'summary' && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Permission Stats */}
+                    <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <BarChart3 className="h-5 w-5 mr-2 text-blue-600" />
+                        Permission Statistics
+                      </h3>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                          <span className="text-gray-700">Total Access Grants</span>
+                          <span className="text-xl font-bold text-blue-600">{permissionStats.totalAccess}</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                          <span className="text-gray-700">Total Create Permissions</span>
+                          <span className="text-xl font-bold text-green-600">{permissionStats.totalCreate}</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                          <span className="text-gray-700">Total Edit Permissions</span>
+                          <span className="text-xl font-bold text-amber-600">{permissionStats.totalEdit}</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                          <span className="text-gray-700">Total Delete Permissions</span>
+                          <span className="text-xl font-bold text-red-600">{permissionStats.totalDelete}</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                          <span className="text-gray-700">Total Column Permissions</span>
+                          <span className="text-xl font-bold text-purple-600">{permissionStats.totalColumns}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* User Distribution */}
+                    <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <PieChart className="h-5 w-5 mr-2 text-purple-600" />
+                        User Distribution
+                      </h3>
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-gray-600">ERP Users</span>
+                            <span className="text-sm font-medium text-gray-900">{stats.erpUsers}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-emerald-500 h-2 rounded-full" 
+                              style={{ width: `${(stats.erpUsers / stats.totalUsers) * 100}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-gray-600">Module Users</span>
+                            <span className="text-sm font-medium text-gray-900">{stats.moduleUsers}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-purple-500 h-2 rounded-full" 
+                              style={{ width: `${(stats.moduleUsers / stats.totalUsers) * 100}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-gray-600">Active Users</span>
+                            <span className="text-sm font-medium text-gray-900">{stats.activeUsers}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-green-500 h-2 rounded-full" 
+                              style={{ width: `${(stats.activeUsers / stats.totalUsers) * 100}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Top Permissions */}
+                    <div className="lg:col-span-2 bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <Award className="h-5 w-5 mr-2 text-amber-600" />
+                        Top Permission Holders
+                      </h3>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full">
+                          <thead>
+                            <tr className="bg-gray-50">
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">User</th>
+                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">Access</th>
+                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">Create</th>
+                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">Edit</th>
+                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">Delete</th>
+                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">Columns</th>
+                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">Score</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {users
+                              .map(user => {
+                                const userPerms = permissions[user._id]?.[selectedModule] || {};
+                                const access = Object.values(userPerms).filter(p => p.access).length;
+                                const create = Object.values(userPerms).filter(p => p.create).length;
+                                const edit = Object.values(userPerms).filter(p => p.edit).length;
+                                const del = Object.values(userPerms).filter(p => p.delete).length;
+                                const columns = Object.values(userPerms).reduce((acc, p) => acc + Object.keys(p.columns || {}).length, 0);
+                                const score = access * 5 + create * 3 + edit * 2 + del * 2 + columns;
+                                return { ...user, access, create, edit, del, columns, score };
+                              })
+                              .sort((a, b) => b.score - a.score)
+                              .slice(0, 5)
+                              .map((user) => (
+                                <tr key={user._id} className="hover:bg-gray-50">
+                                  <td className="px-4 py-2">
+                                    <div className="font-medium text-gray-900">{user.fullName}</div>
+                                    <div className="text-xs text-gray-500">{user.email}</div>
+                                  </td>
+                                  <td className="px-4 py-2 text-center">{user.access}</td>
+                                  <td className="px-4 py-2 text-center">{user.create}</td>
+                                  <td className="px-4 py-2 text-center">{user.edit}</td>
+                                  <td className="px-4 py-2 text-center">{user.del}</td>
+                                  <td className="px-4 py-2 text-center">{user.columns}</td>
+                                  <td className="px-4 py-2 text-center font-bold text-purple-600">{user.score}</td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {viewMode === 'timeline' && (
+                  <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <History className="h-5 w-5 mr-2 text-blue-600" />
+                      Permission Activity Timeline
+                    </h3>
+                    <div className="space-y-4">
+                      {activityLogs.length > 0 ? (
+                        activityLogs.map((log) => (
+                          <div key={log.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-xl">
+                            <div className={`p-2 rounded-lg ${
+                              log.action === 'CREATE' ? 'bg-green-100' :
+                              log.action === 'UPDATE' ? 'bg-blue-100' : 'bg-red-100'
+                            }`}>
+                              {log.action === 'CREATE' ? <Plus className="h-4 w-4 text-green-600" /> :
+                               log.action === 'UPDATE' ? <Edit3 className="h-4 w-4 text-blue-600" /> :
+                               <Trash2 className="h-4 w-4 text-red-600" />}
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm text-gray-900">
+                                <span className="font-medium">{log.userName}</span> {log.action.toLowerCase()}d permissions for{' '}
+                                <span className="font-medium">{log.entity}</span>
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {new Date(log.timestamp).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-center text-gray-500 py-8">No activity logs found</p>
+                      )}
                     </div>
                   </div>
                 )}
