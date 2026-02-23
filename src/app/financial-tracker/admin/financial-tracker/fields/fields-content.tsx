@@ -174,9 +174,8 @@ interface Field {
   order: number;
   defaultValue?: any;
   options?: string[];
-  categoryId?: string; // For single category link
-  categoryIds?: string[]; // For multiple categories (select/radio)
-  categorySource?: 'all' | 'entity' | 'specific' | 'manual'; // 'all' = all categories in module, 'entity' = all categories for this entity, 'specific' = selected categories, 'manual' = manual options
+  categoryIds?: string[]; // For category-linked fields
+  categorySource?: 'all' | 'entity' | 'specific' | 'manual'; // Source of categories
   validation?: {
     min?: number;
     max?: number;
@@ -209,8 +208,6 @@ interface Category {
   color?: string;
   icon?: string;
   description?: string;
-  parentId?: string; // For nested categories
-  children?: Category[]; // For nested categories
 }
 
 // View modes
@@ -302,8 +299,9 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
       <div
         ref={setNodeRef}
         style={style}
-        className={`group relative bg-white rounded-xl border-2 shadow-sm hover:shadow-md transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
-          } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
+        className={`group relative bg-white rounded-xl border-2 shadow-sm hover:shadow-md transition-all duration-300 ${
+          !field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
+        } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
       >
         <div className="p-3">
           <div className="flex items-center justify-between">
@@ -337,8 +335,9 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
             <div className="flex items-center gap-1">
               <button
                 onClick={() => onToggle(field._id)}
-                className={`p-1.5 rounded-lg transition-colors ${field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
-                  }`}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                }`}
               >
                 {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               </button>
@@ -360,13 +359,15 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
       <div
         ref={setNodeRef}
         style={style}
-        className={`group relative bg-white rounded-2xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
-          } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
+        className={`group relative bg-white rounded-2xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 ${
+          !field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
+        } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
       >
-        <div className={`absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl ${field.isEnabled
+        <div className={`absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl ${
+          field.isEnabled
             ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500'
             : 'bg-gradient-to-r from-gray-400 to-gray-500'
-          }`}></div>
+        }`}></div>
 
         <div className="p-6">
           <div className="flex items-start justify-between mb-4">
@@ -483,8 +484,9 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
               </button>
               <button
                 onClick={() => onToggle(field._id)}
-                className={`p-1.5 rounded-lg ${field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
-                  }`}
+                className={`p-1.5 rounded-lg ${
+                  field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                }`}
               >
                 {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               </button>
@@ -520,14 +522,16 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : ''
-        } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : 'border-gray-200 hover:border-blue-300'}`}
+      className={`group relative bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${
+        !field.isEnabled ? 'opacity-70 bg-gray-50/50' : ''
+      } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : 'border-gray-200 hover:border-blue-300'}`}
     >
       {/* Status Indicator Bar */}
-      <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${field.isEnabled
+      <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${
+        field.isEnabled
           ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500'
           : 'bg-gradient-to-r from-gray-400 to-gray-500'
-        }`}></div>
+      }`}></div>
 
       <div className="p-6">
         <div className="flex flex-col lg:flex-row lg:items-start gap-4">
@@ -690,10 +694,11 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => onToggle(field._id)}
-                className={`p-2.5 rounded-xl transition-all border-2 ${field.isEnabled
+                className={`p-2.5 rounded-xl transition-all border-2 ${
+                  field.isEnabled
                     ? 'text-emerald-600 hover:bg-emerald-50 border-emerald-200 hover:border-emerald-300'
                     : 'text-gray-400 hover:bg-gray-50 border-gray-200 hover:border-gray-300'
-                  }`}
+                }`}
                 title={field.isEnabled ? 'Disable field' : 'Enable field'}
               >
                 {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
@@ -759,9 +764,9 @@ export default function FieldsContent() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [selectedFieldForCategory, setSelectedFieldForCategory] = useState<Field | null>(null);
   const [categorySearch, setCategorySearch] = useState('');
-  const [categorySource, setCategorySource] = useState<CategorySource>('manual');
+  const [categorySource, setCategorySource] = useState<CategorySource>('entity'); // Default to entity
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
-  const [previewMode, setPreviewMode] = useState<'view' | 'test'>('view'); // 'view' = normal preview, 'test' = test mode with disabled fields
+  const [previewMode, setPreviewMode] = useState<'view' | 'test'>('view');
   const [testFormData, setTestFormData] = useState<Record<string, any>>({});
   const [stats, setStats] = useState({ total: 0, visible: 0, required: 0, system: 0, categoryLinked: 0 });
 
@@ -776,10 +781,9 @@ export default function FieldsContent() {
     visible: true,
     isEnabled: true,
     defaultValue: '',
-    options: [''] as string[],
-    categoryId: '',
+    options: [] as string[], // Empty by default
     categoryIds: [] as string[],
-    categorySource: undefined as CategorySource | undefined,
+    categorySource: 'entity' as CategorySource, // Default to entity
     validation: {
       min: undefined as number | undefined,
       max: undefined as number | undefined,
@@ -963,10 +967,9 @@ export default function FieldsContent() {
       visible: field.visible,
       isEnabled: field.isEnabled,
       defaultValue: field.defaultValue || '',
-      options: field.options || [''],
-      categoryId: field.categoryId || '',
+      options: field.options || [],
       categoryIds: field.categoryIds || [],
-      categorySource: field.categorySource,
+      categorySource: field.categorySource || 'entity',
       validation: {
         min: field.validation?.min,
         max: field.validation?.max,
@@ -975,6 +978,8 @@ export default function FieldsContent() {
         maxFileSize: field.validation?.maxFileSize
       }
     });
+    setCategorySource(field.categorySource || 'entity');
+    setSelectedCategoryIds(field.categoryIds || []);
     setEditingField(null);
     setIsModalOpen(true);
   };
@@ -1043,11 +1048,15 @@ export default function FieldsContent() {
       return;
     }
 
-    const filteredOptions = formData.options?.filter(opt => opt.trim() !== '') || [];
-
-    if ((formData.type === 'select' || formData.type === 'radio') && filteredOptions.length === 0 && !formData.categorySource) {
-      toast.error('Please add at least one option or link categories');
-      return;
+    // For select/radio fields, we need either options or category source
+    if ((formData.type === 'select' || formData.type === 'radio') && 
+        (!formData.categorySource || formData.categorySource === 'manual')) {
+      
+      const filteredOptions = formData.options?.filter(opt => opt.trim() !== '') || [];
+      if (filteredOptions.length === 0) {
+        toast.error('Please add at least one option or select a category source');
+        return;
+      }
     }
 
     try {
@@ -1061,7 +1070,6 @@ export default function FieldsContent() {
       // Prepare payload
       const payload: any = {
         ...formData,
-        options: filteredOptions.length > 0 ? filteredOptions : undefined,
         validation: {
           ...formData.validation,
           regex: formData.validation.regex || undefined,
@@ -1070,9 +1078,13 @@ export default function FieldsContent() {
         }
       };
 
-      // Handle category linking
+      // Handle options based on source
       if (formData.categorySource && formData.categorySource !== 'manual') {
+        // Use categories as options
+        payload.options = undefined; // No manual options
         payload.categorySource = formData.categorySource;
+        
+        // Set category IDs based on source
         if (formData.categorySource === 'specific') {
           payload.categoryIds = selectedCategoryIds;
         } else if (formData.categorySource === 'all') {
@@ -1081,14 +1093,17 @@ export default function FieldsContent() {
           payload.categoryIds = allCategories.map(c => c._id);
         } else if (formData.categorySource === 'entity' && selectedEntityObj) {
           // Get all categories for this entity
-          const entityCategoriesList = categories.filter(c =>
-            c.module === selectedModule &&
-            c.entity === selectedEntityObj.entityKey &&
+          const entityCategoriesList = categories.filter(c => 
+            c.module === selectedModule && 
+            c.entity === selectedEntityObj.entityKey && 
             c.isActive
           );
           payload.categoryIds = entityCategoriesList.map(c => c._id);
         }
       } else {
+        // Use manual options
+        const filteredOptions = formData.options?.filter(opt => opt.trim() !== '') || [];
+        payload.options = filteredOptions;
         payload.categorySource = 'manual';
         payload.categoryIds = [];
       }
@@ -1216,10 +1231,9 @@ export default function FieldsContent() {
       visible: true,
       isEnabled: true,
       defaultValue: '',
-      options: [''],
-      categoryId: '',
+      options: [],
       categoryIds: [],
-      categorySource: undefined,
+      categorySource: 'entity', // Default to entity
       validation: {
         min: undefined,
         max: undefined,
@@ -1228,7 +1242,7 @@ export default function FieldsContent() {
         maxFileSize: undefined
       }
     });
-    setCategorySource('manual');
+    setCategorySource('entity');
     setSelectedCategoryIds([]);
   };
 
@@ -1245,10 +1259,9 @@ export default function FieldsContent() {
       visible: field.visible,
       isEnabled: field.isEnabled,
       defaultValue: field.defaultValue || '',
-      options: field.options && field.options.length > 0 ? field.options : [''],
-      categoryId: field.categoryId || '',
+      options: field.options || [],
       categoryIds: field.categoryIds || [],
-      categorySource: field.categorySource,
+      categorySource: field.categorySource || 'entity',
       validation: {
         min: field.validation?.min,
         max: field.validation?.max,
@@ -1257,24 +1270,24 @@ export default function FieldsContent() {
         maxFileSize: field.validation?.maxFileSize
       }
     });
-    setCategorySource(field.categorySource || 'manual');
+    setCategorySource(field.categorySource || 'entity');
     setSelectedCategoryIds(field.categoryIds || []);
     setIsModalOpen(true);
   };
 
   const handleOptionChange = (index: number, value: string) => {
-    const newOptions = [...formData.options];
+    const newOptions = [...(formData.options || [])];
     newOptions[index] = value;
     setFormData({ ...formData, options: newOptions });
   };
 
   const addOption = () => {
-    setFormData({ ...formData, options: [...formData.options, ''] });
+    setFormData({ ...formData, options: [...(formData.options || []), ''] });
   };
 
   const removeOption = (index: number) => {
-    if (formData.options.length > 1) {
-      const newOptions = formData.options.filter((_, i) => i !== index);
+    if ((formData.options?.length || 0) > 1) {
+      const newOptions = formData.options?.filter((_, i) => i !== index) || [];
       setFormData({ ...formData, options: newOptions });
     }
   };
@@ -1346,10 +1359,10 @@ export default function FieldsContent() {
     setFormData(prev => ({
       ...prev,
       categorySource,
-      categoryIds: categorySource === 'specific' ? selectedCategoryIds :
-        categorySource === 'all' ? moduleCategories.map(c => c._id) :
-          categorySource === 'entity' ? entityCategories.map(c => c._id) :
-            []
+      categoryIds: categorySource === 'specific' ? selectedCategoryIds : 
+                    categorySource === 'all' ? moduleCategories.map(c => c._id) :
+                    categorySource === 'entity' ? entityCategories.map(c => c._id) :
+                    []
     }));
     setShowCategoryModal(false);
     toast.success('Categories linked successfully');
@@ -1459,10 +1472,11 @@ export default function FieldsContent() {
                     setSelectedModule('re');
                     setSelectedEntity('');
                   }}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${selectedModule === 're'
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
+                    selectedModule === 're'
                       ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
+                  }`}
                 >
                   <DollarSign className="h-4 w-4 inline mr-1" />
                   RE Module
@@ -1472,10 +1486,11 @@ export default function FieldsContent() {
                     setSelectedModule('expense');
                     setSelectedEntity('');
                   }}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${selectedModule === 'expense'
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
+                    selectedModule === 'expense'
                       ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/25'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
+                  }`}
                 >
                   <CreditCard className="h-4 w-4 inline mr-1" />
                   Expense Module
@@ -1582,10 +1597,11 @@ export default function FieldsContent() {
                       setSelectedModule('re');
                       setSelectedEntity('');
                     }}
-                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${selectedModule === 're'
+                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${
+                      selectedModule === 're'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'bg-white text-gray-700'
-                      }`}
+                    }`}
                   >
                     RE
                   </button>
@@ -1594,10 +1610,11 @@ export default function FieldsContent() {
                       setSelectedModule('expense');
                       setSelectedEntity('');
                     }}
-                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${selectedModule === 'expense'
+                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${
+                      selectedModule === 'expense'
                         ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white'
                         : 'bg-white text-gray-700'
-                      }`}
+                    }`}
                   >
                     Expense
                   </button>
@@ -1697,20 +1714,22 @@ export default function FieldsContent() {
               <div className="flex space-x-6">
                 <button
                   onClick={() => setActiveTab('fields')}
-                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${activeTab === 'fields'
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${
+                    activeTab === 'fields'
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
+                  }`}
                 >
                   <Layers className="h-4 w-4" />
                   <span>Fields ({filteredFields.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('preview')}
-                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${activeTab === 'preview'
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${
+                    activeTab === 'preview'
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
+                  }`}
                 >
                   <Eye className="h-4 w-4" />
                   <span>Preview</span>
@@ -1735,8 +1754,9 @@ export default function FieldsContent() {
                     onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
                     className="px-3 py-2.5 hover:bg-gray-50 transition-colors"
                   >
-                    <ArrowUpDown className={`h-4 w-4 text-gray-500 transition-transform ${sortDirection === 'desc' ? 'rotate-180' : ''
-                      }`} />
+                    <ArrowUpDown className={`h-4 w-4 text-gray-500 transition-transform ${
+                      sortDirection === 'desc' ? 'rotate-180' : ''
+                    }`} />
                   </button>
                 </div>
 
@@ -1744,40 +1764,44 @@ export default function FieldsContent() {
                 <div className="flex border-2 border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`p-2.5 transition-all ${viewMode === 'list'
+                    className={`p-2.5 transition-all ${
+                      viewMode === 'list'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'text-gray-500 hover:bg-gray-50'
-                      }`}
+                    }`}
                     title="List View"
                   >
                     <List className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${viewMode === 'grid'
+                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${
+                      viewMode === 'grid'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'text-gray-500 hover:bg-gray-50'
-                      }`}
+                    }`}
                     title="Grid View"
                   >
                     <Grid3x3 className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => setViewMode('compact')}
-                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${viewMode === 'compact'
+                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${
+                      viewMode === 'compact'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'text-gray-500 hover:bg-gray-50'
-                      }`}
+                    }`}
                     title="Compact View"
                   >
                     <LayoutGrid className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => setViewMode('detail')}
-                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${viewMode === 'detail'
+                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${
+                      viewMode === 'detail'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'text-gray-500 hover:bg-gray-50'
-                      }`}
+                    }`}
                     title="Detail View"
                   >
                     <Table className="h-5 w-5" />
@@ -1884,14 +1908,16 @@ export default function FieldsContent() {
                     {filteredFields.map((field, index) => (
                       <div
                         key={field._id}
-                        className={`bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
-                          }`}
+                        className={`bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${
+                          !field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
+                        }`}
                       >
                         <div className="p-5">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center space-x-3">
-                              <div className={`p-2.5 rounded-xl border-2 ${field.isEnabled ? getTypeColor(field.type) : 'bg-gray-100 text-gray-500 border-gray-200'
-                                }`}>
+                              <div className={`p-2.5 rounded-xl border-2 ${
+                                field.isEnabled ? getTypeColor(field.type) : 'bg-gray-100 text-gray-500 border-gray-200'
+                              }`}>
                                 {getTypeIcon(field.type)}
                               </div>
                               <div>
@@ -1910,8 +1936,9 @@ export default function FieldsContent() {
                             <div className="flex space-x-1">
                               <button
                                 onClick={() => handleToggleField(field._id)}
-                                className={`p-1.5 rounded-lg transition-colors ${field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
-                                  }`}
+                                className={`p-1.5 rounded-lg transition-colors ${
+                                  field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                                }`}
                               >
                                 {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                               </button>
@@ -1993,8 +2020,8 @@ export default function FieldsContent() {
                     Form Preview: {selectedEntityObj?.name}
                   </h3>
                   <p className="text-sm text-gray-500">
-                    {previewMode === 'view'
-                      ? 'This is how the form will look to users'
+                    {previewMode === 'view' 
+                      ? 'This is how the form will look to users' 
                       : 'Test mode - Fields are enabled for testing'}
                   </p>
                 </div>
@@ -2004,19 +2031,21 @@ export default function FieldsContent() {
               <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-xl">
                 <button
                   onClick={() => setPreviewMode('view')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${previewMode === 'view'
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    previewMode === 'view'
                       ? 'bg-white text-purple-600 shadow-sm'
                       : 'text-gray-600 hover:text-gray-800'
-                    }`}
+                  }`}
                 >
                   View
                 </button>
                 <button
                   onClick={() => setPreviewMode('test')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${previewMode === 'test'
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    previewMode === 'test'
                       ? 'bg-white text-purple-600 shadow-sm'
                       : 'text-gray-600 hover:text-gray-800'
-                    }`}
+                  }`}
                 >
                   Test Mode
                 </button>
@@ -2063,10 +2092,11 @@ export default function FieldsContent() {
                         placeholder={`Enter ${field.label.toLowerCase()}`}
                         disabled={isDisabled || field.readOnly}
                         required={field.required && !isDisabled}
-                        className={`w-full px-4 py-3 border-2 rounded-xl transition-all ${isDisabled
-                            ? 'border-gray-200 bg-gray-50 text-gray-500'
+                        className={`w-full px-4 py-3 border-2 rounded-xl transition-all ${
+                          isDisabled 
+                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
                             : 'border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                          }`}
+                        }`}
                       />
                     )}
 
@@ -2080,10 +2110,11 @@ export default function FieldsContent() {
                         required={field.required && !isDisabled}
                         min={field.validation?.min}
                         max={field.validation?.max}
-                        className={`w-full px-4 py-3 border-2 rounded-xl ${isDisabled
-                            ? 'border-gray-200 bg-gray-50 text-gray-500'
+                        className={`w-full px-4 py-3 border-2 rounded-xl ${
+                          isDisabled 
+                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
                             : 'border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500'
-                          }`}
+                        }`}
                       />
                     )}
 
@@ -2094,10 +2125,11 @@ export default function FieldsContent() {
                         onChange={(e) => handleTestInputChange(field.fieldKey, e.target.value)}
                         disabled={isDisabled || field.readOnly}
                         required={field.required && !isDisabled}
-                        className={`w-full px-4 py-3 border-2 rounded-xl ${isDisabled
-                            ? 'border-gray-200 bg-gray-50 text-gray-500'
+                        className={`w-full px-4 py-3 border-2 rounded-xl ${
+                          isDisabled 
+                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
                             : 'border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500'
-                          }`}
+                        }`}
                       />
                     )}
 
@@ -2109,10 +2141,11 @@ export default function FieldsContent() {
                         placeholder={`Enter ${field.label.toLowerCase()}`}
                         disabled={isDisabled || field.readOnly}
                         required={field.required && !isDisabled}
-                        className={`w-full px-4 py-3 border-2 rounded-xl ${isDisabled
-                            ? 'border-gray-200 bg-gray-50 text-gray-500'
+                        className={`w-full px-4 py-3 border-2 rounded-xl ${
+                          isDisabled 
+                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
                             : 'border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500'
-                          }`}
+                        }`}
                       />
                     )}
 
@@ -2122,10 +2155,11 @@ export default function FieldsContent() {
                         onChange={(e) => handleTestInputChange(field.fieldKey, e.target.value)}
                         disabled={isDisabled || field.readOnly}
                         required={field.required && !isDisabled}
-                        className={`w-full px-4 py-3 border-2 rounded-xl ${isDisabled
-                            ? 'border-gray-200 bg-gray-50 text-gray-500'
+                        className={`w-full px-4 py-3 border-2 rounded-xl ${
+                          isDisabled 
+                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
                             : 'border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500'
-                          }`}
+                        }`}
                       >
                         <option value="">Select {field.label}</option>
                         {fieldOptions.map((opt, i) => (
@@ -2135,8 +2169,9 @@ export default function FieldsContent() {
                     )}
 
                     {field.type === 'checkbox' && (
-                      <div className={`flex items-center space-x-3 p-3 border-2 rounded-xl ${isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-white'
-                        }`}>
+                      <div className={`flex items-center space-x-3 p-3 border-2 rounded-xl ${
+                        isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-white'
+                      }`}>
                         <input
                           type="checkbox"
                           checked={fieldValue === 'true' || fieldValue === true}
@@ -2151,8 +2186,9 @@ export default function FieldsContent() {
                     )}
 
                     {field.type === 'radio' && (
-                      <div className={`space-y-2 p-3 border-2 rounded-xl ${isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-white'
-                        }`}>
+                      <div className={`space-y-2 p-3 border-2 rounded-xl ${
+                        isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-white'
+                      }`}>
                         {fieldOptions.map((opt, i) => (
                           <div key={i} className="flex items-center space-x-3">
                             <input
@@ -2173,10 +2209,12 @@ export default function FieldsContent() {
                     )}
 
                     {field.type === 'file' && (
-                      <div className={`border-2 border-dashed rounded-xl p-6 text-center ${isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-gray-50 hover:border-blue-300'
-                        }`}>
-                        <Upload className={`h-8 w-8 mx-auto mb-2 ${isDisabled ? 'text-gray-400' : 'text-gray-500'
-                          }`} />
+                      <div className={`border-2 border-dashed rounded-xl p-6 text-center ${
+                        isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-gray-50 hover:border-blue-300'
+                      }`}>
+                        <Upload className={`h-8 w-8 mx-auto mb-2 ${
+                          isDisabled ? 'text-gray-400' : 'text-gray-500'
+                        }`} />
                         <p className={`text-sm ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`}>
                           {isDisabled ? 'File upload disabled' : 'Click to upload or drag and drop'}
                         </p>
@@ -2189,10 +2227,12 @@ export default function FieldsContent() {
                     )}
 
                     {field.type === 'image' && (
-                      <div className={`border-2 border-dashed rounded-xl p-6 text-center ${isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-gray-50'
-                        }`}>
-                        <ImageIcon className={`h-8 w-8 mx-auto mb-2 ${isDisabled ? 'text-gray-400' : 'text-gray-500'
-                          }`} />
+                      <div className={`border-2 border-dashed rounded-xl p-6 text-center ${
+                        isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-gray-50'
+                      }`}>
+                        <ImageIcon className={`h-8 w-8 mx-auto mb-2 ${
+                          isDisabled ? 'text-gray-400' : 'text-gray-500'
+                        }`} />
                         <p className={`text-sm ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`}>
                           {isDisabled ? 'Image upload disabled' : 'Click to upload image'}
                         </p>
@@ -2221,13 +2261,13 @@ export default function FieldsContent() {
 
             {/* Preview Actions */}
             <div className="mt-8 pt-4 border-t-2 border-gray-200 flex justify-end space-x-3">
-              <button
+              <button 
                 onClick={() => setTestFormData({})}
                 className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium border-2 border-gray-200"
               >
                 Clear Test Data
               </button>
-              <button
+              <button 
                 onClick={() => {
                   if (previewMode === 'test') {
                     console.log('Test Form Data:', testFormData);
@@ -2331,15 +2371,18 @@ export default function FieldsContent() {
                       key={type}
                       type="button"
                       onClick={() => setFormData({ ...formData, type: type as any })}
-                      className={`p-4 border-2 rounded-xl flex flex-col items-center transition-all ${formData.type === type
+                      className={`p-4 border-2 rounded-xl flex flex-col items-center transition-all ${
+                        formData.type === type
                           ? `border-${color}-500 bg-${color}-50 ring-2 ring-${color}-100`
                           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
+                      }`}
                     >
-                      <Icon className={`h-6 w-6 mb-1 ${formData.type === type ? `text-${color}-600` : 'text-gray-500'
-                        }`} />
-                      <span className={`text-xs font-medium ${formData.type === type ? `text-${color}-700` : 'text-gray-600'
-                        }`}>
+                      <Icon className={`h-6 w-6 mb-1 ${
+                        formData.type === type ? `text-${color}-600` : 'text-gray-500'
+                      }`} />
+                      <span className={`text-xs font-medium ${
+                        formData.type === type ? `text-${color}-700` : 'text-gray-600'
+                      }`}>
                         {label}
                       </span>
                     </button>
@@ -2362,14 +2405,15 @@ export default function FieldsContent() {
                           setCategorySource('manual');
                           setFormData(prev => ({
                             ...prev,
-                            categorySource: undefined,
+                            categorySource: 'manual',
                             categoryIds: []
                           }));
                         }}
-                        className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${!formData.categorySource
+                        className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${
+                          formData.categorySource === 'manual'
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                        }`}
                       >
                         <span className="text-sm font-medium">Manual</span>
                         <span className="text-xs text-gray-500 mt-1">Enter options</span>
@@ -2385,10 +2429,11 @@ export default function FieldsContent() {
                             options: []
                           }));
                         }}
-                        className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${formData.categorySource === 'entity'
+                        className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${
+                          formData.categorySource === 'entity'
                             ? 'border-green-500 bg-green-50'
                             : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                        }`}
                       >
                         <FolderTree className="h-5 w-5 mb-1 text-green-600" />
                         <span className="text-sm font-medium">Entity</span>
@@ -2405,10 +2450,11 @@ export default function FieldsContent() {
                             options: []
                           }));
                         }}
-                        className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${formData.categorySource === 'all'
+                        className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${
+                          formData.categorySource === 'all'
                             ? 'border-purple-500 bg-purple-50'
                             : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                        }`}
                       >
                         <FolderTree className="h-5 w-5 mb-1 text-purple-600" />
                         <span className="text-sm font-medium">All Module</span>
@@ -2425,10 +2471,11 @@ export default function FieldsContent() {
                             options: []
                           }));
                         }}
-                        className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${formData.categorySource === 'specific'
+                        className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${
+                          formData.categorySource === 'specific'
                             ? 'border-amber-500 bg-amber-50'
                             : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                        }`}
                       >
                         <FolderTree className="h-5 w-5 mb-1 text-amber-600" />
                         <span className="text-sm font-medium">Specific</span>
@@ -2438,12 +2485,12 @@ export default function FieldsContent() {
                   </div>
 
                   {/* Manual Options */}
-                  {!formData.categorySource && (
+                  {formData.categorySource === 'manual' && (
                     <div className="bg-gray-50 p-5 rounded-xl border-2 border-gray-200">
                       <label className="block text-sm font-medium text-gray-700 mb-3">
                         Options <span className="text-red-500">*</span>
                       </label>
-                      {formData.options.map((opt, i) => (
+                      {(formData.options || []).map((opt, i) => (
                         <div key={i} className="flex mb-2">
                           <input
                             type="text"
@@ -2481,28 +2528,32 @@ export default function FieldsContent() {
                     >
                       <FolderTree className="h-5 w-5 mr-2 text-amber-600" />
                       <span className="text-sm font-medium text-amber-700">
-                        {selectedCategoryIds.length > 0
-                          ? `${selectedCategoryIds.length} Categories Selected`
+                        {selectedCategoryIds.length > 0 
+                          ? `${selectedCategoryIds.length} Categories Selected` 
                           : 'Select Specific Categories'}
                       </span>
                     </button>
                   )}
 
                   {/* Category Source Info */}
-                  {formData.categorySource && formData.categorySource !== 'specific' && (
-                    <div className={`p-4 rounded-xl border-2 ${formData.categorySource === 'entity' ? 'bg-green-50 border-green-200' : 'bg-purple-50 border-purple-200'
-                      }`}>
+                  {formData.categorySource && formData.categorySource !== 'manual' && formData.categorySource !== 'specific' && (
+                    <div className={`p-4 rounded-xl border-2 ${
+                      formData.categorySource === 'entity' ? 'bg-green-50 border-green-200' : 'bg-purple-50 border-purple-200'
+                    }`}>
                       <div className="flex items-start">
-                        <FolderTree className={`h-5 w-5 mr-2 mt-0.5 ${formData.categorySource === 'entity' ? 'text-green-600' : 'text-purple-600'
-                          }`} />
+                        <FolderTree className={`h-5 w-5 mr-2 mt-0.5 ${
+                          formData.categorySource === 'entity' ? 'text-green-600' : 'text-purple-600'
+                        }`} />
                         <div>
-                          <p className={`font-medium ${formData.categorySource === 'entity' ? 'text-green-800' : 'text-purple-800'
-                            }`}>
+                          <p className={`font-medium ${
+                            formData.categorySource === 'entity' ? 'text-green-800' : 'text-purple-800'
+                          }`}>
                             {formData.categorySource === 'entity' && 'Using all categories from this entity'}
                             {formData.categorySource === 'all' && 'Using all categories from this module'}
                           </p>
-                          <p className={`text-sm mt-1 ${formData.categorySource === 'entity' ? 'text-green-600' : 'text-purple-600'
-                            }`}>
+                          <p className={`text-sm mt-1 ${
+                            formData.categorySource === 'entity' ? 'text-green-600' : 'text-purple-600'
+                          }`}>
                             {formData.categorySource === 'entity' && `${entityCategories.length} categories will be available as options`}
                             {formData.categorySource === 'all' && `${moduleCategories.length} categories will be available as options`}
                           </p>
@@ -2643,10 +2694,11 @@ export default function FieldsContent() {
                 ].map(({ key, label, description, color }) => (
                   <label
                     key={key}
-                    className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${formData[key as keyof typeof formData]
+                    className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      formData[key as keyof typeof formData]
                         ? `border-${color}-500 bg-${color}-50`
                         : 'border-gray-200 hover:border-gray-300'
-                      }`}
+                    }`}
                   >
                     <input
                       type="checkbox"
@@ -2658,10 +2710,11 @@ export default function FieldsContent() {
                       <p className="font-medium text-gray-900">{label}</p>
                       <p className="text-xs text-gray-500">{description}</p>
                     </div>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${formData[key as keyof typeof formData]
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                      formData[key as keyof typeof formData]
                         ? `border-${color}-500 bg-${color}-500`
                         : 'border-gray-300'
-                      }`}>
+                    }`}>
                       {formData[key as keyof typeof formData] && <Check className="h-4 w-4 text-white" />}
                     </div>
                   </label>
@@ -2733,7 +2786,7 @@ export default function FieldsContent() {
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {Object.entries(categoriesByEntity).map(([entity, cats]) => {
                   const entityObj = entities.find(e => e.entityKey === entity);
-                  const filteredCats = cats.filter(cat =>
+                  const filteredCats = cats.filter(cat => 
                     cat.name.toLowerCase().includes(categorySearch.toLowerCase())
                   );
 
@@ -2768,8 +2821,8 @@ export default function FieldsContent() {
                               <div className="flex items-center justify-between">
                                 <span className="font-medium text-gray-900">{category.name}</span>
                                 {category.color && (
-                                  <span
-                                    className="w-4 h-4 rounded-full"
+                                  <span 
+                                    className="w-4 h-4 rounded-full" 
                                     style={{ backgroundColor: category.color }}
                                   />
                                 )}
@@ -2827,7 +2880,7 @@ export default function FieldsContent() {
             opacity: 0;
             transform: translateY(5px);
           }
-          to { 
+          to {
             opacity: 1;
             transform: translateY(0);
           }
@@ -2842,7 +2895,7 @@ export default function FieldsContent() {
             opacity: 1;
             transform: scale(1);
           }
-        } 
+        }
 
         .animate-slideDown {
           animation: slideDown 0.2s ease-out;
