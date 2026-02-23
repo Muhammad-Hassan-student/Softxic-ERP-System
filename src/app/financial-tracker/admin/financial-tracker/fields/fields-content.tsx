@@ -1,8 +1,8 @@
 // src/app/admin/financial-tracker/fields/fields-content.tsx
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Plus,
   Save,
@@ -130,9 +130,9 @@ import {
   ToggleLeft,
   ToggleRight,
   ToggleLeft as ToggleLeftIcon,
-  ToggleRight as ToggleRightIcon
-} from 'lucide-react';
-import { toast } from 'react-hot-toast';
+  ToggleRight as ToggleRightIcon,
+} from "lucide-react";
+import { toast } from "react-hot-toast";
 import {
   DndContext,
   closestCenter,
@@ -140,32 +140,41 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent
-} from '@dnd-kit/core';
+  DragEndEvent,
+} from "@dnd-kit/core";
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-  useSortable
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // ✅ Token utility
 const getToken = (): string => {
-  if (typeof document === 'undefined') return '';
+  if (typeof document === "undefined") return "";
   const match = document.cookie.match(/token=([^;]+)/);
-  return match ? match[1] : '';
+  return match ? match[1] : "";
 };
 
 interface Field {
   _id: string;
-  module: 're' | 'expense';
+  module: "re" | "expense";
   entityId: string;
   entityName?: string;
   fieldKey: string;
   label: string;
-  type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'file' | 'image' | 'checkbox' | 'radio';
+  type:
+    | "text"
+    | "number"
+    | "date"
+    | "select"
+    | "textarea"
+    | "file"
+    | "image"
+    | "checkbox"
+    | "radio";
   isSystem: boolean;
   isEnabled: boolean;
   required: boolean;
@@ -175,7 +184,7 @@ interface Field {
   defaultValue?: any;
   options?: string[];
   categoryIds?: string[]; // For category-linked fields
-  categorySource?: 'all' | 'entity' | 'specific' | 'manual'; // Source of categories
+  categorySource?: "all" | "entity" | "specific" | "manual"; // Source of categories
   validation?: {
     min?: number;
     max?: number;
@@ -191,7 +200,7 @@ interface Field {
 
 interface Entity {
   _id: string;
-  module: 're' | 'expense';
+  module: "re" | "expense";
   entityKey: string;
   name: string;
   description?: string;
@@ -202,7 +211,7 @@ interface Entity {
 interface Category {
   _id: string;
   name: string;
-  module: 're' | 'expense';
+  module: "re" | "expense";
   entity: string;
   isActive: boolean;
   color?: string;
@@ -211,97 +220,143 @@ interface Category {
 }
 
 // View modes
-type ViewMode = 'grid' | 'list' | 'compact' | 'detail' | 'table';
+type ViewMode = "grid" | "list" | "compact" | "detail" | "table";
 
 // Sort options
-type SortOption = 'name' | 'type' | 'order' | 'created' | 'updated';
-type SortDirection = 'asc' | 'desc';
+type SortOption = "name" | "type" | "order" | "created" | "updated";
+type SortDirection = "asc" | "desc";
 
 // Category source types
-type CategorySource = 'all' | 'entity' | 'specific' | 'manual';
+type CategorySource = "all" | "entity" | "specific" | "manual";
 
 // ✅ Global helper functions
 const getTypeIcon = (type: string) => {
   switch (type) {
-    case 'text': return <Type className="h-4 w-4" />;
-    case 'number': return <Hash className="h-4 w-4" />;
-    case 'date': return <Calendar className="h-4 w-4" />;
-    case 'select': return <ListChecks className="h-4 w-4" />;
-    case 'textarea': return <FileText className="h-4 w-4" />;
-    case 'file': return <Upload className="h-4 w-4" />;
-    case 'image': return <ImageIcon className="h-4 w-4" />;
-    case 'checkbox': return <CheckSquare className="h-4 w-4" />;
-    case 'radio': return <CircleDot className="h-4 w-4" />;
-    default: return <Type className="h-4 w-4" />;
+    case "text":
+      return <Type className="h-4 w-4" />;
+    case "number":
+      return <Hash className="h-4 w-4" />;
+    case "date":
+      return <Calendar className="h-4 w-4" />;
+    case "select":
+      return <ListChecks className="h-4 w-4" />;
+    case "textarea":
+      return <FileText className="h-4 w-4" />;
+    case "file":
+      return <Upload className="h-4 w-4" />;
+    case "image":
+      return <ImageIcon className="h-4 w-4" />;
+    case "checkbox":
+      return <CheckSquare className="h-4 w-4" />;
+    case "radio":
+      return <CircleDot className="h-4 w-4" />;
+    default:
+      return <Type className="h-4 w-4" />;
   }
 };
 
 const getTypeColor = (type: string) => {
   switch (type) {
-    case 'text': return 'bg-blue-50 text-blue-600 border-blue-200 ring-blue-100';
-    case 'number': return 'bg-emerald-50 text-emerald-600 border-emerald-200 ring-emerald-100';
-    case 'date': return 'bg-purple-50 text-purple-600 border-purple-200 ring-purple-100';
-    case 'select': return 'bg-amber-50 text-amber-600 border-amber-200 ring-amber-100';
-    case 'textarea': return 'bg-orange-50 text-orange-600 border-orange-200 ring-orange-100';
-    case 'file': return 'bg-indigo-50 text-indigo-600 border-indigo-200 ring-indigo-100';
-    case 'image': return 'bg-pink-50 text-pink-600 border-pink-200 ring-pink-100';
-    case 'checkbox': return 'bg-teal-50 text-teal-600 border-teal-200 ring-teal-100';
-    case 'radio': return 'bg-cyan-50 text-cyan-600 border-cyan-200 ring-cyan-100';
-    default: return 'bg-gray-50 text-gray-600 border-gray-200 ring-gray-100';
+    case "text":
+      return "bg-blue-50 text-blue-600 border-blue-200 ring-blue-100";
+    case "number":
+      return "bg-emerald-50 text-emerald-600 border-emerald-200 ring-emerald-100";
+    case "date":
+      return "bg-purple-50 text-purple-600 border-purple-200 ring-purple-100";
+    case "select":
+      return "bg-amber-50 text-amber-600 border-amber-200 ring-amber-100";
+    case "textarea":
+      return "bg-orange-50 text-orange-600 border-orange-200 ring-orange-100";
+    case "file":
+      return "bg-indigo-50 text-indigo-600 border-indigo-200 ring-indigo-100";
+    case "image":
+      return "bg-pink-50 text-pink-600 border-pink-200 ring-pink-100";
+    case "checkbox":
+      return "bg-teal-50 text-teal-600 border-teal-200 ring-teal-100";
+    case "radio":
+      return "bg-cyan-50 text-cyan-600 border-cyan-200 ring-cyan-100";
+    default:
+      return "bg-gray-50 text-gray-600 border-gray-200 ring-gray-100";
   }
 };
 
 const getTypeBadgeColor = (type: string) => {
   switch (type) {
-    case 'text': return 'bg-blue-100 text-blue-700 border-blue-200';
-    case 'number': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-    case 'date': return 'bg-purple-100 text-purple-700 border-purple-200';
-    case 'select': return 'bg-amber-100 text-amber-700 border-amber-200';
-    case 'textarea': return 'bg-orange-100 text-orange-700 border-orange-200';
-    case 'file': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
-    case 'image': return 'bg-pink-100 text-pink-700 border-pink-200';
-    case 'checkbox': return 'bg-teal-100 text-teal-700 border-teal-200';
-    case 'radio': return 'bg-cyan-100 text-cyan-700 border-cyan-200';
-    default: return 'bg-gray-100 text-gray-700 border-gray-200';
+    case "text":
+      return "bg-blue-100 text-blue-700 border-blue-200";
+    case "number":
+      return "bg-emerald-100 text-emerald-700 border-emerald-200";
+    case "date":
+      return "bg-purple-100 text-purple-700 border-purple-200";
+    case "select":
+      return "bg-amber-100 text-amber-700 border-amber-200";
+    case "textarea":
+      return "bg-orange-100 text-orange-700 border-orange-200";
+    case "file":
+      return "bg-indigo-100 text-indigo-700 border-indigo-200";
+    case "image":
+      return "bg-pink-100 text-pink-700 border-pink-200";
+    case "checkbox":
+      return "bg-teal-100 text-teal-700 border-teal-200";
+    case "radio":
+      return "bg-cyan-100 text-cyan-700 border-cyan-200";
+    default:
+      return "bg-gray-100 text-gray-700 border-gray-200";
   }
 };
 
 // ✅ Sortable Field Item Component
-const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, index, totalItems, onMove, viewMode = 'list' }: any) => {
+const SortableFieldItem = ({
+  field,
+  onEdit,
+  onToggle,
+  onDelete,
+  onDuplicate,
+  index,
+  totalItems,
+  onMove,
+  viewMode = "list",
+}: any) => {
   const {
     attributes,
     listeners,
     setNodeRef,
     transform,
     transition,
-    isDragging
+    isDragging,
   } = useSortable({ id: field._id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 50 : 1
+    zIndex: isDragging ? 50 : 1,
   };
 
   const getCategorySourceText = (source?: string, count?: number) => {
-    if (!source || source === 'manual') return null;
+    if (!source || source === "manual") return null;
     switch (source) {
-      case 'all': return 'All Module Categories';
-      case 'entity': return 'All Entity Categories';
-      case 'specific': return `${count || 0} Selected Categories`;
-      default: return null;
+      case "all":
+        return "All Module Categories";
+      case "entity":
+        return "All Entity Categories";
+      case "specific":
+        return `${count || 0} Selected Categories`;
+      default:
+        return null;
     }
   };
 
-  if (viewMode === 'compact') {
+  if (viewMode === "compact") {
     return (
       <div
         ref={setNodeRef}
         style={style}
         className={`group relative bg-white rounded-xl border-2 shadow-sm hover:shadow-md transition-all duration-300 ${
-          !field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
-        } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
+          !field.isEnabled
+            ? "opacity-70 bg-gray-50/50"
+            : "border-gray-200 hover:border-blue-300"
+        } ${isDragging ? "shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500" : ""}`}
       >
         <div className="p-3">
           <div className="flex items-center justify-between">
@@ -313,22 +368,32 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
               >
                 <GripVertical className="h-4 w-4" />
               </div>
-              <div className={`p-2 rounded-lg border-2 ${getTypeColor(field.type)}`}>
+              <div
+                className={`p-2 rounded-lg border-2 ${getTypeColor(field.type)}`}
+              >
                 {getTypeIcon(field.type)}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900 truncate">{field.label}</span>
-                  {field.required && <span className="text-red-500 text-xs">*</span>}
+                  <span className="font-medium text-gray-900 truncate">
+                    {field.label}
+                  </span>
+                  {field.required && (
+                    <span className="text-red-500 text-xs">*</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   <span className="font-mono">{field.fieldKey}</span>
-                  {field.categorySource && field.categorySource !== 'manual' && (
-                    <span className="flex items-center text-green-600">
-                      <FolderTree className="h-3 w-3 mr-1" />
-                      {getCategorySourceText(field.categorySource, field.categoryIds?.length)}
-                    </span>
-                  )}
+                  {field.categorySource &&
+                    field.categorySource !== "manual" && (
+                      <span className="flex items-center text-green-600">
+                        <FolderTree className="h-3 w-3 mr-1" />
+                        {getCategorySourceText(
+                          field.categorySource,
+                          field.categoryIds?.length,
+                        )}
+                      </span>
+                    )}
                 </div>
               </div>
             </div>
@@ -336,10 +401,16 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
               <button
                 onClick={() => onToggle(field._id)}
                 className={`p-1.5 rounded-lg transition-colors ${
-                  field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                  field.isEnabled
+                    ? "text-green-600 hover:bg-green-50"
+                    : "text-gray-400 hover:bg-gray-50"
                 }`}
               >
-                {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                {field.isEnabled ? (
+                  <Eye className="h-4 w-4" />
+                ) : (
+                  <EyeOff className="h-4 w-4" />
+                )}
               </button>
               <button
                 onClick={() => onEdit(field)}
@@ -354,34 +425,46 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
     );
   }
 
-  if (viewMode === 'detail') {
+  if (viewMode === "detail") {
     return (
       <div
         ref={setNodeRef}
         style={style}
         className={`group relative bg-white rounded-2xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 ${
-          !field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
-        } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
+          !field.isEnabled
+            ? "opacity-70 bg-gray-50/50"
+            : "border-gray-200 hover:border-blue-300"
+        } ${isDragging ? "shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500" : ""}`}
       >
-        <div className={`absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl ${
-          field.isEnabled
-            ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500'
-            : 'bg-gradient-to-r from-gray-400 to-gray-500'
-        }`}></div>
+        <div
+          className={`absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl ${
+            field.isEnabled
+              ? "bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
+              : "bg-gradient-to-r from-gray-400 to-gray-500"
+          }`}
+        ></div>
 
         <div className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center space-x-4">
-              <div className={`p-4 rounded-xl border-2 ${getTypeColor(field.type)}`}>
+              <div
+                className={`p-4 rounded-xl border-2 ${getTypeColor(field.type)}`}
+              >
                 {getTypeIcon(field.type)}
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">{field.label}</h3>
-                <p className="text-sm text-gray-500 font-mono">{field.fieldKey}</p>
+                <h3 className="text-xl font-bold text-gray-900">
+                  {field.label}
+                </h3>
+                <p className="text-sm text-gray-500 font-mono">
+                  {field.fieldKey}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`px-3 py-1.5 rounded-full text-xs font-medium border-2 ${getTypeColor(field.type)}`}>
+              <span
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border-2 ${getTypeColor(field.type)}`}
+              >
                 {field.type}
               </span>
             </div>
@@ -394,19 +477,25 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
                 {field.isEnabled ? (
                   <>
                     <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    <span className="text-sm font-medium text-green-700">Active</span>
+                    <span className="text-sm font-medium text-green-700">
+                      Active
+                    </span>
                   </>
                 ) : (
                   <>
                     <XCircle className="h-4 w-4 text-gray-400 mr-2" />
-                    <span className="text-sm font-medium text-gray-500">Inactive</span>
+                    <span className="text-sm font-medium text-gray-500">
+                      Inactive
+                    </span>
                   </>
                 )}
               </div>
             </div>
             <div className="bg-gray-50 p-3 rounded-xl">
               <p className="text-xs text-gray-500 mb-1">Order</p>
-              <p className="text-sm font-medium text-gray-900">#{field.order + 1}</p>
+              <p className="text-sm font-medium text-gray-900">
+                #{field.order + 1}
+              </p>
             </div>
             {field.required && (
               <div className="bg-gray-50 p-3 rounded-xl">
@@ -414,14 +503,15 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
                 <p className="text-sm font-medium text-red-600">Yes</p>
               </div>
             )}
-            {field.categorySource && field.categorySource !== 'manual' && (
+            {field.categorySource && field.categorySource !== "manual" && (
               <div className="bg-gray-50 p-3 rounded-xl">
                 <p className="text-xs text-gray-500 mb-1">Category Source</p>
                 <p className="text-sm font-medium text-green-600 flex items-center">
                   <FolderTree className="h-4 w-4 mr-1" />
-                  {field.categorySource === 'all' && 'All Module Categories'}
-                  {field.categorySource === 'entity' && 'All Entity Categories'}
-                  {field.categorySource === 'specific' && `${field.categoryIds?.length || 0} Selected`}
+                  {field.categorySource === "all" && "All Module Categories"}
+                  {field.categorySource === "entity" && "All Entity Categories"}
+                  {field.categorySource === "specific" &&
+                    `${field.categoryIds?.length || 0} Selected`}
                 </p>
               </div>
             )}
@@ -429,10 +519,15 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
 
           {field.options && field.options.length > 0 && (
             <div className="mb-4">
-              <p className="text-xs text-gray-500 mb-2">Options ({field.options.length})</p>
+              <p className="text-xs text-gray-500 mb-2">
+                Options ({field.options.length})
+              </p>
               <div className="flex flex-wrap gap-2">
                 {field.options.slice(0, 3).map((opt: any, i: any) => (
-                  <span key={i} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200">
+                  <span
+                    key={i}
+                    className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200"
+                  >
                     {opt}
                   </span>
                 ))}
@@ -450,13 +545,19 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
               <p className="text-xs text-gray-500 mb-2">Validation</p>
               <div className="flex flex-wrap gap-2">
                 {field.validation.min !== undefined && (
-                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg">Min: {field.validation.min}</span>
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg">
+                    Min: {field.validation.min}
+                  </span>
                 )}
                 {field.validation.max !== undefined && (
-                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg">Max: {field.validation.max}</span>
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg">
+                    Max: {field.validation.max}
+                  </span>
                 )}
                 {field.validation.regex && (
-                  <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-lg font-mono">/{field.validation.regex}/</span>
+                  <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-lg font-mono">
+                    /{field.validation.regex}/
+                  </span>
                 )}
               </div>
             </div>
@@ -465,18 +566,18 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
           <div className="flex items-center justify-between pt-4 border-t border-gray-200">
             <div className="flex items-center text-xs text-gray-400">
               <Clock className="h-3 w-3 mr-1" />
-              {new Date(field.updatedAt || '').toLocaleDateString()}
+              {new Date(field.updatedAt || "").toLocaleDateString()}
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => onMove(field._id, 'up')}
+                onClick={() => onMove(field._id, "up")}
                 disabled={index === 0}
                 className="p-1.5 hover:bg-gray-100 rounded-lg disabled:opacity-30"
               >
                 <ArrowUp className="h-4 w-4" />
               </button>
               <button
-                onClick={() => onMove(field._id, 'down')}
+                onClick={() => onMove(field._id, "down")}
                 disabled={index === totalItems - 1}
                 className="p-1.5 hover:bg-gray-100 rounded-lg disabled:opacity-30"
               >
@@ -485,10 +586,16 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
               <button
                 onClick={() => onToggle(field._id)}
                 className={`p-1.5 rounded-lg ${
-                  field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                  field.isEnabled
+                    ? "text-green-600 hover:bg-green-50"
+                    : "text-gray-400 hover:bg-gray-50"
                 }`}
               >
-                {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                {field.isEnabled ? (
+                  <Eye className="h-4 w-4" />
+                ) : (
+                  <EyeOff className="h-4 w-4" />
+                )}
               </button>
               <button
                 onClick={() => onDuplicate(field)}
@@ -523,15 +630,17 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
       ref={setNodeRef}
       style={style}
       className={`group relative bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${
-        !field.isEnabled ? 'opacity-70 bg-gray-50/50' : ''
-      } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : 'border-gray-200 hover:border-blue-300'}`}
+        !field.isEnabled ? "opacity-70 bg-gray-50/50" : ""
+      } ${isDragging ? "shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500" : "border-gray-200 hover:border-blue-300"}`}
     >
       {/* Status Indicator Bar */}
-      <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${
-        field.isEnabled
-          ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500'
-          : 'bg-gradient-to-r from-gray-400 to-gray-500'
-      }`}></div>
+      <div
+        className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${
+          field.isEnabled
+            ? "bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
+            : "bg-gradient-to-r from-gray-400 to-gray-500"
+        }`}
+      ></div>
 
       <div className="p-6">
         <div className="flex flex-col lg:flex-row lg:items-start gap-4">
@@ -545,7 +654,9 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
               <GripVertical className="h-5 w-5" />
             </div>
 
-            <div className={`p-3.5 rounded-xl border-2 shadow-sm ${getTypeColor(field.type)}`}>
+            <div
+              className={`p-3.5 rounded-xl border-2 shadow-sm ${getTypeColor(field.type)}`}
+            >
               {getTypeIcon(field.type)}
             </div>
           </div>
@@ -554,16 +665,20 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
           <div className="flex-1 min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="text-lg font-semibold text-gray-900 truncate">{field.label}</h4>
+                <h4 className="text-lg font-semibold text-gray-900 truncate">
+                  {field.label}
+                </h4>
                 <span className="text-sm text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded-lg border border-gray-200">
                   {field.fieldKey}
                 </span>
-                {field.categorySource && field.categorySource !== 'manual' && (
+                {field.categorySource && field.categorySource !== "manual" && (
                   <span className="flex items-center text-xs text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-200">
                     <FolderTree className="h-3 w-3 mr-1" />
-                    {field.categorySource === 'all' && 'All Module Categories'}
-                    {field.categorySource === 'entity' && 'All Entity Categories'}
-                    {field.categorySource === 'specific' && `${field.categoryIds?.length || 0} Selected Categories`}
+                    {field.categorySource === "all" && "All Module Categories"}
+                    {field.categorySource === "entity" &&
+                      "All Entity Categories"}
+                    {field.categorySource === "specific" &&
+                      `${field.categoryIds?.length || 0} Selected Categories`}
                   </span>
                 )}
               </div>
@@ -598,7 +713,9 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
 
             {/* Tags and Metadata */}
             <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span className={`px-3 py-1.5 rounded-lg text-xs font-medium border-2 ${getTypeColor(field.type)}`}>
+              <span
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border-2 ${getTypeColor(field.type)}`}
+              >
                 {field.type.charAt(0).toUpperCase() + field.type.slice(1)}
               </span>
 
@@ -627,12 +744,14 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
               <div className="mt-3 flex flex-wrap gap-2">
                 {field.validation.min !== undefined && (
                   <span className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200 flex items-center">
-                    <span className="font-medium mr-1">Min:</span> {field.validation.min}
+                    <span className="font-medium mr-1">Min:</span>{" "}
+                    {field.validation.min}
                   </span>
                 )}
                 {field.validation.max !== undefined && (
                   <span className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200 flex items-center">
-                    <span className="font-medium mr-1">Max:</span> {field.validation.max}
+                    <span className="font-medium mr-1">Max:</span>{" "}
+                    {field.validation.max}
                   </span>
                 )}
                 {field.validation.regex && (
@@ -640,11 +759,12 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
                     /{field.validation.regex}/
                   </span>
                 )}
-                {field.validation.allowedFileTypes && field.validation.allowedFileTypes.length > 0 && (
-                  <span className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200">
-                    {field.validation.allowedFileTypes.join(', ')}
-                  </span>
-                )}
+                {field.validation.allowedFileTypes &&
+                  field.validation.allowedFileTypes.length > 0 && (
+                    <span className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200">
+                      {field.validation.allowedFileTypes.join(", ")}
+                    </span>
+                  )}
                 {field.validation.maxFileSize && (
                   <span className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200">
                     Max: {field.validation.maxFileSize / 1024 / 1024}MB
@@ -656,12 +776,15 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
             {/* Footer Metadata */}
             <div className="mt-4 flex items-center text-xs text-gray-400 border-t border-gray-100 pt-3">
               <Clock className="h-3 w-3 mr-1" />
-              <span>Updated {new Date(field.updatedAt || '').toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}</span>
+              <span>
+                Updated{" "}
+                {new Date(field.updatedAt || "").toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
               <span className="mx-2">•</span>
               <User className="h-3 w-3 mr-1" />
               <span>ID: {field._id.slice(-8)}</span>
@@ -673,7 +796,7 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
             {/* Move Buttons */}
             <div className="flex border-2 border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
               <button
-                onClick={() => onMove(field._id, 'up')}
+                onClick={() => onMove(field._id, "up")}
                 disabled={index === 0}
                 className="p-2.5 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 title="Move up"
@@ -681,7 +804,7 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
                 <ArrowUp className="h-4 w-4" />
               </button>
               <button
-                onClick={() => onMove(field._id, 'down')}
+                onClick={() => onMove(field._id, "down")}
                 disabled={index === totalItems - 1}
                 className="p-2.5 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed border-l-2 border-gray-200 transition-colors"
                 title="Move down"
@@ -696,12 +819,16 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
                 onClick={() => onToggle(field._id)}
                 className={`p-2.5 rounded-xl transition-all border-2 ${
                   field.isEnabled
-                    ? 'text-emerald-600 hover:bg-emerald-50 border-emerald-200 hover:border-emerald-300'
-                    : 'text-gray-400 hover:bg-gray-50 border-gray-200 hover:border-gray-300'
+                    ? "text-emerald-600 hover:bg-emerald-50 border-emerald-200 hover:border-emerald-300"
+                    : "text-gray-400 hover:bg-gray-50 border-gray-200 hover:border-gray-300"
                 }`}
-                title={field.isEnabled ? 'Disable field' : 'Enable field'}
+                title={field.isEnabled ? "Disable field" : "Enable field"}
               >
-                {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                {field.isEnabled ? (
+                  <Eye className="h-4 w-4" />
+                ) : (
+                  <EyeOff className="h-4 w-4" />
+                )}
               </button>
 
               <button
@@ -740,57 +867,71 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
 // ✅ Main Fields Content Component
 export default function FieldsContent() {
   const searchParams = useSearchParams();
-  const moduleParam = searchParams.get('module');
+  const moduleParam = searchParams.get("module");
 
   const [fields, setFields] = useState<Field[]>([]);
   const [entities, setEntities] = useState<Entity[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedModule, setSelectedModule] = useState<'re' | 'expense'>(
-    (moduleParam as 're' | 'expense') || 're'
+  const [selectedModule, setSelectedModule] = useState<"re" | "expense">(
+    (moduleParam as "re" | "expense") || "re",
   );
-  const [selectedEntity, setSelectedEntity] = useState<string>('');
-  const [selectedEntityObj, setSelectedEntityObj] = useState<Entity | null>(null);
+  const [selectedEntity, setSelectedEntity] = useState<string>("");
+  const [selectedEntityObj, setSelectedEntityObj] = useState<Entity | null>(
+    null,
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingField, setEditingField] = useState<Field | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [showInactive, setShowInactive] = useState(false);
-  const [activeTab, setActiveTab] = useState<'fields' | 'preview'>('fields');
+  const [activeTab, setActiveTab] = useState<"fields" | "preview">("fields");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [sortBy, setSortBy] = useState<SortOption>('order');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [sortBy, setSortBy] = useState<SortOption>("order");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [selectedFieldForCategory, setSelectedFieldForCategory] = useState<Field | null>(null);
-  const [categorySearch, setCategorySearch] = useState('');
-  const [categorySource, setCategorySource] = useState<CategorySource>('entity'); // Default to entity
+  const [selectedFieldForCategory, setSelectedFieldForCategory] =
+    useState<Field | null>(null);
+  const [categorySearch, setCategorySearch] = useState("");
+  const [categorySource, setCategorySource] =
+    useState<CategorySource>("entity"); // Default to entity
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
-  const [previewMode, setPreviewMode] = useState<'view' | 'test'>('view');
+  const [previewMode, setPreviewMode] = useState<"view" | "test">("view");
   const [testFormData, setTestFormData] = useState<Record<string, any>>({});
-  const [stats, setStats] = useState({ total: 0, visible: 0, required: 0, system: 0, categoryLinked: 0 });
+  const [previewFiles, setPreviewFiles] = useState<Record<string, File>>({});
+  const [previewImages, setPreviewImages] = useState<Record<string, string>>(
+    {},
+  );
+  const [stats, setStats] = useState({
+    total: 0,
+    visible: 0,
+    required: 0,
+    system: 0,
+    categoryLinked: 0,
+  });
 
   const [formData, setFormData] = useState({
-    module: 're' as 're' | 'expense',
-    entityId: '',
-    fieldKey: '',
-    label: '',
-    type: 'text' as Field['type'],
+    module: "re" as "re" | "expense",
+    entityId: "",
+    fieldKey: "",
+    label: "",
+    type: "text" as Field["type"],
     required: false,
     readOnly: false,
     visible: true,
     isEnabled: true,
-    defaultValue: '',
+    defaultValue: "",
     options: [] as string[], // Empty by default
     categoryIds: [] as string[],
-    categorySource: 'entity' as CategorySource, // Default to entity
+    categorySource: "entity" as CategorySource, // Default to entity
     validation: {
       min: undefined as number | undefined,
       max: undefined as number | undefined,
-      regex: '',
+      regex: "",
       allowedFileTypes: [] as string[],
-      maxFileSize: undefined as number | undefined
-    }
+      maxFileSize: undefined as number | undefined,
+    },
   });
 
   const sensors = useSensors(
@@ -801,23 +942,35 @@ export default function FieldsContent() {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   // Field types for filtering
-  const fieldTypes = useMemo(() =>
-    ['text', 'number', 'date', 'select', 'textarea', 'file', 'image', 'checkbox', 'radio'],
-    []
+  const fieldTypes = useMemo(
+    () => [
+      "text",
+      "number",
+      "date",
+      "select",
+      "textarea",
+      "file",
+      "image",
+      "checkbox",
+      "radio",
+    ],
+    [],
   );
 
   // Update stats
   useEffect(() => {
     setStats({
       total: fields.length,
-      visible: fields.filter(f => f.visible).length,
-      required: fields.filter(f => f.required).length,
-      system: fields.filter(f => f.isSystem).length,
-      categoryLinked: fields.filter(f => f.categorySource && f.categorySource !== 'manual').length
+      visible: fields.filter((f) => f.visible).length,
+      required: fields.filter((f) => f.required).length,
+      system: fields.filter((f) => f.isSystem).length,
+      categoryLinked: fields.filter(
+        (f) => f.categorySource && f.categorySource !== "manual",
+      ).length,
     });
   }, [fields]);
 
@@ -825,9 +978,12 @@ export default function FieldsContent() {
   const fetchEntities = async () => {
     try {
       const token = getToken();
-      const response = await fetch(`/financial-tracker/api/financial-tracker/entities?module=${selectedModule}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch(
+        `/financial-tracker/api/financial-tracker/entities?module=${selectedModule}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (response.ok) {
         const data = await response.json();
         setEntities(data.entities || []);
@@ -835,11 +991,11 @@ export default function FieldsContent() {
         if (data.entities.length > 0 && !selectedEntity) {
           setSelectedEntity(data.entities[0]._id);
           setSelectedEntityObj(data.entities[0]);
-          setFormData(prev => ({ ...prev, entityId: data.entities[0]._id }));
+          setFormData((prev) => ({ ...prev, entityId: data.entities[0]._id }));
         }
       }
     } catch (error) {
-      toast.error('Failed to load entities');
+      toast.error("Failed to load entities");
     }
   };
 
@@ -847,15 +1003,18 @@ export default function FieldsContent() {
   const fetchCategories = async () => {
     try {
       const token = getToken();
-      const response = await fetch('/financial-tracker/api/financial-tracker/categories?active=true', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch(
+        "/financial-tracker/api/financial-tracker/categories?active=true",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (response.ok) {
         const data = await response.json();
         setCategories(data.categories || []);
       }
     } catch (error) {
-      console.error('Failed to fetch categories:', error);
+      console.error("Failed to fetch categories:", error);
     }
   };
 
@@ -867,43 +1026,48 @@ export default function FieldsContent() {
       setIsLoading(true);
       const token = getToken();
       const response = await fetch(
-        `/financial-tracker/api/financial-tracker/fields?module=${selectedModule}&entityId=${selectedEntity}${!showInactive ? '' : '&includeDisabled=true'}`,
+        `/financial-tracker/api/financial-tracker/fields?module=${selectedModule}&entityId=${selectedEntity}${!showInactive ? "" : "&includeDisabled=true"}`,
         {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
 
-      if (!response.ok) throw new Error('Failed to fetch fields');
+      if (!response.ok) throw new Error("Failed to fetch fields");
 
       const data = await response.json();
-      let sortedFields = data.fields?.sort((a: Field, b: Field) => a.order - b.order) || [];
+      let sortedFields =
+        data.fields?.sort((a: Field, b: Field) => a.order - b.order) || [];
 
       // Apply sorting
       sortedFields.sort((a: any, b: any) => {
         let comparison = 0;
         switch (sortBy) {
-          case 'name':
+          case "name":
             comparison = a.label.localeCompare(b.label);
             break;
-          case 'type':
+          case "type":
             comparison = a.type.localeCompare(b.type);
             break;
-          case 'order':
+          case "order":
             comparison = a.order - b.order;
             break;
-          case 'created':
-            comparison = new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+          case "created":
+            comparison =
+              new Date(a.createdAt || 0).getTime() -
+              new Date(b.createdAt || 0).getTime();
             break;
-          case 'updated':
-            comparison = new Date(a.updatedAt || 0).getTime() - new Date(b.updatedAt || 0).getTime();
+          case "updated":
+            comparison =
+              new Date(a.updatedAt || 0).getTime() -
+              new Date(b.updatedAt || 0).getTime();
             break;
         }
-        return sortDirection === 'asc' ? comparison : -comparison;
+        return sortDirection === "asc" ? comparison : -comparison;
       });
 
       setFields(sortedFields);
     } catch (error) {
-      toast.error('Failed to load fields');
+      toast.error("Failed to load fields");
     } finally {
       setIsLoading(false);
     }
@@ -914,41 +1078,44 @@ export default function FieldsContent() {
     try {
       const token = getToken();
       const params = new URLSearchParams();
-      if (selectedModule) params.append('module', selectedModule);
-      if (selectedEntity) params.append('entityId', selectedEntity);
-      if (showInactive) params.append('includeDisabled', 'true');
+      if (selectedModule) params.append("module", selectedModule);
+      if (selectedEntity) params.append("entityId", selectedEntity);
+      if (showInactive) params.append("includeDisabled", "true");
 
-      const response = await fetch(`/financial-tracker/api/financial-tracker/fields/export?${params.toString()}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch(
+        `/financial-tracker/api/financial-tracker/fields/export?${params.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
 
-      if (!response.ok) throw new Error('Export failed');
+      if (!response.ok) throw new Error("Export failed");
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `fields-${selectedEntityObj?.name || 'export'}-${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `fields-${selectedEntityObj?.name || "export"}-${new Date().toISOString().split("T")[0]}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
-      toast.success('Fields exported successfully');
+      toast.success("Fields exported successfully");
     } catch (error) {
-      toast.error('Failed to export fields');
+      toast.error("Failed to export fields");
     }
   };
 
   // Handle import
   const handleImport = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.csv';
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".csv";
     input.onchange = (e: any) => {
       const file = e.target.files[0];
       if (file) {
-        toast.success('Import feature coming soon');
+        toast.success("Import feature coming soon");
       }
     };
     input.click();
@@ -966,19 +1133,19 @@ export default function FieldsContent() {
       readOnly: field.readOnly,
       visible: field.visible,
       isEnabled: field.isEnabled,
-      defaultValue: field.defaultValue || '',
+      defaultValue: field.defaultValue || "",
       options: field.options || [],
       categoryIds: field.categoryIds || [],
-      categorySource: field.categorySource || 'entity',
+      categorySource: field.categorySource || "entity",
       validation: {
         min: field.validation?.min,
         max: field.validation?.max,
-        regex: field.validation?.regex || '',
+        regex: field.validation?.regex || "",
         allowedFileTypes: field.validation?.allowedFileTypes || [],
-        maxFileSize: field.validation?.maxFileSize
-      }
+        maxFileSize: field.validation?.maxFileSize,
+      },
     });
-    setCategorySource(field.categorySource || 'entity');
+    setCategorySource(field.categorySource || "entity");
     setSelectedCategoryIds(field.categoryIds || []);
     setEditingField(null);
     setIsModalOpen(true);
@@ -986,7 +1153,7 @@ export default function FieldsContent() {
 
   useEffect(() => {
     if (selectedEntity) {
-      const entity = entities.find(e => e._id === selectedEntity);
+      const entity = entities.find((e) => e._id === selectedEntity);
       setSelectedEntityObj(entity || null);
     }
   }, [selectedEntity, entities]);
@@ -1016,25 +1183,28 @@ export default function FieldsContent() {
         const token = getToken();
         const fieldOrders = newFields.map((field: any, index: any) => ({
           fieldId: field._id,
-          order: index
+          order: index,
         }));
 
-        const response = await fetch('/financial-tracker/api/financial-tracker/fields/reorder', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+        const response = await fetch(
+          "/financial-tracker/api/financial-tracker/fields/reorder",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              entityId: selectedEntity,
+              fieldOrders,
+            }),
           },
-          body: JSON.stringify({
-            entityId: selectedEntity,
-            fieldOrders
-          })
-        });
+        );
 
-        if (!response.ok) throw new Error('Failed to save order');
-        toast.success('Fields reordered successfully');
+        if (!response.ok) throw new Error("Failed to save order");
+        toast.success("Fields reordered successfully");
       } catch (error) {
-        toast.error('Failed to save field order');
+        toast.error("Failed to save field order");
         fetchFields();
       }
     }
@@ -1044,17 +1214,38 @@ export default function FieldsContent() {
     e.preventDefault();
 
     if (!/^[a-z0-9-]+$/.test(formData.fieldKey)) {
-      toast.error('Field key can only contain lowercase letters, numbers, and hyphens');
+      toast.error(
+        "Field key can only contain lowercase letters, numbers, and hyphens",
+      );
       return;
     }
 
     // For select/radio fields, we need either options or category source
-    if ((formData.type === 'select' || formData.type === 'radio') && 
-        (!formData.categorySource || formData.categorySource === 'manual')) {
-      
-      const filteredOptions = formData.options?.filter(opt => opt.trim() !== '') || [];
+    if (
+      (formData.type === "select" || formData.type === "radio") &&
+      (!formData.categorySource || formData.categorySource === "manual")
+    ) {
+      const filteredOptions =
+        formData.options?.filter((opt) => opt.trim() !== "") || [];
       if (filteredOptions.length === 0) {
-        toast.error('Please add at least one option or select a category source');
+        toast.error(
+          "Please add at least one option or select a category source",
+        );
+        return;
+      }
+    }
+
+    // Validate file/image fields
+    if (formData.type === "file" || formData.type === "image") {
+      if (
+        !formData.validation?.allowedFileTypes ||
+        formData.validation.allowedFileTypes.length === 0
+      ) {
+        toast.error("Please specify allowed file types");
+        return;
+      }
+      if (!formData.validation?.maxFileSize) {
+        toast.error("Please specify max file size");
         return;
       }
     }
@@ -1063,9 +1254,9 @@ export default function FieldsContent() {
       const token = getToken();
       const url = editingField
         ? `/financial-tracker/api/financial-tracker/fields/${editingField._id}`
-        : '/financial-tracker/api/financial-tracker/fields';
+        : "/financial-tracker/api/financial-tracker/fields";
 
-      const method = editingField ? 'PUT' : 'POST';
+      const method = editingField ? "PUT" : "POST";
 
       // Prepare payload
       const payload: any = {
@@ -1073,56 +1264,69 @@ export default function FieldsContent() {
         validation: {
           ...formData.validation,
           regex: formData.validation.regex || undefined,
-          allowedFileTypes: formData.validation.allowedFileTypes?.filter(t => t) || undefined,
-          maxFileSize: formData.validation.maxFileSize || undefined
-        }
+          allowedFileTypes:
+            formData.validation.allowedFileTypes?.filter((t) => t) || undefined,
+          maxFileSize: formData.validation.maxFileSize || undefined,
+        },
       };
 
       // Handle options based on source
-      if (formData.categorySource && formData.categorySource !== 'manual') {
+      if (formData.categorySource && formData.categorySource !== "manual") {
         // Use categories as options
         payload.options = undefined; // No manual options
         payload.categorySource = formData.categorySource;
-        
+
         // Set category IDs based on source
-        if (formData.categorySource === 'specific') {
+        if (formData.categorySource === "specific") {
           payload.categoryIds = selectedCategoryIds;
-        } else if (formData.categorySource === 'all') {
+        } else if (formData.categorySource === "all") {
           // Get all categories for this module
-          const allCategories = categories.filter(c => c.module === selectedModule && c.isActive);
-          payload.categoryIds = allCategories.map(c => c._id);
-        } else if (formData.categorySource === 'entity' && selectedEntityObj) {
-          // Get all categories for this entity
-          const entityCategoriesList = categories.filter(c => 
-            c.module === selectedModule && 
-            c.entity === selectedEntityObj.entityKey && 
-            c.isActive
+          const allCategories = categories.filter(
+            (c) => c.module === selectedModule && c.isActive,
           );
-          payload.categoryIds = entityCategoriesList.map(c => c._id);
+          payload.categoryIds = allCategories.map((c) => c._id);
+          // Auto-generate options from category names
+          payload.options = allCategories.map((c) => c.name);
+        } else if (formData.categorySource === "entity" && selectedEntityObj) {
+          // Get all categories for this entity
+          const entityCategoriesList = categories.filter(
+            (c) =>
+              c.module === selectedModule &&
+              c.entity === selectedEntityObj.entityKey &&
+              c.isActive,
+          );
+          payload.categoryIds = entityCategoriesList.map((c) => c._id);
+          // Auto-generate options from category names
+          payload.options = entityCategoriesList.map((c) => c.name);
         }
       } else {
         // Use manual options
-        const filteredOptions = formData.options?.filter(opt => opt.trim() !== '') || [];
+        const filteredOptions =
+          formData.options?.filter((opt) => opt.trim() !== "") || [];
         payload.options = filteredOptions;
-        payload.categorySource = 'manual';
+        payload.categorySource = "manual";
         payload.categoryIds = [];
       }
 
       const response = await fetch(url, {
         method,
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to save field');
+        throw new Error(error.error || "Failed to save field");
       }
 
-      toast.success(editingField ? 'Field updated successfully' : 'Field created successfully');
+      toast.success(
+        editingField
+          ? "Field updated successfully"
+          : "Field created successfully",
+      );
       setIsModalOpen(false);
       setEditingField(null);
       resetForm();
@@ -1135,25 +1339,28 @@ export default function FieldsContent() {
   const handleToggleField = async (fieldId: string) => {
     try {
       const token = getToken();
-      const response = await fetch(`/financial-tracker/api/financial-tracker/fields/${fieldId}/toggle`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await fetch(
+        `/financial-tracker/api/financial-tracker/fields/${fieldId}/toggle`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
-      if (!response.ok) throw new Error('Failed to toggle field');
+      if (!response.ok) throw new Error("Failed to toggle field");
 
-      toast.success('Field status updated successfully');
+      toast.success("Field status updated successfully");
       fetchFields();
     } catch (error) {
-      toast.error('Failed to toggle field');
+      toast.error("Failed to toggle field");
     }
   };
 
   const handleDeleteField = async (field: Field) => {
     if (field.isSystem) {
-      toast.error('System fields cannot be deleted');
+      toast.error("System fields cannot be deleted");
       return;
     }
 
@@ -1161,32 +1368,36 @@ export default function FieldsContent() {
 
     try {
       const token = getToken();
-      const response = await fetch(`/financial-tracker/api/financial-tracker/fields/${field._id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await fetch(
+        `/financial-tracker/api/financial-tracker/fields/${field._id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
-      if (!response.ok) throw new Error('Failed to delete field');
+      if (!response.ok) throw new Error("Failed to delete field");
 
-      toast.success('Field deleted successfully');
+      toast.success("Field deleted successfully");
       fetchFields();
     } catch (error) {
-      toast.error('Failed to delete field');
+      toast.error("Failed to delete field");
     }
   };
 
-  const handleMoveField = async (fieldId: string, direction: 'up' | 'down') => {
-    const index = fields.findIndex(f => f._id === fieldId);
+  const handleMoveField = async (fieldId: string, direction: "up" | "down") => {
+    const index = fields.findIndex((f) => f._id === fieldId);
     if (
-      (direction === 'up' && index === 0) ||
-      (direction === 'down' && index === fields.length - 1)
-    ) return;
+      (direction === "up" && index === 0) ||
+      (direction === "down" && index === fields.length - 1)
+    )
+      return;
 
     const newFields = [...fields];
     const temp = newFields[index];
-    if (direction === 'up') {
+    if (direction === "up") {
       newFields[index] = newFields[index - 1];
       newFields[index - 1] = temp;
     } else {
@@ -1200,19 +1411,19 @@ export default function FieldsContent() {
       const token = getToken();
       const fieldOrders = newFields.map((field, idx) => ({
         fieldId: field._id,
-        order: idx
+        order: idx,
       }));
 
-      await fetch('/financial-tracker/api/financial-tracker/fields/reorder', {
-        method: 'POST',
+      await fetch("/financial-tracker/api/financial-tracker/fields/reorder", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           entityId: selectedEntity,
-          fieldOrders
-        })
+          fieldOrders,
+        }),
       });
     } catch (error) {
       fetchFields();
@@ -1223,26 +1434,26 @@ export default function FieldsContent() {
     setFormData({
       module: selectedModule,
       entityId: selectedEntity,
-      fieldKey: '',
-      label: '',
-      type: 'text',
+      fieldKey: "",
+      label: "",
+      type: "text",
       required: false,
       readOnly: false,
       visible: true,
       isEnabled: true,
-      defaultValue: '',
+      defaultValue: "",
       options: [],
       categoryIds: [],
-      categorySource: 'entity', // Default to entity
+      categorySource: "entity", // Default to entity
       validation: {
         min: undefined,
         max: undefined,
-        regex: '',
+        regex: "",
         allowedFileTypes: [],
-        maxFileSize: undefined
-      }
+        maxFileSize: undefined,
+      },
     });
-    setCategorySource('entity');
+    setCategorySource("entity");
     setSelectedCategoryIds([]);
   };
 
@@ -1258,19 +1469,19 @@ export default function FieldsContent() {
       readOnly: field.readOnly,
       visible: field.visible,
       isEnabled: field.isEnabled,
-      defaultValue: field.defaultValue || '',
+      defaultValue: field.defaultValue || "",
       options: field.options || [],
       categoryIds: field.categoryIds || [],
-      categorySource: field.categorySource || 'entity',
+      categorySource: field.categorySource || "entity",
       validation: {
         min: field.validation?.min,
         max: field.validation?.max,
-        regex: field.validation?.regex || '',
+        regex: field.validation?.regex || "",
         allowedFileTypes: field.validation?.allowedFileTypes || [],
-        maxFileSize: field.validation?.maxFileSize
-      }
+        maxFileSize: field.validation?.maxFileSize,
+      },
     });
-    setCategorySource(field.categorySource || 'entity');
+    setCategorySource(field.categorySource || "entity");
     setSelectedCategoryIds(field.categoryIds || []);
     setIsModalOpen(true);
   };
@@ -1282,7 +1493,7 @@ export default function FieldsContent() {
   };
 
   const addOption = () => {
-    setFormData({ ...formData, options: [...(formData.options || []), ''] });
+    setFormData({ ...formData, options: [...(formData.options || []), ""] });
   };
 
   const removeOption = (index: number) => {
@@ -1293,59 +1504,94 @@ export default function FieldsContent() {
   };
 
   // Get category options for a field
-  const getFieldOptions = useCallback((field: Field): string[] => {
-    if (field.categorySource && field.categorySource !== 'manual' && field.categoryIds) {
-      // Get category names from IDs
-      return field.categoryIds
-        .map(id => {
-          const cat = categories.find(c => c._id === id);
-          return cat?.name || id;
-        })
-        .filter(Boolean);
-    }
-    return field.options || [];
-  }, [categories]);
+  const getFieldOptions = useCallback(
+    (field: Field): string[] => {
+      if (
+        field.categorySource &&
+        field.categorySource !== "manual" &&
+        field.categoryIds
+      ) {
+        // Get category names from IDs
+        return field.categoryIds
+          .map((id) => {
+            const cat = categories.find((c) => c._id === id);
+            return cat?.name || id;
+          })
+          .filter(Boolean);
+      }
+      return field.options || [];
+    },
+    [categories],
+  );
 
   // Handle test form input change
   const handleTestInputChange = (fieldKey: string, value: any) => {
-    setTestFormData(prev => ({
+    setTestFormData((prev) => ({
       ...prev,
-      [fieldKey]: value
+      [fieldKey]: value,
     }));
   };
 
+  // Handle file upload in preview
+  const handleFileUpload = (
+    fieldKey: string,
+    file: File,
+    type: "file" | "image",
+  ) => {
+    setPreviewFiles((prev) => ({ ...prev, [fieldKey]: file }));
+
+    if (type === "image") {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewImages((prev) => ({
+          ...prev,
+          [fieldKey]: reader.result as string,
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+
+    handleTestInputChange(fieldKey, file.name);
+    toast.success(`File ${file.name} selected`);
+  };
+
   // Filter fields
-  const filteredFields = fields.filter(field => {
-    const matchesSearch = field.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredFields = fields.filter((field) => {
+    const matchesSearch =
+      field.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
       field.fieldKey.toLowerCase().includes(searchTerm.toLowerCase()) ||
       field.type.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesType = selectedTypes.length === 0 || selectedTypes.includes(field.type);
+    const matchesType =
+      selectedTypes.length === 0 || selectedTypes.includes(field.type);
 
     return matchesSearch && matchesType;
   });
 
   // Get categories for current entity
-  const entityCategories = useMemo(() =>
-    categories.filter(c =>
-      c.module === selectedModule &&
-      c.entity === selectedEntityObj?.entityKey &&
-      c.isActive
-    ), [categories, selectedModule, selectedEntityObj]
+  const entityCategories = useMemo(
+    () =>
+      categories.filter(
+        (c) =>
+          c.module === selectedModule &&
+          c.entity === selectedEntityObj?.entityKey &&
+          c.isActive,
+      ),
+    [categories, selectedModule, selectedEntityObj],
   );
 
   // Get all categories for current module
-  const moduleCategories = useMemo(() =>
-    categories.filter(c => c.module === selectedModule && c.isActive),
-    [categories, selectedModule]
+  const moduleCategories = useMemo(
+    () => categories.filter((c) => c.module === selectedModule && c.isActive),
+    [categories, selectedModule],
   );
 
   // Group categories by entity for display
   const categoriesByEntity = useMemo(() => {
     const grouped: Record<string, Category[]> = {};
     categories
-      .filter(c => c.module === selectedModule && c.isActive)
-      .forEach(c => {
+      .filter((c) => c.module === selectedModule && c.isActive)
+      .forEach((c) => {
         if (!grouped[c.entity]) {
           grouped[c.entity] = [];
         }
@@ -1356,16 +1602,20 @@ export default function FieldsContent() {
 
   // Handle category selection in modal
   const handleLinkCategories = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       categorySource,
-      categoryIds: categorySource === 'specific' ? selectedCategoryIds : 
-                    categorySource === 'all' ? moduleCategories.map(c => c._id) :
-                    categorySource === 'entity' ? entityCategories.map(c => c._id) :
-                    []
+      categoryIds:
+        categorySource === "specific"
+          ? selectedCategoryIds
+          : categorySource === "all"
+            ? moduleCategories.map((c) => c._id)
+            : categorySource === "entity"
+              ? entityCategories.map((c) => c._id)
+              : [],
     }));
     setShowCategoryModal(false);
-    toast.success('Categories linked successfully');
+    toast.success("Categories linked successfully");
   };
 
   return (
@@ -1402,7 +1652,9 @@ export default function FieldsContent() {
                     </div>
                     <div>
                       <span className="text-xs text-gray-500">Total</span>
-                      <span className="text-xl font-bold text-blue-600 block leading-5">{stats.total}</span>
+                      <span className="text-xl font-bold text-blue-600 block leading-5">
+                        {stats.total}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1413,7 +1665,9 @@ export default function FieldsContent() {
                     </div>
                     <div>
                       <span className="text-xs text-gray-500">Visible</span>
-                      <span className="text-xl font-bold text-green-600 block leading-5">{stats.visible}</span>
+                      <span className="text-xl font-bold text-green-600 block leading-5">
+                        {stats.visible}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1424,7 +1678,9 @@ export default function FieldsContent() {
                     </div>
                     <div>
                       <span className="text-xs text-gray-500">Required</span>
-                      <span className="text-xl font-bold text-red-600 block leading-5">{stats.required}</span>
+                      <span className="text-xl font-bold text-red-600 block leading-5">
+                        {stats.required}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1435,7 +1691,9 @@ export default function FieldsContent() {
                     </div>
                     <div>
                       <span className="text-xs text-gray-500">System</span>
-                      <span className="text-xl font-bold text-purple-600 block leading-5">{stats.system}</span>
+                      <span className="text-xl font-bold text-purple-600 block leading-5">
+                        {stats.system}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1446,7 +1704,9 @@ export default function FieldsContent() {
                     </div>
                     <div>
                       <span className="text-xs text-gray-500">Categories</span>
-                      <span className="text-xl font-bold text-emerald-600 block leading-5">{stats.categoryLinked}</span>
+                      <span className="text-xl font-bold text-emerald-600 block leading-5">
+                        {stats.categoryLinked}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1465,17 +1725,19 @@ export default function FieldsContent() {
           {/* Module and Entity Selection - Desktop */}
           <div className="hidden lg:grid lg:grid-cols-12 gap-4 mt-6">
             <div className="col-span-3">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Module</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Module
+              </label>
               <div className="flex rounded-xl overflow-hidden bg-white border-2 border-gray-200 shadow-sm">
                 <button
                   onClick={() => {
-                    setSelectedModule('re');
-                    setSelectedEntity('');
+                    setSelectedModule("re");
+                    setSelectedEntity("");
                   }}
                   className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
-                    selectedModule === 're'
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                    selectedModule === "re"
+                      ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25"
+                      : "bg-white text-gray-700 hover:bg-gray-50"
                   }`}
                 >
                   <DollarSign className="h-4 w-4 inline mr-1" />
@@ -1483,13 +1745,13 @@ export default function FieldsContent() {
                 </button>
                 <button
                   onClick={() => {
-                    setSelectedModule('expense');
-                    setSelectedEntity('');
+                    setSelectedModule("expense");
+                    setSelectedEntity("");
                   }}
                   className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
-                    selectedModule === 'expense'
-                      ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/25'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                    selectedModule === "expense"
+                      ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/25"
+                      : "bg-white text-gray-700 hover:bg-gray-50"
                   }`}
                 >
                   <CreditCard className="h-4 w-4 inline mr-1" />
@@ -1499,17 +1761,22 @@ export default function FieldsContent() {
             </div>
 
             <div className="col-span-3">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Entity</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Entity
+              </label>
               <select
                 value={selectedEntity}
                 onChange={(e) => {
                   setSelectedEntity(e.target.value);
-                  setFormData(prev => ({ ...prev, entityId: e.target.value }));
+                  setFormData((prev) => ({
+                    ...prev,
+                    entityId: e.target.value,
+                  }));
                 }}
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm text-gray-700 font-medium"
               >
                 <option value="">Select Entity</option>
-                {entities.map(entity => (
+                {entities.map((entity) => (
                   <option key={entity._id} value={entity._id}>
                     {entity.name} ({entity.entityKey})
                   </option>
@@ -1518,7 +1785,9 @@ export default function FieldsContent() {
             </div>
 
             <div className="col-span-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Search</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Search
+              </label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
@@ -1532,7 +1801,9 @@ export default function FieldsContent() {
             </div>
 
             <div className="col-span-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">&nbsp;</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                &nbsp;
+              </label>
               <div className="flex items-center space-x-2">
                 <label className="flex items-center space-x-2 bg-white px-4 py-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 shadow-sm flex-1 transition-all">
                   <input
@@ -1541,7 +1812,9 @@ export default function FieldsContent() {
                     onChange={(e) => setShowInactive(e.target.checked)}
                     className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm font-medium text-gray-700">Show inactive</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    Show inactive
+                  </span>
                 </label>
 
                 <button
@@ -1590,30 +1863,32 @@ export default function FieldsContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Module</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Module
+                </label>
                 <div className="flex rounded-xl overflow-hidden bg-white border-2 border-gray-200">
                   <button
                     onClick={() => {
-                      setSelectedModule('re');
-                      setSelectedEntity('');
+                      setSelectedModule("re");
+                      setSelectedEntity("");
                     }}
                     className={`flex-1 px-4 py-2.5 text-sm font-medium ${
-                      selectedModule === 're'
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
-                        : 'bg-white text-gray-700'
+                      selectedModule === "re"
+                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
+                        : "bg-white text-gray-700"
                     }`}
                   >
                     RE
                   </button>
                   <button
                     onClick={() => {
-                      setSelectedModule('expense');
-                      setSelectedEntity('');
+                      setSelectedModule("expense");
+                      setSelectedEntity("");
                     }}
                     className={`flex-1 px-4 py-2.5 text-sm font-medium ${
-                      selectedModule === 'expense'
-                        ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white'
-                        : 'bg-white text-gray-700'
+                      selectedModule === "expense"
+                        ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white"
+                        : "bg-white text-gray-700"
                     }`}
                   >
                     Expense
@@ -1622,17 +1897,22 @@ export default function FieldsContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Entity</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Entity
+                </label>
                 <select
                   value={selectedEntity}
                   onChange={(e) => {
                     setSelectedEntity(e.target.value);
-                    setFormData(prev => ({ ...prev, entityId: e.target.value }));
+                    setFormData((prev) => ({
+                      ...prev,
+                      entityId: e.target.value,
+                    }));
                   }}
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-700"
                 >
                   <option value="">Select Entity</option>
-                  {entities.map(entity => (
+                  {entities.map((entity) => (
                     <option key={entity._id} value={entity._id}>
                       {entity.name}
                     </option>
@@ -1641,7 +1921,9 @@ export default function FieldsContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Search
+                </label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
@@ -1655,9 +1937,11 @@ export default function FieldsContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Field Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Field Type
+                </label>
                 <div className="flex flex-wrap gap-2">
-                  {fieldTypes.map(type => (
+                  {fieldTypes.map((type) => (
                     <label key={type} className="flex items-center space-x-2">
                       <input
                         type="checkbox"
@@ -1667,12 +1951,16 @@ export default function FieldsContent() {
                           if (e.target.checked) {
                             setSelectedTypes([...selectedTypes, type]);
                           } else {
-                            setSelectedTypes(selectedTypes.filter(t => t !== type));
+                            setSelectedTypes(
+                              selectedTypes.filter((t) => t !== type),
+                            );
                           }
                         }}
                         className="rounded border-gray-300 text-blue-600"
                       />
-                      <span className="text-sm text-gray-700 capitalize">{type}</span>
+                      <span className="text-sm text-gray-700 capitalize">
+                        {type}
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -1685,7 +1973,9 @@ export default function FieldsContent() {
                   onChange={(e) => setShowInactive(e.target.checked)}
                   className="rounded border-gray-300 text-blue-600"
                 />
-                <span className="text-sm font-medium text-gray-700">Show inactive fields</span>
+                <span className="text-sm font-medium text-gray-700">
+                  Show inactive fields
+                </span>
               </label>
 
               <div className="grid grid-cols-2 gap-2">
@@ -1713,22 +2003,22 @@ export default function FieldsContent() {
             <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200">
               <div className="flex space-x-6">
                 <button
-                  onClick={() => setActiveTab('fields')}
+                  onClick={() => setActiveTab("fields")}
                   className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${
-                    activeTab === 'fields'
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                    activeTab === "fields"
+                      ? "border-blue-600 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
                   }`}
                 >
                   <Layers className="h-4 w-4" />
                   <span>Fields ({filteredFields.length})</span>
                 </button>
                 <button
-                  onClick={() => setActiveTab('preview')}
+                  onClick={() => setActiveTab("preview")}
                   className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${
-                    activeTab === 'preview'
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                    activeTab === "preview"
+                      ? "border-blue-600 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
                   }`}
                 >
                   <Eye className="h-4 w-4" />
@@ -1751,56 +2041,62 @@ export default function FieldsContent() {
                     <option value="updated">Updated</option>
                   </select>
                   <button
-                    onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    onClick={() =>
+                      setSortDirection((prev) =>
+                        prev === "asc" ? "desc" : "asc",
+                      )
+                    }
                     className="px-3 py-2.5 hover:bg-gray-50 transition-colors"
                   >
-                    <ArrowUpDown className={`h-4 w-4 text-gray-500 transition-transform ${
-                      sortDirection === 'desc' ? 'rotate-180' : ''
-                    }`} />
+                    <ArrowUpDown
+                      className={`h-4 w-4 text-gray-500 transition-transform ${
+                        sortDirection === "desc" ? "rotate-180" : ""
+                      }`}
+                    />
                   </button>
                 </div>
 
                 {/* View Mode Toggle */}
                 <div className="flex border-2 border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
                   <button
-                    onClick={() => setViewMode('list')}
+                    onClick={() => setViewMode("list")}
                     className={`p-2.5 transition-all ${
-                      viewMode === 'list'
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
-                        : 'text-gray-500 hover:bg-gray-50'
+                      viewMode === "list"
+                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
+                        : "text-gray-500 hover:bg-gray-50"
                     }`}
                     title="List View"
                   >
                     <List className="h-5 w-5" />
                   </button>
                   <button
-                    onClick={() => setViewMode('grid')}
+                    onClick={() => setViewMode("grid")}
                     className={`p-2.5 border-l-2 border-gray-200 transition-all ${
-                      viewMode === 'grid'
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
-                        : 'text-gray-500 hover:bg-gray-50'
+                      viewMode === "grid"
+                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
+                        : "text-gray-500 hover:bg-gray-50"
                     }`}
                     title="Grid View"
                   >
                     <Grid3x3 className="h-5 w-5" />
                   </button>
                   <button
-                    onClick={() => setViewMode('compact')}
+                    onClick={() => setViewMode("compact")}
                     className={`p-2.5 border-l-2 border-gray-200 transition-all ${
-                      viewMode === 'compact'
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
-                        : 'text-gray-500 hover:bg-gray-50'
+                      viewMode === "compact"
+                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
+                        : "text-gray-500 hover:bg-gray-50"
                     }`}
                     title="Compact View"
                   >
                     <LayoutGrid className="h-5 w-5" />
                   </button>
                   <button
-                    onClick={() => setViewMode('detail')}
+                    onClick={() => setViewMode("detail")}
                     className={`p-2.5 border-l-2 border-gray-200 transition-all ${
-                      viewMode === 'detail'
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
-                        : 'text-gray-500 hover:bg-gray-50'
+                      viewMode === "detail"
+                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
+                        : "text-gray-500 hover:bg-gray-50"
                     }`}
                     title="Detail View"
                   >
@@ -1838,17 +2134,19 @@ export default function FieldsContent() {
             <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-3">
               Select an Entity
             </h3>
-            <p className="text-gray-500 mb-8 text-lg">Choose a module and entity to manage its custom fields</p>
+            <p className="text-gray-500 mb-8 text-lg">
+              Choose a module and entity to manage its custom fields
+            </p>
             <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
               <button
-                onClick={() => setSelectedModule('re')}
+                onClick={() => setSelectedModule("re")}
                 className="px-8 py-4 bg-blue-50 text-blue-700 rounded-xl border-2 border-blue-200 hover:bg-blue-100 transition-colors font-medium flex items-center justify-center"
               >
                 <DollarSign className="h-5 w-5 mr-2" />
                 RE Module
               </button>
               <button
-                onClick={() => setSelectedModule('expense')}
+                onClick={() => setSelectedModule("expense")}
                 className="px-8 py-4 bg-emerald-50 text-emerald-700 rounded-xl border-2 border-emerald-200 hover:bg-emerald-100 transition-colors font-medium flex items-center justify-center"
               >
                 <CreditCard className="h-5 w-5 mr-2" />
@@ -1856,7 +2154,7 @@ export default function FieldsContent() {
               </button>
             </div>
           </div>
-        ) : activeTab === 'fields' ? (
+        ) : activeTab === "fields" ? (
           isLoading ? (
             <div className="flex justify-center items-center h-96">
               <div className="relative">
@@ -1865,7 +2163,9 @@ export default function FieldsContent() {
                   <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent"></div>
                 </div>
               </div>
-              <span className="ml-4 text-lg font-medium text-gray-600">Loading fields...</span>
+              <span className="ml-4 text-lg font-medium text-gray-600">
+                Loading fields...
+              </span>
             </div>
           ) : filteredFields.length === 0 ? (
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl border-2 border-gray-200 shadow-xl p-16 text-center max-w-lg mx-auto">
@@ -1879,7 +2179,10 @@ export default function FieldsContent() {
                 No Fields Yet
               </h3>
               <p className="text-gray-500 mb-8 text-lg">
-                Create your first custom field for <span className="font-semibold text-blue-600">{selectedEntityObj?.name}</span>
+                Create your first custom field for{" "}
+                <span className="font-semibold text-blue-600">
+                  {selectedEntityObj?.name}
+                </span>
               </p>
               <button
                 onClick={() => {
@@ -1900,47 +2203,69 @@ export default function FieldsContent() {
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={filteredFields.map(f => f._id)}
-                strategy={viewMode === 'grid' ? undefined : verticalListSortingStrategy}
+                items={filteredFields.map((f) => f._id)}
+                strategy={
+                  viewMode === "grid" ? undefined : verticalListSortingStrategy
+                }
               >
-                {viewMode === 'grid' ? (
+                {viewMode === "grid" ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {filteredFields.map((field, index) => (
                       <div
                         key={field._id}
                         className={`bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${
-                          !field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
+                          !field.isEnabled
+                            ? "opacity-70 bg-gray-50/50"
+                            : "border-gray-200 hover:border-blue-300"
                         }`}
                       >
                         <div className="p-5">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center space-x-3">
-                              <div className={`p-2.5 rounded-xl border-2 ${
-                                field.isEnabled ? getTypeColor(field.type) : 'bg-gray-100 text-gray-500 border-gray-200'
-                              }`}>
+                              <div
+                                className={`p-2.5 rounded-xl border-2 ${
+                                  field.isEnabled
+                                    ? getTypeColor(field.type)
+                                    : "bg-gray-100 text-gray-500 border-gray-200"
+                                }`}
+                              >
                                 {getTypeIcon(field.type)}
                               </div>
                               <div>
-                                <h4 className="font-semibold text-gray-900">{field.label}</h4>
-                                <p className="text-xs text-gray-500 font-mono">{field.fieldKey}</p>
-                                {field.categorySource && field.categorySource !== 'manual' && (
-                                  <span className="inline-flex items-center mt-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-                                    <FolderTree className="h-3 w-3 mr-1" />
-                                    {field.categorySource === 'all' && 'All Module Categories'}
-                                    {field.categorySource === 'entity' && 'All Entity Categories'}
-                                    {field.categorySource === 'specific' && `${field.categoryIds?.length || 0} Selected`}
-                                  </span>
-                                )}
+                                <h4 className="font-semibold text-gray-900">
+                                  {field.label}
+                                </h4>
+                                <p className="text-xs text-gray-500 font-mono">
+                                  {field.fieldKey}
+                                </p>
+                                {field.categorySource &&
+                                  field.categorySource !== "manual" && (
+                                    <span className="inline-flex items-center mt-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                                      <FolderTree className="h-3 w-3 mr-1" />
+                                      {field.categorySource === "all" &&
+                                        "All Module Categories"}
+                                      {field.categorySource === "entity" &&
+                                        "All Entity Categories"}
+                                      {field.categorySource === "specific" &&
+                                        `${field.categoryIds?.length || 0} Selected`}
+                                    </span>
+                                  )}
                               </div>
                             </div>
                             <div className="flex space-x-1">
                               <button
                                 onClick={() => handleToggleField(field._id)}
                                 className={`p-1.5 rounded-lg transition-colors ${
-                                  field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                                  field.isEnabled
+                                    ? "text-green-600 hover:bg-green-50"
+                                    : "text-gray-400 hover:bg-gray-50"
                                 }`}
                               >
-                                {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                                {field.isEnabled ? (
+                                  <Eye className="h-4 w-4" />
+                                ) : (
+                                  <EyeOff className="h-4 w-4" />
+                                )}
                               </button>
                               <button
                                 onClick={() => handleDuplicate(field)}
@@ -1959,26 +2284,37 @@ export default function FieldsContent() {
 
                           <div className="space-y-2">
                             <div className="flex flex-wrap gap-1">
-                              <span className={`px-2 py-0.5 text-xs rounded-full ${getTypeBadgeColor(field.type)}`}>
+                              <span
+                                className={`px-2 py-0.5 text-xs rounded-full ${getTypeBadgeColor(field.type)}`}
+                              >
                                 {field.type}
                               </span>
                               {field.required && (
-                                <span className="px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full">Required</span>
+                                <span className="px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full">
+                                  Required
+                                </span>
                               )}
                               {field.isSystem && (
-                                <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full">System</span>
+                                <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full">
+                                  System
+                                </span>
                               )}
                             </div>
 
                             {field.options && field.options.length > 0 && (
                               <p className="text-xs text-gray-500">
-                                {field.options.length} option{field.options.length > 1 ? 's' : ''}
+                                {field.options.length} option
+                                {field.options.length > 1 ? "s" : ""}
                               </p>
                             )}
 
                             <div className="flex items-center justify-between text-xs text-gray-400 border-t border-gray-100 pt-2">
                               <span>Order: {field.order + 1}</span>
-                              <span>{new Date(field.updatedAt || '').toLocaleDateString()}</span>
+                              <span>
+                                {new Date(
+                                  field.updatedAt || "",
+                                ).toLocaleDateString()}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -2007,7 +2343,7 @@ export default function FieldsContent() {
             </DndContext>
           )
         ) : (
-          // Preview Mode
+          // Preview Mode with Full Enterprise Features
           <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-xl p-6 sm:p-8 max-w-3xl mx-auto">
             {/* Preview Header with Test Mode Toggle */}
             <div className="flex items-center justify-between mb-6 pb-4 border-b-2 border-gray-200">
@@ -2020,9 +2356,9 @@ export default function FieldsContent() {
                     Form Preview: {selectedEntityObj?.name}
                   </h3>
                   <p className="text-sm text-gray-500">
-                    {previewMode === 'view' 
-                      ? 'This is how the form will look to users' 
-                      : 'Test mode - Fields are enabled for testing'}
+                    {previewMode === "view"
+                      ? "This is how the form will look to users"
+                      : "Test mode - Fields are enabled for testing"}
                   </p>
                 </div>
               </div>
@@ -2030,21 +2366,21 @@ export default function FieldsContent() {
               {/* Test Mode Toggle */}
               <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-xl">
                 <button
-                  onClick={() => setPreviewMode('view')}
+                  onClick={() => setPreviewMode("view")}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    previewMode === 'view'
-                      ? 'bg-white text-purple-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-800'
+                    previewMode === "view"
+                      ? "bg-white text-purple-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-800"
                   }`}
                 >
                   View
                 </button>
                 <button
-                  onClick={() => setPreviewMode('test')}
+                  onClick={() => setPreviewMode("test")}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    previewMode === 'test'
-                      ? 'bg-white text-purple-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-800'
+                    previewMode === "test"
+                      ? "bg-white text-purple-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-800"
                   }`}
                 >
                   Test Mode
@@ -2054,204 +2390,394 @@ export default function FieldsContent() {
 
             {/* Preview Form */}
             <div className="space-y-5">
-              {filteredFields.filter(f => f.visible).map((field) => {
-                const fieldOptions = getFieldOptions(field);
-                const isDisabled = previewMode === 'view' || !field.isEnabled;
-                const fieldValue = testFormData[field.fieldKey] || field.defaultValue || '';
+              {filteredFields
+                .filter((f) => f.visible)
+                .map((field) => {
+                  const fieldOptions = getFieldOptions(field);
+                  const isDisabled = previewMode === "view" || !field.isEnabled;
+                  const fieldValue =
+                    testFormData[field.fieldKey] || field.defaultValue || "";
 
-                return (
-                  <div key={field._id} className="group">
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      {field.label}
-                      {field.required && <span className="text-red-500 ml-1">*</span>}
-                      {field.categorySource && field.categorySource !== 'manual' && (
-                        <span className="ml-2 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-                          <FolderTree className="h-3 w-3 inline mr-1" />
-                          {field.categorySource === 'all' && 'All Categories'}
-                          {field.categorySource === 'entity' && 'Entity Categories'}
-                          {field.categorySource === 'specific' && `${field.categoryIds?.length || 0} Categories`}
-                        </span>
-                      )}
-                      {!field.isEnabled && (
-                        <span className="ml-2 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                          Disabled
-                        </span>
-                      )}
-                      {field.readOnly && (
-                        <span className="ml-2 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                          Read only
-                        </span>
-                      )}
-                    </label>
-
-                    {field.type === 'text' && (
-                      <input
-                        type="text"
-                        value={fieldValue}
-                        onChange={(e) => handleTestInputChange(field.fieldKey, e.target.value)}
-                        placeholder={`Enter ${field.label.toLowerCase()}`}
-                        disabled={isDisabled || field.readOnly}
-                        required={field.required && !isDisabled}
-                        className={`w-full px-4 py-3 border-2 rounded-xl transition-all ${
-                          isDisabled 
-                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
-                            : 'border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                        }`}
-                      />
-                    )}
-
-                    {field.type === 'number' && (
-                      <input
-                        type="number"
-                        value={fieldValue}
-                        onChange={(e) => handleTestInputChange(field.fieldKey, e.target.value)}
-                        placeholder={`Enter ${field.label.toLowerCase()}`}
-                        disabled={isDisabled || field.readOnly}
-                        required={field.required && !isDisabled}
-                        min={field.validation?.min}
-                        max={field.validation?.max}
-                        className={`w-full px-4 py-3 border-2 rounded-xl ${
-                          isDisabled 
-                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
-                            : 'border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500'
-                        }`}
-                      />
-                    )}
-
-                    {field.type === 'date' && (
-                      <input
-                        type="date"
-                        value={fieldValue}
-                        onChange={(e) => handleTestInputChange(field.fieldKey, e.target.value)}
-                        disabled={isDisabled || field.readOnly}
-                        required={field.required && !isDisabled}
-                        className={`w-full px-4 py-3 border-2 rounded-xl ${
-                          isDisabled 
-                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
-                            : 'border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500'
-                        }`}
-                      />
-                    )}
-
-                    {field.type === 'textarea' && (
-                      <textarea
-                        rows={3}
-                        value={fieldValue}
-                        onChange={(e) => handleTestInputChange(field.fieldKey, e.target.value)}
-                        placeholder={`Enter ${field.label.toLowerCase()}`}
-                        disabled={isDisabled || field.readOnly}
-                        required={field.required && !isDisabled}
-                        className={`w-full px-4 py-3 border-2 rounded-xl ${
-                          isDisabled 
-                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
-                            : 'border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500'
-                        }`}
-                      />
-                    )}
-
-                    {field.type === 'select' && (
-                      <select
-                        value={fieldValue}
-                        onChange={(e) => handleTestInputChange(field.fieldKey, e.target.value)}
-                        disabled={isDisabled || field.readOnly}
-                        required={field.required && !isDisabled}
-                        className={`w-full px-4 py-3 border-2 rounded-xl ${
-                          isDisabled 
-                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
-                            : 'border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500'
-                        }`}
-                      >
-                        <option value="">Select {field.label}</option>
-                        {fieldOptions.map((opt, i) => (
-                          <option key={i} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                    )}
-
-                    {field.type === 'checkbox' && (
-                      <div className={`flex items-center space-x-3 p-3 border-2 rounded-xl ${
-                        isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-white'
-                      }`}>
-                        <input
-                          type="checkbox"
-                          checked={fieldValue === 'true' || fieldValue === true}
-                          onChange={(e) => handleTestInputChange(field.fieldKey, e.target.checked)}
-                          disabled={isDisabled || field.readOnly}
-                          className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <span className={`text-sm ${isDisabled ? 'text-gray-500' : 'text-gray-700'}`}>
-                          Enable {field.label}
-                        </span>
-                      </div>
-                    )}
-
-                    {field.type === 'radio' && (
-                      <div className={`space-y-2 p-3 border-2 rounded-xl ${
-                        isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-white'
-                      }`}>
-                        {fieldOptions.map((opt, i) => (
-                          <div key={i} className="flex items-center space-x-3">
-                            <input
-                              type="radio"
-                              name={`preview-${field._id}`}
-                              value={opt}
-                              checked={fieldValue === opt}
-                              onChange={(e) => handleTestInputChange(field.fieldKey, e.target.value)}
-                              disabled={isDisabled || field.readOnly}
-                              className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                            />
-                            <span className={`text-sm ${isDisabled ? 'text-gray-500' : 'text-gray-700'}`}>
-                              {opt}
+                  return (
+                    <div key={field._id} className="group">
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        {field.label}
+                        {field.required && (
+                          <span className="text-red-500 ml-1">*</span>
+                        )}
+                        {field.categorySource &&
+                          field.categorySource !== "manual" && (
+                            <span className="ml-2 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                              <FolderTree className="h-3 w-3 inline mr-1" />
+                              {field.categorySource === "all" &&
+                                "All Categories"}
+                              {field.categorySource === "entity" &&
+                                "Entity Categories"}
+                              {field.categorySource === "specific" &&
+                                `${field.categoryIds?.length || 0} Categories`}
                             </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          )}
+                        {!field.isEnabled && (
+                          <span className="ml-2 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                            Disabled
+                          </span>
+                        )}
+                        {field.readOnly && (
+                          <span className="ml-2 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                            Read only
+                          </span>
+                        )}
+                      </label>
 
-                    {field.type === 'file' && (
-                      <div className={`border-2 border-dashed rounded-xl p-6 text-center ${
-                        isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-gray-50 hover:border-blue-300'
-                      }`}>
-                        <Upload className={`h-8 w-8 mx-auto mb-2 ${
-                          isDisabled ? 'text-gray-400' : 'text-gray-500'
-                        }`} />
-                        <p className={`text-sm ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {isDisabled ? 'File upload disabled' : 'Click to upload or drag and drop'}
-                        </p>
-                        {field.validation?.allowedFileTypes && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            Allowed: {field.validation.allowedFileTypes.join(', ')}
+                      {field.type === "text" && (
+                        <input
+                          type="text"
+                          value={fieldValue}
+                          onChange={(e) =>
+                            handleTestInputChange(
+                              field.fieldKey,
+                              e.target.value,
+                            )
+                          }
+                          placeholder={`Enter ${field.label.toLowerCase()}`}
+                          disabled={isDisabled || field.readOnly}
+                          required={field.required && !isDisabled}
+                          className={`w-full px-4 py-3 border-2 rounded-xl transition-all ${
+                            isDisabled
+                              ? "border-gray-200 bg-gray-50 text-gray-500"
+                              : "border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          }`}
+                        />
+                      )}
+
+                      {field.type === "number" && (
+                        <input
+                          type="number"
+                          value={fieldValue}
+                          onChange={(e) =>
+                            handleTestInputChange(
+                              field.fieldKey,
+                              e.target.value,
+                            )
+                          }
+                          placeholder={`Enter ${field.label.toLowerCase()}`}
+                          disabled={isDisabled || field.readOnly}
+                          required={field.required && !isDisabled}
+                          min={field.validation?.min}
+                          max={field.validation?.max}
+                          className={`w-full px-4 py-3 border-2 rounded-xl ${
+                            isDisabled
+                              ? "border-gray-200 bg-gray-50 text-gray-500"
+                              : "border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500"
+                          }`}
+                        />
+                      )}
+
+                      {field.type === "date" && (
+                        <input
+                          type="date"
+                          value={fieldValue}
+                          onChange={(e) =>
+                            handleTestInputChange(
+                              field.fieldKey,
+                              e.target.value,
+                            )
+                          }
+                          disabled={isDisabled || field.readOnly}
+                          required={field.required && !isDisabled}
+                          className={`w-full px-4 py-3 border-2 rounded-xl ${
+                            isDisabled
+                              ? "border-gray-200 bg-gray-50 text-gray-500"
+                              : "border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500"
+                          }`}
+                        />
+                      )}
+
+                      {field.type === "textarea" && (
+                        <textarea
+                          rows={3}
+                          value={fieldValue}
+                          onChange={(e) =>
+                            handleTestInputChange(
+                              field.fieldKey,
+                              e.target.value,
+                            )
+                          }
+                          placeholder={`Enter ${field.label.toLowerCase()}`}
+                          disabled={isDisabled || field.readOnly}
+                          required={field.required && !isDisabled}
+                          className={`w-full px-4 py-3 border-2 rounded-xl ${
+                            isDisabled
+                              ? "border-gray-200 bg-gray-50 text-gray-500"
+                              : "border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500"
+                          }`}
+                        />
+                      )}
+
+                      {field.type === "select" && (
+                        <select
+                          value={fieldValue}
+                          onChange={(e) =>
+                            handleTestInputChange(
+                              field.fieldKey,
+                              e.target.value,
+                            )
+                          }
+                          disabled={isDisabled || field.readOnly}
+                          required={field.required && !isDisabled}
+                          className={`w-full px-4 py-3 border-2 rounded-xl ${
+                            isDisabled
+                              ? "border-gray-200 bg-gray-50 text-gray-500"
+                              : "border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500"
+                          }`}
+                        >
+                          <option value="">Select {field.label}</option>
+                          {fieldOptions.map((opt, i) => (
+                            <option key={i} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
+                      {field.type === "checkbox" && (
+                        <div
+                          className={`flex items-center space-x-3 p-3 border-2 rounded-xl ${
+                            isDisabled
+                              ? "border-gray-200 bg-gray-50"
+                              : "border-gray-300 bg-white"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={
+                              fieldValue === "true" || fieldValue === true
+                            }
+                            onChange={(e) =>
+                              handleTestInputChange(
+                                field.fieldKey,
+                                e.target.checked,
+                              )
+                            }
+                            disabled={isDisabled || field.readOnly}
+                            className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <span
+                            className={`text-sm ${isDisabled ? "text-gray-500" : "text-gray-700"}`}
+                          >
+                            Enable {field.label}
+                          </span>
+                        </div>
+                      )}
+
+                      {field.type === "radio" && (
+                        <div
+                          className={`space-y-2 p-3 border-2 rounded-xl ${
+                            isDisabled
+                              ? "border-gray-200 bg-gray-50"
+                              : "border-gray-300 bg-white"
+                          }`}
+                        >
+                          {fieldOptions.map((opt, i) => (
+                            <div
+                              key={i}
+                              className="flex items-center space-x-3"
+                            >
+                              <input
+                                type="radio"
+                                name={`preview-${field._id}`}
+                                value={opt}
+                                checked={fieldValue === opt}
+                                onChange={(e) =>
+                                  handleTestInputChange(
+                                    field.fieldKey,
+                                    e.target.value,
+                                  )
+                                }
+                                disabled={isDisabled || field.readOnly}
+                                className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                              />
+                              <span
+                                className={`text-sm ${isDisabled ? "text-gray-500" : "text-gray-700"}`}
+                              >
+                                {opt}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {field.type === "file" && (
+                        <div>
+                          <div
+                            className={`border-2 border-dashed rounded-xl p-6 text-center transition-all ${
+                              isDisabled
+                                ? "border-gray-200 bg-gray-50"
+                                : "border-gray-300 bg-gray-50 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
+                            }`}
+                            onClick={() =>
+                              !isDisabled &&
+                              document
+                                .getElementById(`file-${field._id}`)
+                                ?.click()
+                            }
+                          >
+                            <input
+                              id={`file-${field._id}`}
+                              type="file"
+                              className="hidden"
+                              disabled={isDisabled || field.readOnly}
+                              accept={field.validation?.allowedFileTypes
+                                ?.map((t) => `.${t}`)
+                                .join(",")}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  if (
+                                    field.validation?.maxFileSize &&
+                                    file.size > field.validation.maxFileSize
+                                  ) {
+                                    toast.error(
+                                      `File size exceeds ${field.validation.maxFileSize / 1024 / 1024}MB`,
+                                    );
+                                    return;
+                                  }
+                                  handleFileUpload(
+                                    field.fieldKey,
+                                    file,
+                                    "file",
+                                  );
+                                }
+                              }}
+                            />
+                            <Upload
+                              className={`h-8 w-8 mx-auto mb-2 ${
+                                isDisabled ? "text-gray-400" : "text-gray-500"
+                              }`}
+                            />
+                            <p
+                              className={`text-sm ${isDisabled ? "text-gray-400" : "text-gray-600"}`}
+                            >
+                              {isDisabled
+                                ? "File upload disabled"
+                                : "Click to upload or drag and drop"}
+                            </p>
+                            {field.validation?.allowedFileTypes && (
+                              <p className="text-xs text-gray-400 mt-1">
+                                Allowed:{" "}
+                                {field.validation.allowedFileTypes.join(", ")}
+                                {field.validation?.maxFileSize &&
+                                  ` (Max: ${field.validation.maxFileSize / 1024 / 1024}MB)`}
+                              </p>
+                            )}
+                            {previewFiles[field.fieldKey] && (
+                              <div className="mt-2 text-sm text-green-600 flex items-center justify-center">
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                {previewFiles[field.fieldKey].name}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {field.type === "image" && (
+                        <div>
+                          <div
+                            className={`border-2 border-dashed rounded-xl p-6 text-center transition-all ${
+                              isDisabled
+                                ? "border-gray-200 bg-gray-50"
+                                : "border-gray-300 bg-gray-50 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
+                            }`}
+                            onClick={() =>
+                              !isDisabled &&
+                              document
+                                .getElementById(`image-${field._id}`)
+                                ?.click()
+                            }
+                          >
+                            <input
+                              id={`image-${field._id}`}
+                              type="file"
+                              className="hidden"
+                              disabled={isDisabled || field.readOnly}
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  if (
+                                    field.validation?.maxFileSize &&
+                                    file.size > field.validation.maxFileSize
+                                  ) {
+                                    toast.error(
+                                      `File size exceeds ${field.validation.maxFileSize / 1024 / 1024}MB`,
+                                    );
+                                    return;
+                                  }
+                                  handleFileUpload(
+                                    field.fieldKey,
+                                    file,
+                                    "image",
+                                  );
+                                }
+                              }}
+                            />
+                            {previewImages[field.fieldKey] ? (
+                              <div className="relative">
+                                <img
+                                  src={previewImages[field.fieldKey]}
+                                  alt="Preview"
+                                  className="max-h-40 mx-auto rounded-lg"
+                                />
+                                <p className="text-sm text-gray-600 mt-2">
+                                  {previewFiles[field.fieldKey]?.name}
+                                </p>
+                              </div>
+                            ) : (
+                              <>
+                                <ImageIcon
+                                  className={`h-8 w-8 mx-auto mb-2 ${
+                                    isDisabled
+                                      ? "text-gray-400"
+                                      : "text-gray-500"
+                                  }`}
+                                />
+                                <p
+                                  className={`text-sm ${isDisabled ? "text-gray-400" : "text-gray-600"}`}
+                                >
+                                  {isDisabled
+                                    ? "Image upload disabled"
+                                    : "Click to upload image"}
+                                </p>
+                                {field.validation?.maxFileSize && (
+                                  <p className="text-xs text-gray-400 mt-1">
+                                    Max size:{" "}
+                                    {field.validation.maxFileSize / 1024 / 1024}
+                                    MB
+                                  </p>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {field.validation &&
+                        field.type !== "file" &&
+                        field.type !== "image" && (
+                          <p className="text-xs text-gray-400 mt-1.5 flex items-center">
+                            <Info className="h-3 w-3 mr-1" />
+                            {field.validation.min !== undefined &&
+                              `Min: ${field.validation.min} `}
+                            {field.validation.max !== undefined &&
+                              `Max: ${field.validation.max} `}
+                            {field.validation.regex && "Pattern required "}
                           </p>
                         )}
-                      </div>
-                    )}
+                    </div>
+                  );
+                })}
 
-                    {field.type === 'image' && (
-                      <div className={`border-2 border-dashed rounded-xl p-6 text-center ${
-                        isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-gray-50'
-                      }`}>
-                        <ImageIcon className={`h-8 w-8 mx-auto mb-2 ${
-                          isDisabled ? 'text-gray-400' : 'text-gray-500'
-                        }`} />
-                        <p className={`text-sm ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {isDisabled ? 'Image upload disabled' : 'Click to upload image'}
-                        </p>
-                      </div>
-                    )}
-
-                    {field.validation && (
-                      <p className="text-xs text-gray-400 mt-1.5 flex items-center">
-                        <Info className="h-3 w-3 mr-1" />
-                        {field.validation.min !== undefined && `Min: ${field.validation.min} `}
-                        {field.validation.max !== undefined && `Max: ${field.validation.max} `}
-                        {field.validation.regex && 'Pattern required '}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-
-              {filteredFields.filter(f => f.visible).length === 0 && (
+              {filteredFields.filter((f) => f.visible).length === 0 && (
                 <div className="text-center py-12 text-gray-500">
                   <EyeOff className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                   <p className="text-lg">No visible fields to preview</p>
@@ -2261,22 +2787,44 @@ export default function FieldsContent() {
 
             {/* Preview Actions */}
             <div className="mt-8 pt-4 border-t-2 border-gray-200 flex justify-end space-x-3">
-              <button 
-                onClick={() => setTestFormData({})}
+              <button
+                onClick={() => {
+                  setTestFormData({});
+                  setPreviewFiles({});
+                  setPreviewImages({});
+                }}
                 className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium border-2 border-gray-200"
               >
                 Clear Test Data
               </button>
-              <button 
+              <button
                 onClick={() => {
-                  if (previewMode === 'test') {
-                    console.log('Test Form Data:', testFormData);
-                    toast.success('Test data logged to console');
+                  if (previewMode === "test") {
+                    // Validate all fields
+                    const errors: string[] = [];
+                    filteredFields
+                      .filter((f) => f.visible)
+                      .forEach((field) => {
+                        const value = testFormData[field.fieldKey];
+                        if (field.required && (!value || value === "")) {
+                          errors.push(`${field.label} is required`);
+                        }
+                      });
+
+                    if (errors.length > 0) {
+                      toast.error(errors.join("\n"));
+                    } else {
+                      console.log("Test Form Data:", testFormData);
+                      console.log("Test Files:", previewFiles);
+                      toast.success(
+                        "Test data submitted! Check console for details.",
+                      );
+                    }
                   }
                 }}
                 className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-500/25 font-medium border-2 border-blue-400"
               >
-                {previewMode === 'test' ? 'Submit Test' : 'Save'}
+                {previewMode === "test" ? "Submit Test" : "Save"}
               </button>
             </div>
           </div>
@@ -2292,10 +2840,16 @@ export default function FieldsContent() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="bg-white/20 rounded-xl p-2 backdrop-blur-sm">
-                    {editingField ? <Edit className="h-5 w-5 text-white" /> : <Plus className="h-5 w-5 text-white" />}
+                    {editingField ? (
+                      <Edit className="h-5 w-5 text-white" />
+                    ) : (
+                      <Plus className="h-5 w-5 text-white" />
+                    )}
                   </div>
                   <h2 className="text-xl font-semibold text-white">
-                    {editingField ? `Edit Field: ${editingField.label}` : 'Create New Field'}
+                    {editingField
+                      ? `Edit Field: ${editingField.label}`
+                      : "Create New Field"}
                   </h2>
                 </div>
                 <button
@@ -2321,10 +2875,14 @@ export default function FieldsContent() {
                   <input
                     type="text"
                     value={formData.fieldKey}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      fieldKey: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')
-                    })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        fieldKey: e.target.value
+                          .toLowerCase()
+                          .replace(/[^a-z0-9-]/g, "-"),
+                      })
+                    }
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 font-mono text-gray-900"
                     placeholder="e.g., office-rent"
                     required
@@ -2342,7 +2900,9 @@ export default function FieldsContent() {
                   <input
                     type="text"
                     value={formData.label}
-                    onChange={(e) => setFormData({ ...formData, label: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, label: e.target.value })
+                    }
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-gray-900"
                     placeholder="e.g., Office Rent"
                     required
@@ -2357,32 +2917,82 @@ export default function FieldsContent() {
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                   {[
-                    { type: 'text', label: 'Text', icon: Type, color: 'blue' },
-                    { type: 'number', label: 'Number', icon: Hash, color: 'emerald' },
-                    { type: 'date', label: 'Date', icon: Calendar, color: 'purple' },
-                    { type: 'select', label: 'Select', icon: ListChecks, color: 'amber' },
-                    { type: 'textarea', label: 'Textarea', icon: FileText, color: 'orange' },
-                    { type: 'checkbox', label: 'Checkbox', icon: CheckSquare, color: 'teal' },
-                    { type: 'radio', label: 'Radio', icon: CircleDot, color: 'cyan' },
-                    { type: 'file', label: 'File', icon: Upload, color: 'indigo' },
-                    { type: 'image', label: 'Image', icon: ImageIcon, color: 'pink' }
+                    { type: "text", label: "Text", icon: Type, color: "blue" },
+                    {
+                      type: "number",
+                      label: "Number",
+                      icon: Hash,
+                      color: "emerald",
+                    },
+                    {
+                      type: "date",
+                      label: "Date",
+                      icon: Calendar,
+                      color: "purple",
+                    },
+                    {
+                      type: "select",
+                      label: "Select",
+                      icon: ListChecks,
+                      color: "amber",
+                    },
+                    {
+                      type: "textarea",
+                      label: "Textarea",
+                      icon: FileText,
+                      color: "orange",
+                    },
+                    {
+                      type: "checkbox",
+                      label: "Checkbox",
+                      icon: CheckSquare,
+                      color: "teal",
+                    },
+                    {
+                      type: "radio",
+                      label: "Radio",
+                      icon: CircleDot,
+                      color: "cyan",
+                    },
+                    {
+                      type: "file",
+                      label: "File",
+                      icon: Upload,
+                      color: "indigo",
+                    },
+                    {
+                      type: "image",
+                      label: "Image",
+                      icon: ImageIcon,
+                      color: "pink",
+                    },
                   ].map(({ type, label, icon: Icon, color }) => (
                     <button
                       key={type}
                       type="button"
-                      onClick={() => setFormData({ ...formData, type: type as any })}
+                      onClick={() =>
+                        setFormData({ ...formData, type: type as any })
+                      }
                       className={`p-4 border-2 rounded-xl flex flex-col items-center transition-all ${
                         formData.type === type
                           ? `border-${color}-500 bg-${color}-50 ring-2 ring-${color}-100`
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                       }`}
                     >
-                      <Icon className={`h-6 w-6 mb-1 ${
-                        formData.type === type ? `text-${color}-600` : 'text-gray-500'
-                      }`} />
-                      <span className={`text-xs font-medium ${
-                        formData.type === type ? `text-${color}-700` : 'text-gray-600'
-                      }`}>
+                      <Icon
+                        className={`h-6 w-6 mb-1 ${
+                          formData.type === type
+                            ? `text-${color}-600`
+                            : "text-gray-500"
+                        }`}
+                      />
+                      <span
+                        className={`text-xs font-medium ${
+                          formData.type === type
+                            ? `text-${color}-700`
+                            : "text-gray-600"
+                        }`}
+                      >
                         {label}
                       </span>
                     </button>
@@ -2391,7 +3001,7 @@ export default function FieldsContent() {
               </div>
 
               {/* Options or Category Source for Select/Radio */}
-              {(formData.type === 'select' || formData.type === 'radio') && (
+              {(formData.type === "select" || formData.type === "radio") && (
                 <div className="space-y-4">
                   {/* Category Source Selection */}
                   <div>
@@ -2402,90 +3012,98 @@ export default function FieldsContent() {
                       <button
                         type="button"
                         onClick={() => {
-                          setCategorySource('manual');
-                          setFormData(prev => ({
+                          setCategorySource("manual");
+                          setFormData((prev) => ({
                             ...prev,
-                            categorySource: 'manual',
-                            categoryIds: []
+                            categorySource: "manual",
+                            categoryIds: [],
                           }));
                         }}
                         className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${
-                          formData.categorySource === 'manual'
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                          formData.categorySource === "manual"
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200 hover:border-gray-300"
                         }`}
                       >
                         <span className="text-sm font-medium">Manual</span>
-                        <span className="text-xs text-gray-500 mt-1">Enter options</span>
+                        <span className="text-xs text-gray-500 mt-1">
+                          Enter options
+                        </span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => {
-                          setCategorySource('entity');
-                          setFormData(prev => ({
+                          setCategorySource("entity");
+                          setFormData((prev) => ({
                             ...prev,
-                            categorySource: 'entity',
-                            options: []
+                            categorySource: "entity",
+                            options: [],
                           }));
                         }}
                         className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${
-                          formData.categorySource === 'entity'
-                            ? 'border-green-500 bg-green-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                          formData.categorySource === "entity"
+                            ? "border-green-500 bg-green-50"
+                            : "border-gray-200 hover:border-gray-300"
                         }`}
                       >
                         <FolderTree className="h-5 w-5 mb-1 text-green-600" />
                         <span className="text-sm font-medium">Entity</span>
-                        <span className="text-xs text-gray-500 mt-1">{entityCategories.length} cats</span>
+                        <span className="text-xs text-gray-500 mt-1">
+                          {entityCategories.length} cats
+                        </span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => {
-                          setCategorySource('all');
-                          setFormData(prev => ({
+                          setCategorySource("all");
+                          setFormData((prev) => ({
                             ...prev,
-                            categorySource: 'all',
-                            options: []
+                            categorySource: "all",
+                            options: [],
                           }));
                         }}
                         className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${
-                          formData.categorySource === 'all'
-                            ? 'border-purple-500 bg-purple-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                          formData.categorySource === "all"
+                            ? "border-purple-500 bg-purple-50"
+                            : "border-gray-200 hover:border-gray-300"
                         }`}
                       >
                         <FolderTree className="h-5 w-5 mb-1 text-purple-600" />
                         <span className="text-sm font-medium">All Module</span>
-                        <span className="text-xs text-gray-500 mt-1">{moduleCategories.length} cats</span>
+                        <span className="text-xs text-gray-500 mt-1">
+                          {moduleCategories.length} cats
+                        </span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => {
-                          setCategorySource('specific');
-                          setFormData(prev => ({
+                          setCategorySource("specific");
+                          setFormData((prev) => ({
                             ...prev,
-                            categorySource: 'specific',
-                            options: []
+                            categorySource: "specific",
+                            options: [],
                           }));
                         }}
                         className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${
-                          formData.categorySource === 'specific'
-                            ? 'border-amber-500 bg-amber-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                          formData.categorySource === "specific"
+                            ? "border-amber-500 bg-amber-50"
+                            : "border-gray-200 hover:border-gray-300"
                         }`}
                       >
                         <FolderTree className="h-5 w-5 mb-1 text-amber-600" />
                         <span className="text-sm font-medium">Specific</span>
-                        <span className="text-xs text-gray-500 mt-1">Select manually</span>
+                        <span className="text-xs text-gray-500 mt-1">
+                          Select manually
+                        </span>
                       </button>
                     </div>
                   </div>
 
                   {/* Manual Options */}
-                  {formData.categorySource === 'manual' && (
+                  {formData.categorySource === "manual" && (
                     <div className="bg-gray-50 p-5 rounded-xl border-2 border-gray-200">
                       <label className="block text-sm font-medium text-gray-700 mb-3">
                         Options <span className="text-red-500">*</span>
@@ -2495,7 +3113,9 @@ export default function FieldsContent() {
                           <input
                             type="text"
                             value={opt}
-                            onChange={(e) => handleOptionChange(i, e.target.value)}
+                            onChange={(e) =>
+                              handleOptionChange(i, e.target.value)
+                            }
                             className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                             placeholder={`Option ${i + 1}`}
                           />
@@ -2520,7 +3140,7 @@ export default function FieldsContent() {
                   )}
 
                   {/* Category Selection for Specific */}
-                  {formData.categorySource === 'specific' && (
+                  {formData.categorySource === "specific" && (
                     <button
                       type="button"
                       onClick={() => setShowCategoryModal(true)}
@@ -2528,39 +3148,132 @@ export default function FieldsContent() {
                     >
                       <FolderTree className="h-5 w-5 mr-2 text-amber-600" />
                       <span className="text-sm font-medium text-amber-700">
-                        {selectedCategoryIds.length > 0 
-                          ? `${selectedCategoryIds.length} Categories Selected` 
-                          : 'Select Specific Categories'}
+                        {selectedCategoryIds.length > 0
+                          ? `${selectedCategoryIds.length} Categories Selected`
+                          : "Select Specific Categories"}
                       </span>
                     </button>
                   )}
 
                   {/* Category Source Info */}
-                  {formData.categorySource && formData.categorySource !== 'manual' && formData.categorySource !== 'specific' && (
-                    <div className={`p-4 rounded-xl border-2 ${
-                      formData.categorySource === 'entity' ? 'bg-green-50 border-green-200' : 'bg-purple-50 border-purple-200'
-                    }`}>
-                      <div className="flex items-start">
-                        <FolderTree className={`h-5 w-5 mr-2 mt-0.5 ${
-                          formData.categorySource === 'entity' ? 'text-green-600' : 'text-purple-600'
-                        }`} />
-                        <div>
-                          <p className={`font-medium ${
-                            formData.categorySource === 'entity' ? 'text-green-800' : 'text-purple-800'
-                          }`}>
-                            {formData.categorySource === 'entity' && 'Using all categories from this entity'}
-                            {formData.categorySource === 'all' && 'Using all categories from this module'}
-                          </p>
-                          <p className={`text-sm mt-1 ${
-                            formData.categorySource === 'entity' ? 'text-green-600' : 'text-purple-600'
-                          }`}>
-                            {formData.categorySource === 'entity' && `${entityCategories.length} categories will be available as options`}
-                            {formData.categorySource === 'all' && `${moduleCategories.length} categories will be available as options`}
-                          </p>
+                  {formData.categorySource &&
+                    formData.categorySource !== "manual" &&
+                    formData.categorySource !== "specific" && (
+                      <div
+                        className={`p-4 rounded-xl border-2 ${
+                          formData.categorySource === "entity"
+                            ? "bg-green-50 border-green-200"
+                            : "bg-purple-50 border-purple-200"
+                        }`}
+                      >
+                        <div className="flex items-start">
+                          <FolderTree
+                            className={`h-5 w-5 mr-2 mt-0.5 ${
+                              formData.categorySource === "entity"
+                                ? "text-green-600"
+                                : "text-purple-600"
+                            }`}
+                          />
+                          <div>
+                            <p
+                              className={`font-medium ${
+                                formData.categorySource === "entity"
+                                  ? "text-green-800"
+                                  : "text-purple-800"
+                              }`}
+                            >
+                              {formData.categorySource === "entity" &&
+                                "Using all categories from this entity"}
+                              {formData.categorySource === "all" &&
+                                "Using all categories from this module"}
+                            </p>
+                            <p
+                              className={`text-sm mt-1 ${
+                                formData.categorySource === "entity"
+                                  ? "text-green-600"
+                                  : "text-purple-600"
+                              }`}
+                            >
+                              {formData.categorySource === "entity" &&
+                                `${entityCategories.length} categories will be available as options`}
+                              {formData.categorySource === "all" &&
+                                `${moduleCategories.length} categories will be available as options`}
+                            </p>
+                          </div>
                         </div>
                       </div>
+                    )}
+                </div>
+              )}
+
+              {/* File/Image Validation */}
+              {(formData.type === "file" || formData.type === "image") && (
+                <div className="bg-gray-50 p-5 rounded-xl border-2 border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                    <Upload className="h-4 w-4 mr-2 text-indigo-500" />
+                    File Upload Settings
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">
+                        Allowed File Types{" "}
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={
+                          formData.validation.allowedFileTypes?.join(", ") || ""
+                        }
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            validation: {
+                              ...formData.validation,
+                              allowedFileTypes: e.target.value
+                                .split(",")
+                                .map((t) => t.trim())
+                                .filter((t) => t),
+                            },
+                          })
+                        }
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                        placeholder="jpg, png, pdf, doc"
+                        required
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
+                        Comma separated
+                      </p>
                     </div>
-                  )}
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">
+                        Max File Size (MB){" "}
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={
+                          formData.validation.maxFileSize
+                            ? formData.validation.maxFileSize / 1024 / 1024
+                            : ""
+                        }
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            validation: {
+                              ...formData.validation,
+                              maxFileSize: e.target.value
+                                ? parseInt(e.target.value) * 1024 * 1024
+                                : undefined,
+                            },
+                          })
+                        }
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                        placeholder="5"
+                        min="1"
+                        required
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -2572,150 +3285,161 @@ export default function FieldsContent() {
                 <input
                   type="text"
                   value={formData.defaultValue}
-                  onChange={(e) => setFormData({ ...formData, defaultValue: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, defaultValue: e.target.value })
+                  }
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-gray-900"
                   placeholder="Optional default value"
                 />
               </div>
 
               {/* Validation */}
-              <div className="bg-gray-50 p-5 rounded-xl border-2 border-gray-200">
-                <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
-                  <Shield className="h-4 w-4 mr-2 text-gray-500" />
-                  Validation Rules
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {(formData.type === 'number' || formData.type === 'text') && (
-                    <>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">
-                          Min {formData.type === 'number' ? 'Value' : 'Length'}
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.validation.min || ''}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            validation: {
-                              ...formData.validation,
-                              min: e.target.value ? parseInt(e.target.value) : undefined
+              {(formData.type === "text" ||
+                formData.type === "number" ||
+                formData.type === "textarea") && (
+                <div className="bg-gray-50 p-5 rounded-xl border-2 border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                    <Shield className="h-4 w-4 mr-2 text-gray-500" />
+                    Validation Rules
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {(formData.type === "number" ||
+                      formData.type === "text" ||
+                      formData.type === "textarea") && (
+                      <>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">
+                            Min{" "}
+                            {formData.type === "number" ? "Value" : "Length"}
+                          </label>
+                          <input
+                            type="number"
+                            value={formData.validation.min || ""}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                validation: {
+                                  ...formData.validation,
+                                  min: e.target.value
+                                    ? parseInt(e.target.value)
+                                    : undefined,
+                                },
+                              })
                             }
-                          })}
-                          className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">
-                          Max {formData.type === 'number' ? 'Value' : 'Length'}
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.validation.max || ''}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            validation: {
-                              ...formData.validation,
-                              max: e.target.value ? parseInt(e.target.value) : undefined
+                            className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">
+                            Max{" "}
+                            {formData.type === "number" ? "Value" : "Length"}
+                          </label>
+                          <input
+                            type="number"
+                            value={formData.validation.max || ""}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                validation: {
+                                  ...formData.validation,
+                                  max: e.target.value
+                                    ? parseInt(e.target.value)
+                                    : undefined,
+                                },
+                              })
                             }
-                          })}
-                          className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
-                        />
-                      </div>
-                    </>
-                  )}
+                            className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                          />
+                        </div>
+                      </>
+                    )}
 
-                  {formData.type === 'text' && (
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs text-gray-500 mb-1">
-                        Regex Pattern
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.validation.regex}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          validation: { ...formData.validation, regex: e.target.value }
-                        })}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg font-mono focus:ring-2 focus:ring-blue-500 text-gray-900"
-                        placeholder="^[A-Z0-9]+$"
-                      />
-                    </div>
-                  )}
-
-                  {(formData.type === 'file' || formData.type === 'image') && (
-                    <>
-                      <div>
+                    {formData.type === "text" && (
+                      <div className="sm:col-span-2">
                         <label className="block text-xs text-gray-500 mb-1">
-                          Max File Size (MB)
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.validation.maxFileSize ? formData.validation.maxFileSize / 1024 / 1024 : ''}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            validation: {
-                              ...formData.validation,
-                              maxFileSize: e.target.value ? parseInt(e.target.value) * 1024 * 1024 : undefined
-                            }
-                          })}
-                          className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">
-                          Allowed File Types
+                          Regex Pattern
                         </label>
                         <input
                           type="text"
-                          value={formData.validation.allowedFileTypes?.join(', ') || ''}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            validation: {
-                              ...formData.validation,
-                              allowedFileTypes: e.target.value.split(',').map(t => t.trim())
-                            }
-                          })}
-                          className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
-                          placeholder="jpg, png, pdf"
+                          value={formData.validation.regex || ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              validation: {
+                                ...formData.validation,
+                                regex: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg font-mono focus:ring-2 focus:ring-blue-500 text-gray-900"
+                          placeholder="^[A-Z0-9]+$"
                         />
                       </div>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Settings */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
-                  { key: 'required', label: 'Required', description: 'Field must be filled', color: 'red' },
-                  { key: 'readOnly', label: 'Read Only', description: 'Cannot be edited', color: 'gray' },
-                  { key: 'visible', label: 'Visible', description: 'Shown in forms', color: 'green' },
-                  { key: 'isEnabled', label: 'Enabled', description: 'Field is active', color: 'green' }
+                  {
+                    key: "required",
+                    label: "Required",
+                    description: "Field must be filled",
+                    color: "red",
+                  },
+                  {
+                    key: "readOnly",
+                    label: "Read Only",
+                    description: "Cannot be edited",
+                    color: "gray",
+                  },
+                  {
+                    key: "visible",
+                    label: "Visible",
+                    description: "Shown in forms",
+                    color: "green",
+                  },
+                  {
+                    key: "isEnabled",
+                    label: "Enabled",
+                    description: "Field is active",
+                    color: "green",
+                  },
                 ].map(({ key, label, description, color }) => (
                   <label
                     key={key}
                     className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
                       formData[key as keyof typeof formData]
                         ? `border-${color}-500 bg-${color}-50`
-                        : 'border-gray-200 hover:border-gray-300'
+                        : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
                     <input
                       type="checkbox"
-                      checked={formData[key as keyof typeof formData] as boolean}
-                      onChange={(e) => setFormData({ ...formData, [key]: e.target.checked })}
+                      checked={
+                        formData[key as keyof typeof formData] as boolean
+                      }
+                      onChange={(e) =>
+                        setFormData({ ...formData, [key]: e.target.checked })
+                      }
                       className="sr-only"
                     />
                     <div className="flex-1">
                       <p className="font-medium text-gray-900">{label}</p>
                       <p className="text-xs text-gray-500">{description}</p>
                     </div>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                      formData[key as keyof typeof formData]
-                        ? `border-${color}-500 bg-${color}-500`
-                        : 'border-gray-300'
-                    }`}>
-                      {formData[key as keyof typeof formData] && <Check className="h-4 w-4 text-white" />}
+                    <div
+                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                        formData[key as keyof typeof formData]
+                          ? `border-${color}-500 bg-${color}-500`
+                          : "border-gray-300"
+                      }`}
+                    >
+                      {formData[key as keyof typeof formData] && (
+                        <Check className="h-4 w-4 text-white" />
+                      )}
                     </div>
                   </label>
                 ))}
@@ -2738,7 +3462,7 @@ export default function FieldsContent() {
                   className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all font-medium shadow-lg shadow-blue-500/25 flex items-center justify-center border-2 border-blue-400"
                 >
                   <Save className="h-5 w-5 mr-2" />
-                  {editingField ? 'Update Field' : 'Create Field'}
+                  {editingField ? "Update Field" : "Create Field"}
                 </button>
               </div>
             </form>
@@ -2785,15 +3509,22 @@ export default function FieldsContent() {
               {/* Category List by Entity */}
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {Object.entries(categoriesByEntity).map(([entity, cats]) => {
-                  const entityObj = entities.find(e => e.entityKey === entity);
-                  const filteredCats = cats.filter(cat => 
-                    cat.name.toLowerCase().includes(categorySearch.toLowerCase())
+                  const entityObj = entities.find(
+                    (e) => e.entityKey === entity,
+                  );
+                  const filteredCats = cats.filter((cat) =>
+                    cat.name
+                      .toLowerCase()
+                      .includes(categorySearch.toLowerCase()),
                   );
 
                   if (filteredCats.length === 0) return null;
 
                   return (
-                    <div key={entity} className="border-2 border-gray-200 rounded-xl overflow-hidden">
+                    <div
+                      key={entity}
+                      className="border-2 border-gray-200 rounded-xl overflow-hidden"
+                    >
                       <div className="bg-gray-50 px-4 py-2 border-b-2 border-gray-200">
                         <h3 className="font-medium text-gray-700">
                           {entityObj?.name || entity}
@@ -2807,28 +3538,41 @@ export default function FieldsContent() {
                           >
                             <input
                               type="checkbox"
-                              checked={selectedCategoryIds.includes(category._id)}
+                              checked={selectedCategoryIds.includes(
+                                category._id,
+                              )}
                               onChange={(e) => {
                                 if (e.target.checked) {
-                                  setSelectedCategoryIds([...selectedCategoryIds, category._id]);
+                                  setSelectedCategoryIds([
+                                    ...selectedCategoryIds,
+                                    category._id,
+                                  ]);
                                 } else {
-                                  setSelectedCategoryIds(selectedCategoryIds.filter(id => id !== category._id));
+                                  setSelectedCategoryIds(
+                                    selectedCategoryIds.filter(
+                                      (id) => id !== category._id,
+                                    ),
+                                  );
                                 }
                               }}
                               className="w-5 h-5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
                             />
                             <div className="ml-3 flex-1">
                               <div className="flex items-center justify-between">
-                                <span className="font-medium text-gray-900">{category.name}</span>
+                                <span className="font-medium text-gray-900">
+                                  {category.name}
+                                </span>
                                 {category.color && (
-                                  <span 
-                                    className="w-4 h-4 rounded-full" 
+                                  <span
+                                    className="w-4 h-4 rounded-full"
                                     style={{ backgroundColor: category.color }}
                                   />
                                 )}
                               </div>
                               {category.description && (
-                                <p className="text-sm text-gray-500">{category.description}</p>
+                                <p className="text-sm text-gray-500">
+                                  {category.description}
+                                </p>
                               )}
                             </div>
                           </label>
