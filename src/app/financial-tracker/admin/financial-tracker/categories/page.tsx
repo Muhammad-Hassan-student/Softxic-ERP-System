@@ -282,9 +282,8 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
       <div
         ref={setNodeRef}
         style={style}
-        className={`group relative bg-white rounded-xl border-2 shadow-sm hover:shadow-md transition-all duration-300 ${
-          !field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
-        } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
+        className={`group relative bg-white rounded-xl border-2 shadow-sm hover:shadow-md transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
+          } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
       >
         <div className="p-3">
           <div className="flex items-center justify-between">
@@ -318,9 +317,8 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
             <div className="flex items-center gap-1">
               <button
                 onClick={() => onToggle(field._id)}
-                className={`p-1.5 rounded-lg transition-colors ${
-                  field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
-                }`}
+                className={`p-1.5 rounded-lg transition-colors ${field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                  }`}
               >
                 {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               </button>
@@ -342,15 +340,13 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
       <div
         ref={setNodeRef}
         style={style}
-        className={`group relative bg-white rounded-2xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 ${
-          !field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
-        } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
+        className={`group relative bg-white rounded-2xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
+          } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
       >
-        <div className={`absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl ${
-          field.isEnabled 
-            ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500' 
+        <div className={`absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl ${field.isEnabled
+            ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500'
             : 'bg-gradient-to-r from-gray-400 to-gray-500'
-        }`}></div>
+          }`}></div>
 
         <div className="p-6">
           <div className="flex items-start justify-between mb-4">
@@ -412,7 +408,7 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
             <div className="mb-4">
               <p className="text-xs text-gray-500 mb-2">Options ({field.options.length})</p>
               <div className="flex flex-wrap gap-2">
-                {field.options.slice(0, 3).map((opt:any, i:any) => (
+                {field.options.slice(0, 3).map((opt: any, i: any) => (
                   <span key={i} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200">
                     {opt}
                   </span>
@@ -465,9 +461,8 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
               </button>
               <button
                 onClick={() => onToggle(field._id)}
-                className={`p-1.5 rounded-lg ${
-                  field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
-                }`}
+                className={`p-1.5 rounded-lg ${field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                  }`}
               >
                 {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               </button>
@@ -503,16 +498,14 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${
-        !field.isEnabled ? 'opacity-70 bg-gray-50/50' : ''
-      } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : 'border-gray-200 hover:border-blue-300'}`}
+      className={`group relative bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : ''
+        } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : 'border-gray-200 hover:border-blue-300'}`}
     >
       {/* Status Indicator Bar */}
-      <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${
-        field.isEnabled 
-          ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500' 
+      <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${field.isEnabled
+          ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500'
           : 'bg-gradient-to-r from-gray-400 to-gray-500'
-      }`}></div>
+        }`}></div>
 
       <div className="p-6">
         <div className="flex flex-col lg:flex-row lg:items-start gap-4">
@@ -546,7 +539,7 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
                   </span>
                 )}
               </div>
-              
+
               <div className="flex items-center gap-2 flex-wrap">
                 {field.required && (
                   <span className="inline-flex items-center px-2.5 py-1 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-medium rounded-full shadow-sm shadow-red-500/25">
@@ -580,7 +573,7 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
               <span className={`px-3 py-1.5 rounded-lg text-xs font-medium border-2 ${getTypeColor(field.type)}`}>
                 {field.type.charAt(0).toUpperCase() + field.type.slice(1)}
               </span>
-              
+
               {field.options && field.options.length > 0 && (
                 <span className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg border border-gray-200 flex items-center">
                   <ListChecks className="h-3 w-3 mr-1" />
@@ -635,8 +628,8 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
             {/* Footer Metadata */}
             <div className="mt-4 flex items-center text-xs text-gray-400 border-t border-gray-100 pt-3">
               <Clock className="h-3 w-3 mr-1" />
-              <span>Updated {new Date(field.updatedAt || '').toLocaleDateString('en-US', { 
-                month: 'short', 
+              <span>Updated {new Date(field.updatedAt || '').toLocaleDateString('en-US', {
+                month: 'short',
                 day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit'
@@ -673,11 +666,10 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => onToggle(field._id)}
-                className={`p-2.5 rounded-xl transition-all border-2 ${
-                  field.isEnabled 
-                    ? 'text-emerald-600 hover:bg-emerald-50 border-emerald-200 hover:border-emerald-300' 
+                className={`p-2.5 rounded-xl transition-all border-2 ${field.isEnabled
+                    ? 'text-emerald-600 hover:bg-emerald-50 border-emerald-200 hover:border-emerald-300'
                     : 'text-gray-400 hover:bg-gray-50 border-gray-200 hover:border-gray-300'
-                }`}
+                  }`}
                 title={field.isEnabled ? 'Disable field' : 'Enable field'}
               >
                 {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
@@ -779,7 +771,7 @@ export default function FieldsContent() {
   );
 
   // Field types for filtering
-  const fieldTypes = useMemo(() => 
+  const fieldTypes = useMemo(() =>
     ['text', 'number', 'date', 'select', 'textarea', 'file', 'image', 'checkbox', 'radio'],
     []
   );
@@ -805,7 +797,7 @@ export default function FieldsContent() {
       if (response.ok) {
         const data = await response.json();
         setEntities(data.entities || []);
-        
+
         if (data.entities.length > 0 && !selectedEntity) {
           setSelectedEntity(data.entities[0]._id);
           setSelectedEntityObj(data.entities[0]);
@@ -836,7 +828,7 @@ export default function FieldsContent() {
   // Fetch fields
   const fetchFields = async () => {
     if (!selectedEntity) return;
-    
+
     try {
       setIsLoading(true);
       const token = getToken();
@@ -848,12 +840,12 @@ export default function FieldsContent() {
       );
 
       if (!response.ok) throw new Error('Failed to fetch fields');
-      
+
       const data = await response.json();
       let sortedFields = data.fields?.sort((a: Field, b: Field) => a.order - b.order) || [];
-      
+
       // Apply sorting
-      sortedFields.sort((a:any, b:any) => {
+      sortedFields.sort((a: any, b: any) => {
         let comparison = 0;
         switch (sortBy) {
           case 'name':
@@ -874,7 +866,7 @@ export default function FieldsContent() {
         }
         return sortDirection === 'asc' ? comparison : -comparison;
       });
-      
+
       setFields(sortedFields);
     } catch (error) {
       toast.error('Failed to load fields');
@@ -891,13 +883,13 @@ export default function FieldsContent() {
       if (selectedModule) params.append('module', selectedModule);
       if (selectedEntity) params.append('entityId', selectedEntity);
       if (showInactive) params.append('includeDisabled', 'true');
-      
+
       const response = await fetch(`/financial-tracker/api/financial-tracker/fields/export?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (!response.ok) throw new Error('Export failed');
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -907,7 +899,7 @@ export default function FieldsContent() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      
+
       toast.success('Fields exported successfully');
     } catch (error) {
       toast.error('Failed to export fields');
@@ -1029,10 +1021,10 @@ export default function FieldsContent() {
 
     try {
       const token = getToken();
-      const url = editingField 
+      const url = editingField
         ? `/financial-tracker/api/financial-tracker/fields/${editingField._id}`
         : '/financial-tracker/api/financial-tracker/fields';
-      
+
       const method = editingField ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -1117,7 +1109,7 @@ export default function FieldsContent() {
   const handleMoveField = async (fieldId: string, direction: 'up' | 'down') => {
     const index = fields.findIndex(f => f._id === fieldId);
     if (
-      (direction === 'up' && index === 0) || 
+      (direction === 'up' && index === 0) ||
       (direction === 'down' && index === fields.length - 1)
     ) return;
 
@@ -1228,16 +1220,16 @@ export default function FieldsContent() {
     const matchesSearch = field.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
       field.fieldKey.toLowerCase().includes(searchTerm.toLowerCase()) ||
       field.type.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesType = selectedTypes.length === 0 || selectedTypes.includes(field.type);
-    
+
     return matchesSearch && matchesType;
   });
 
   // Get categories for current entity
-  const entityCategories = useMemo(() => 
-    categories.filter(c => 
-      c.module === selectedModule && 
+  const entityCategories = useMemo(() =>
+    categories.filter(c =>
+      c.module === selectedModule &&
       c.entity === selectedEntityObj?.entityKey &&
       c.isActive
     ), [categories, selectedModule, selectedEntityObj]
@@ -1266,7 +1258,7 @@ export default function FieldsContent() {
                 </p>
               </div>
             </div>
-            
+
             {/* Desktop Stats */}
             {selectedEntity && (
               <div className="hidden lg:flex items-center space-x-3">
@@ -1347,11 +1339,10 @@ export default function FieldsContent() {
                     setSelectedModule('re');
                     setSelectedEntity('');
                   }}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
-                    selectedModule === 're'
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${selectedModule === 're'
                       ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <DollarSign className="h-4 w-4 inline mr-1" />
                   RE Module
@@ -1361,11 +1352,10 @@ export default function FieldsContent() {
                     setSelectedModule('expense');
                     setSelectedEntity('');
                   }}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
-                    selectedModule === 'expense'
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${selectedModule === 'expense'
                       ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/25'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <CreditCard className="h-4 w-4 inline mr-1" />
                   Expense Module
@@ -1418,7 +1408,7 @@ export default function FieldsContent() {
                   />
                   <span className="text-sm font-medium text-gray-700">Show inactive</span>
                 </label>
-                
+
                 <button
                   onClick={handleExport}
                   disabled={!selectedEntity}
@@ -1472,11 +1462,10 @@ export default function FieldsContent() {
                       setSelectedModule('re');
                       setSelectedEntity('');
                     }}
-                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${
-                      selectedModule === 're'
+                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${selectedModule === 're'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'bg-white text-gray-700'
-                    }`}
+                      }`}
                   >
                     RE
                   </button>
@@ -1485,11 +1474,10 @@ export default function FieldsContent() {
                       setSelectedModule('expense');
                       setSelectedEntity('');
                     }}
-                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${
-                      selectedModule === 'expense'
+                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${selectedModule === 'expense'
                         ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white'
                         : 'bg-white text-gray-700'
-                    }`}
+                      }`}
                   >
                     Expense
                   </button>
@@ -1589,22 +1577,20 @@ export default function FieldsContent() {
               <div className="flex space-x-6">
                 <button
                   onClick={() => setActiveTab('fields')}
-                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${
-                    activeTab === 'fields'
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${activeTab === 'fields'
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
+                    }`}
                 >
                   <Layers className="h-4 w-4" />
                   <span>Fields ({filteredFields.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('preview')}
-                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${
-                    activeTab === 'preview'
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${activeTab === 'preview'
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
+                    }`}
                 >
                   <Eye className="h-4 w-4" />
                   <span>Preview</span>
@@ -1629,9 +1615,8 @@ export default function FieldsContent() {
                     onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
                     className="px-3 py-2.5 hover:bg-gray-50 transition-colors"
                   >
-                    <ArrowUpDown className={`h-4 w-4 text-gray-500 transition-transform ${
-                      sortDirection === 'desc' ? 'rotate-180' : ''
-                    }`} />
+                    <ArrowUpDown className={`h-4 w-4 text-gray-500 transition-transform ${sortDirection === 'desc' ? 'rotate-180' : ''
+                      }`} />
                   </button>
                 </div>
 
@@ -1639,44 +1624,40 @@ export default function FieldsContent() {
                 <div className="flex border-2 border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`p-2.5 transition-all ${
-                      viewMode === 'list'
+                    className={`p-2.5 transition-all ${viewMode === 'list'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'text-gray-500 hover:bg-gray-50'
-                    }`}
+                      }`}
                     title="List View"
                   >
                     <List className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${
-                      viewMode === 'grid'
+                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${viewMode === 'grid'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'text-gray-500 hover:bg-gray-50'
-                    }`}
+                      }`}
                     title="Grid View"
                   >
                     <Grid3x3 className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => setViewMode('compact')}
-                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${
-                      viewMode === 'compact'
+                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${viewMode === 'compact'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'text-gray-500 hover:bg-gray-50'
-                    }`}
+                      }`}
                     title="Compact View"
                   >
                     <LayoutGrid className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => setViewMode('detail')}
-                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${
-                      viewMode === 'detail'
+                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${viewMode === 'detail'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'text-gray-500 hover:bg-gray-50'
-                    }`}
+                      }`}
                     title="Detail View"
                   >
                     <Table className="h-5 w-5" />
@@ -1783,9 +1764,8 @@ export default function FieldsContent() {
                     {filteredFields.map((field, index) => (
                       <div
                         key={field._id}
-                        className={`bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${
-                          !field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
-                        }`}
+                        className={`bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
+                          }`}
                       >
                         <div className="p-5">
                           <div className="flex items-start justify-between mb-3">
@@ -1807,9 +1787,8 @@ export default function FieldsContent() {
                             <div className="flex space-x-1">
                               <button
                                 onClick={() => handleToggleField(field._id)}
-                                className={`p-1.5 rounded-lg transition-colors ${
-                                  field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
-                                }`}
+                                className={`p-1.5 rounded-lg transition-colors ${field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                                  }`}
                               >
                                 {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                               </button>
@@ -1909,7 +1888,7 @@ export default function FieldsContent() {
                       </span>
                     )}
                   </label>
-                  
+
                   {field.type === 'text' && (
                     <input
                       type="text"
@@ -1918,7 +1897,7 @@ export default function FieldsContent() {
                       disabled
                     />
                   )}
-                  
+
                   {field.type === 'number' && (
                     <input
                       type="number"
@@ -1927,7 +1906,7 @@ export default function FieldsContent() {
                       disabled
                     />
                   )}
-                  
+
                   {field.type === 'date' && (
                     <input
                       type="date"
@@ -1935,7 +1914,7 @@ export default function FieldsContent() {
                       disabled
                     />
                   )}
-                  
+
                   {field.type === 'textarea' && (
                     <textarea
                       rows={3}
@@ -1944,7 +1923,7 @@ export default function FieldsContent() {
                       disabled
                     />
                   )}
-                  
+
                   {field.type === 'select' && field.options && field.options.length > 0 && (
                     <select className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-900" disabled>
                       <option>Select {field.label}</option>
@@ -1953,14 +1932,14 @@ export default function FieldsContent() {
                       ))}
                     </select>
                   )}
-                  
+
                   {field.type === 'checkbox' && (
                     <div className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-xl bg-gray-50">
                       <input type="checkbox" className="h-5 w-5 text-blue-600 border-gray-300 rounded" disabled />
                       <span className="text-sm text-gray-600">Enable {field.label}</span>
                     </div>
                   )}
-                  
+
                   {field.type === 'radio' && field.options && (
                     <div className="space-y-2 p-3 border-2 border-gray-200 rounded-xl bg-gray-50">
                       {field.options.slice(0, 2).map((opt, i) => (
@@ -1974,7 +1953,7 @@ export default function FieldsContent() {
                       )}
                     </div>
                   )}
-                  
+
                   {field.type === 'file' && (
                     <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center bg-gray-50">
                       <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
@@ -1986,14 +1965,14 @@ export default function FieldsContent() {
                       )}
                     </div>
                   )}
-                  
+
                   {field.type === 'image' && (
                     <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center bg-gray-50">
                       <ImageIcon className="h-8 w-8 mx-auto mb-2 text-gray-400" />
                       <p className="text-sm text-gray-500">Click to upload image</p>
                     </div>
                   )}
-                  
+
                   {field.validation && (
                     <p className="text-xs text-gray-400 mt-1.5 flex items-center">
                       <Info className="h-3 w-3 mr-1" />
@@ -2114,18 +2093,15 @@ export default function FieldsContent() {
                       key={type}
                       type="button"
                       onClick={() => setFormData({ ...formData, type: type as any })}
-                      className={`p-4 border-2 rounded-xl flex flex-col items-center transition-all ${
-                        formData.type === type
+                      className={`p-4 border-2 rounded-xl flex flex-col items-center transition-all ${formData.type === type
                           ? `border-${color}-500 bg-${color}-50 ring-2 ring-${color}-100`
                           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
-                      <Icon className={`h-6 w-6 mb-1 ${
-                        formData.type === type ? `text-${color}-600` : 'text-gray-500'
-                      }`} />
-                      <span className={`text-xs font-medium ${
-                        formData.type === type ? `text-${color}-700` : 'text-gray-600'
-                      }`}>
+                      <Icon className={`h-6 w-6 mb-1 ${formData.type === type ? `text-${color}-600` : 'text-gray-500'
+                        }`} />
+                      <span className={`text-xs font-medium ${formData.type === type ? `text-${color}-700` : 'text-gray-600'
+                        }`}>
                         {label}
                       </span>
                     </button>
@@ -2333,11 +2309,10 @@ export default function FieldsContent() {
                 ].map(({ key, label, description, color }) => (
                   <label
                     key={key}
-                    className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      formData[key as keyof typeof formData]
+                    className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${formData[key as keyof typeof formData]
                         ? `border-${color}-500 bg-${color}-50`
                         : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <input
                       type="checkbox"
@@ -2349,11 +2324,10 @@ export default function FieldsContent() {
                       <p className="font-medium text-gray-900">{label}</p>
                       <p className="text-xs text-gray-500">{description}</p>
                     </div>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                      formData[key as keyof typeof formData]
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${formData[key as keyof typeof formData]
                         ? `border-${color}-500 bg-${color}-500`
                         : 'border-gray-300'
-                    }`}>
+                      }`}>
                       {formData[key as keyof typeof formData] && <Check className="h-4 w-4 text-white" />}
                     </div>
                   </label>
