@@ -769,6 +769,8 @@ export default function FieldsContent() {
   const [categorySearch, setCategorySearch] = useState('');
   const [categorySource, setCategorySource] = useState<CategorySource>('manual');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [previewMode, setPreviewMode] = useState<'view' | 'test'>('view'); // 'view' = normal preview, 'test' = test mode with disabled fields
+  const [testFormData, setTestFormData] = useState<Record<string, any>>({});
   const [stats, setStats] = useState({ total: 0, visible: 0, required: 0, system: 0, categoryLinked: 0 });
 
   const [formData, setFormData] = useState({
@@ -1283,6 +1285,28 @@ export default function FieldsContent() {
       const newOptions = formData.options.filter((_, i) => i !== index);
       setFormData({ ...formData, options: newOptions });
     }
+  };
+
+  // Get category options for a field
+  const getFieldOptions = useCallback((field: Field): string[] => {
+    if (field.categorySource && field.categorySource !== 'manual' && field.categoryIds) {
+      // Get category names from IDs
+      return field.categoryIds
+        .map(id => {
+          const cat = categories.find(c => c._id === id);
+          return cat?.name || id;
+        })
+        .filter(Boolean);
+    }
+    return field.options || [];
+  }, [categories]);
+
+  // Handle test form input change
+  const handleTestInputChange = (fieldKey: string, value: any) => {
+    setTestFormData(prev => ({
+      ...prev,
+      [fieldKey]: value
+    }));
   };
 
   // Filter fields
@@ -1980,141 +2004,247 @@ export default function FieldsContent() {
         ) : (
           // Preview Mode
           <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-xl p-6 sm:p-8 max-w-3xl mx-auto">
-            <div className="flex items-center space-x-3 mb-6 pb-4 border-b-2 border-gray-200">
-              <div className="p-2.5 bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl shadow-lg shadow-purple-500/25">
-                <Eye className="h-5 w-5 text-white" />
+            {/* Preview Header with Test Mode Toggle */}
+            <div className="flex items-center justify-between mb-6 pb-4 border-b-2 border-gray-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl shadow-lg shadow-purple-500/25">
+                  <Eye className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Form Preview: {selectedEntityObj?.name}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {previewMode === 'view' 
+                      ? 'This is how the form will look to users' 
+                      : 'Test mode - Fields are enabled for testing'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">
-                  Form Preview: {selectedEntityObj?.name}
-                </h3>
-                <p className="text-sm text-gray-500">This is how the form will look to users</p>
+
+              {/* Test Mode Toggle */}
+              <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-xl">
+                <button
+                  onClick={() => setPreviewMode('view')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    previewMode === 'view'
+                      ? 'bg-white text-purple-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  View
+                </button>
+                <button
+                  onClick={() => setPreviewMode('test')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    previewMode === 'test'
+                      ? 'bg-white text-purple-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  Test Mode
+                </button>
               </div>
             </div>
 
+            {/* Preview Form */}
             <div className="space-y-5">
-              {filteredFields.filter(f => f.visible).map((field) => (
-                <div key={field._id} className="group">
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    {field.label}
-                    {field.required && <span className="text-red-500 ml-1">*</span>}
-                    {field.categorySource && field.categorySource !== 'manual' && (
-                      <span className="ml-2 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-                        <FolderTree className="h-3 w-3 inline mr-1" />
-                        {field.categorySource === 'all' && 'All Categories'}
-                        {field.categorySource === 'entity' && 'Entity Categories'}
-                        {field.categorySource === 'specific' && `${field.categoryIds?.length || 0} Categories`}
-                      </span>
-                    )}
-                    {field.readOnly && (
-                      <span className="ml-2 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                        Read only
-                      </span>
-                    )}
-                  </label>
+              {filteredFields.filter(f => f.visible).map((field) => {
+                const fieldOptions = getFieldOptions(field);
+                const isDisabled = previewMode === 'view' || !field.isEnabled;
+                const fieldValue = testFormData[field.fieldKey] || field.defaultValue || '';
 
-                  {field.type === 'text' && (
-                    <input
-                      type="text"
-                      placeholder={`Enter ${field.label.toLowerCase()}`}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900"
-                      disabled
-                    />
-                  )}
-
-                  {field.type === 'number' && (
-                    <input
-                      type="number"
-                      placeholder={`Enter ${field.label.toLowerCase()}`}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-900"
-                      disabled
-                    />
-                  )}
-
-                  {field.type === 'date' && (
-                    <input
-                      type="date"
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-900"
-                      disabled
-                    />
-                  )}
-
-                  {field.type === 'textarea' && (
-                    <textarea
-                      rows={3}
-                      placeholder={`Enter ${field.label.toLowerCase()}`}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-900"
-                      disabled
-                    />
-                  )}
-
-                  {field.type === 'select' && (
-                    <select className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-900" disabled>
-                      <option>Select {field.label}</option>
-                      {field.categorySource ? (
-                        <option>Loading categories...</option>
-                      ) : (
-                        field.options?.map((opt, i) => (
-                          <option key={i}>{opt}</option>
-                        ))
+                return (
+                  <div key={field._id} className="group">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      {field.label}
+                      {field.required && <span className="text-red-500 ml-1">*</span>}
+                      {field.categorySource && field.categorySource !== 'manual' && (
+                        <span className="ml-2 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                          <FolderTree className="h-3 w-3 inline mr-1" />
+                          {field.categorySource === 'all' && 'All Categories'}
+                          {field.categorySource === 'entity' && 'Entity Categories'}
+                          {field.categorySource === 'specific' && `${field.categoryIds?.length || 0} Categories`}
+                        </span>
                       )}
-                    </select>
-                  )}
+                      {!field.isEnabled && (
+                        <span className="ml-2 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                          Disabled
+                        </span>
+                      )}
+                      {field.readOnly && (
+                        <span className="ml-2 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                          Read only
+                        </span>
+                      )}
+                    </label>
 
-                  {field.type === 'checkbox' && (
-                    <div className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-xl bg-gray-50">
-                      <input type="checkbox" className="h-5 w-5 text-blue-600 border-gray-300 rounded" disabled />
-                      <span className="text-sm text-gray-600">Enable {field.label}</span>
-                    </div>
-                  )}
+                    {field.type === 'text' && (
+                      <input
+                        type="text"
+                        value={fieldValue}
+                        onChange={(e) => handleTestInputChange(field.fieldKey, e.target.value)}
+                        placeholder={`Enter ${field.label.toLowerCase()}`}
+                        disabled={isDisabled || field.readOnly}
+                        required={field.required && !isDisabled}
+                        className={`w-full px-4 py-3 border-2 rounded-xl transition-all ${
+                          isDisabled 
+                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
+                            : 'border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                        }`}
+                      />
+                    )}
 
-                  {field.type === 'radio' && (
-                    <div className="space-y-2 p-3 border-2 border-gray-200 rounded-xl bg-gray-50">
-                      {field.categorySource ? (
-                        <p className="text-sm text-gray-500">Radio options from categories</p>
-                      ) : (
-                        field.options?.slice(0, 2).map((opt, i) => (
+                    {field.type === 'number' && (
+                      <input
+                        type="number"
+                        value={fieldValue}
+                        onChange={(e) => handleTestInputChange(field.fieldKey, e.target.value)}
+                        placeholder={`Enter ${field.label.toLowerCase()}`}
+                        disabled={isDisabled || field.readOnly}
+                        required={field.required && !isDisabled}
+                        min={field.validation?.min}
+                        max={field.validation?.max}
+                        className={`w-full px-4 py-3 border-2 rounded-xl ${
+                          isDisabled 
+                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
+                            : 'border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500'
+                        }`}
+                      />
+                    )}
+
+                    {field.type === 'date' && (
+                      <input
+                        type="date"
+                        value={fieldValue}
+                        onChange={(e) => handleTestInputChange(field.fieldKey, e.target.value)}
+                        disabled={isDisabled || field.readOnly}
+                        required={field.required && !isDisabled}
+                        className={`w-full px-4 py-3 border-2 rounded-xl ${
+                          isDisabled 
+                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
+                            : 'border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500'
+                        }`}
+                      />
+                    )}
+
+                    {field.type === 'textarea' && (
+                      <textarea
+                        rows={3}
+                        value={fieldValue}
+                        onChange={(e) => handleTestInputChange(field.fieldKey, e.target.value)}
+                        placeholder={`Enter ${field.label.toLowerCase()}`}
+                        disabled={isDisabled || field.readOnly}
+                        required={field.required && !isDisabled}
+                        className={`w-full px-4 py-3 border-2 rounded-xl ${
+                          isDisabled 
+                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
+                            : 'border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500'
+                        }`}
+                      />
+                    )}
+
+                    {field.type === 'select' && (
+                      <select
+                        value={fieldValue}
+                        onChange={(e) => handleTestInputChange(field.fieldKey, e.target.value)}
+                        disabled={isDisabled || field.readOnly}
+                        required={field.required && !isDisabled}
+                        className={`w-full px-4 py-3 border-2 rounded-xl ${
+                          isDisabled 
+                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
+                            : 'border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500'
+                        }`}
+                      >
+                        <option value="">Select {field.label}</option>
+                        {fieldOptions.map((opt, i) => (
+                          <option key={i} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    )}
+
+                    {field.type === 'checkbox' && (
+                      <div className={`flex items-center space-x-3 p-3 border-2 rounded-xl ${
+                        isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-white'
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={fieldValue === 'true' || fieldValue === true}
+                          onChange={(e) => handleTestInputChange(field.fieldKey, e.target.checked)}
+                          disabled={isDisabled || field.readOnly}
+                          className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className={`text-sm ${isDisabled ? 'text-gray-500' : 'text-gray-700'}`}>
+                          Enable {field.label}
+                        </span>
+                      </div>
+                    )}
+
+                    {field.type === 'radio' && (
+                      <div className={`space-y-2 p-3 border-2 rounded-xl ${
+                        isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-white'
+                      }`}>
+                        {fieldOptions.map((opt, i) => (
                           <div key={i} className="flex items-center space-x-3">
-                            <input type="radio" className="h-4 w-4 text-blue-600 border-gray-300" disabled />
-                            <span className="text-sm text-gray-600">{opt}</span>
+                            <input
+                              type="radio"
+                              name={`preview-${field._id}`}
+                              value={opt}
+                              checked={fieldValue === opt}
+                              onChange={(e) => handleTestInputChange(field.fieldKey, e.target.value)}
+                              disabled={isDisabled || field.readOnly}
+                              className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                            />
+                            <span className={`text-sm ${isDisabled ? 'text-gray-500' : 'text-gray-700'}`}>
+                              {opt}
+                            </span>
                           </div>
-                        ))
-                      )}
-                      {field.options && field.options.length > 2 && (
-                        <p className="text-xs text-gray-400 mt-1">+{field.options.length - 2} more options</p>
-                      )}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    )}
 
-                  {field.type === 'file' && (
-                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center bg-gray-50">
-                      <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                      <p className="text-sm text-gray-500">Click to upload or drag and drop</p>
-                      {field.validation?.allowedFileTypes && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          Allowed: {field.validation.allowedFileTypes.join(', ')}
+                    {field.type === 'file' && (
+                      <div className={`border-2 border-dashed rounded-xl p-6 text-center ${
+                        isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-gray-50 hover:border-blue-300'
+                      }`}>
+                        <Upload className={`h-8 w-8 mx-auto mb-2 ${
+                          isDisabled ? 'text-gray-400' : 'text-gray-500'
+                        }`} />
+                        <p className={`text-sm ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {isDisabled ? 'File upload disabled' : 'Click to upload or drag and drop'}
                         </p>
-                      )}
-                    </div>
-                  )}
+                        {field.validation?.allowedFileTypes && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Allowed: {field.validation.allowedFileTypes.join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    )}
 
-                  {field.type === 'image' && (
-                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center bg-gray-50">
-                      <ImageIcon className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                      <p className="text-sm text-gray-500">Click to upload image</p>
-                    </div>
-                  )}
+                    {field.type === 'image' && (
+                      <div className={`border-2 border-dashed rounded-xl p-6 text-center ${
+                        isDisabled ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-gray-50'
+                      }`}>
+                        <ImageIcon className={`h-8 w-8 mx-auto mb-2 ${
+                          isDisabled ? 'text-gray-400' : 'text-gray-500'
+                        }`} />
+                        <p className={`text-sm ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {isDisabled ? 'Image upload disabled' : 'Click to upload image'}
+                        </p>
+                      </div>
+                    )}
 
-                  {field.validation && (
-                    <p className="text-xs text-gray-400 mt-1.5 flex items-center">
-                      <Info className="h-3 w-3 mr-1" />
-                      {field.validation.min !== undefined && `Min: ${field.validation.min} `}
-                      {field.validation.max !== undefined && `Max: ${field.validation.max} `}
-                      {field.validation.regex && 'Pattern required '}
-                    </p>
-                  )}
-                </div>
-              ))}
+                    {field.validation && (
+                      <p className="text-xs text-gray-400 mt-1.5 flex items-center">
+                        <Info className="h-3 w-3 mr-1" />
+                        {field.validation.min !== undefined && `Min: ${field.validation.min} `}
+                        {field.validation.max !== undefined && `Max: ${field.validation.max} `}
+                        {field.validation.regex && 'Pattern required '}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
 
               {filteredFields.filter(f => f.visible).length === 0 && (
                 <div className="text-center py-12 text-gray-500">
@@ -2126,11 +2256,22 @@ export default function FieldsContent() {
 
             {/* Preview Actions */}
             <div className="mt-8 pt-4 border-t-2 border-gray-200 flex justify-end space-x-3">
-              <button className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium border-2 border-gray-200">
-                Cancel
+              <button 
+                onClick={() => setTestFormData({})}
+                className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium border-2 border-gray-200"
+              >
+                Clear Test Data
               </button>
-              <button className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-500/25 font-medium border-2 border-blue-400">
-                Save
+              <button 
+                onClick={() => {
+                  if (previewMode === 'test') {
+                    console.log('Test Form Data:', testFormData);
+                    toast.success('Test data logged to console');
+                  }
+                }}
+                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-500/25 font-medium border-2 border-blue-400"
+              >
+                {previewMode === 'test' ? 'Submit Test' : 'Save'}
               </button>
             </div>
           </div>
