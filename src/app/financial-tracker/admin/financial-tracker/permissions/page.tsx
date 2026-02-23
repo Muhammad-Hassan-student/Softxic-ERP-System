@@ -88,7 +88,38 @@ import {
   PieChart,
   TrendingUp,
   TrendingDown,
-  EyeOff
+  EyeOff,
+  GitBranch,
+  GitCommit,
+  GitMerge,
+  GitPullRequest,
+  Box,
+  Package as PackageIcon,
+  Archive,
+  ArchiveRestore,
+  ArchiveX,
+  ScrollText,
+  FileJson,
+  FileSpreadsheet,
+  FileCode,
+  FileDigit,
+  Binary,
+  Braces,
+  Terminal,
+  Command,
+  Cpu,
+  HardDrive,
+  Network,
+  Cloud,
+  CloudOff,
+  WifiOff,
+  Battery,
+  BatteryCharging,
+  BatteryWarning,
+  Power as PowerIcon,
+  PowerOff as PowerOffIcon,
+  ToggleLeft as ToggleLeftIcon,
+  ToggleRight as ToggleRightIcon
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -107,6 +138,9 @@ interface User {
   department?: string;
   avatar?: string;
   lastActive?: string;
+  source: 'erp' | 'module'; // To identify user source
+  module?: 're' | 'expense' | 'both'; // For module users
+  isActive?: boolean;
 }
 
 interface Permission {
@@ -151,29 +185,23 @@ interface CustomField {
   order: number;
 }
 
-interface Category {
-  _id: string;
-  name: string;
-  module: 're' | 'expense';
-  entity: string;
-  isActive: boolean;
-  color?: string;
-}
-
 // View modes
-type ViewMode = 'entities' | 'fields' | 'categories';
+type ViewMode = 'entities' | 'fields';
+
+// User source filter
+type UserSource = 'all' | 'erp' | 'module';
 
 export default function PermissionsPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [entities, setEntities] = useState<Entity[]>([]);
   const [customFields, setCustomFields] = useState<Record<string, CustomField[]>>({});
-  const [categories, setCategories] = useState<Category[]>([]);
   const [permissions, setPermissions] = useState<UserPermissions>({});
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [selectedModule, setSelectedModule] = useState<'re' | 'expense'>('re');
   const [expandedEntities, setExpandedEntities] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const [userSource, setUserSource] = useState<UserSource>('all');
   const [isSaving, setIsSaving] = useState(false);
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
@@ -181,9 +209,10 @@ export default function PermissionsPage() {
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [stats, setStats] = useState({
     totalUsers: 0,
+    erpUsers: 0,
+    moduleUsers: 0,
     totalEntities: 0,
-    totalFields: 0,
-    totalCategories: 0
+    totalFields: 0
   });
 
   // Fetch all data
@@ -196,8 +225,7 @@ export default function PermissionsPage() {
       setIsLoading(true);
       await Promise.all([
         fetchUsers(),
-        fetchEntities(),
-        fetchCategories()
+        fetchEntities()
       ]);
     } catch (error) {
       toast.error('Failed to load data');
@@ -206,22 +234,39 @@ export default function PermissionsPage() {
     }
   };
 
-  // Fetch users and their permissions
+  // Fetch users from both ERP and Module
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/financial-tracker/api/financial-tracker/admin/users', {
+      // Fetch ERP users
+      const erpResponse = await fetch('/financial-tracker/api/financial-tracker/admin/users', {
         headers: { 'Authorization': getToken() }
       });
 
-      if (!response.ok) throw new Error('Failed to fetch users');
-      
-      const data = await response.json();
-      setUsers(data.users);
-      setStats(prev => ({ ...prev, totalUsers: data.users.length }));
+      // Fetch Module users
+      const moduleResponse = await fetch('/financial-tracker/api/financial-tracker/admin/module-users', {
+        headers: { 'Authorization': getToken() }
+      });
+
+      const erpUsers = erpResponse.ok ? (await erpResponse.json()).users || [] : [];
+      const moduleUsers = moduleResponse.ok ? (await moduleResponse.json()).users || [] : [];
+
+      // Combine users with source identifier
+      const allUsers: User[] = [
+        ...erpUsers.map((u: any) => ({ ...u, source: 'erp' as const })),
+        ...moduleUsers.map((u: any) => ({ ...u, source: 'module' as const }))
+      ];
+
+      setUsers(allUsers);
+      setStats(prev => ({
+        ...prev,
+        totalUsers: allUsers.length,
+        erpUsers: erpUsers.length,
+        moduleUsers: moduleUsers.length
+      }));
       
       // Fetch permissions for each user
       const perms: UserPermissions = {};
-      for (const user of data.users) {
+      for (const user of allUsers) {
         const permResponse = await fetch(`/financial-tracker/api/financial-tracker/admin/users/${user._id}/permissions`, {
           headers: { 'Authorization': getToken() }
         });
@@ -232,8 +277,8 @@ export default function PermissionsPage() {
       }
       setPermissions(perms);
       
-      if (data.users.length > 0 && !selectedUser) {
-        setSelectedUser(data.users[0]._id);
+      if (allUsers.length > 0 && !selectedUser) {
+        setSelectedUser(allUsers[0]._id);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -276,23 +321,6 @@ export default function PermissionsPage() {
     }
   };
 
-  // Fetch categories from database
-  const fetchCategories = async () => {
-    try {
-      const response = await fetch('/financial-tracker/api/financial-tracker/categories?active=true', {
-        headers: { 'Authorization': getToken() }
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch categories');
-      
-      const data = await response.json();
-      setCategories(data.categories || []);
-      setStats(prev => ({ ...prev, totalCategories: data.categories?.length || 0 }));
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
-
   // Get entities for selected module
   const filteredEntities = useMemo(() => {
     return entities.filter(e => e.module === selectedModule && e.isEnabled);
@@ -302,15 +330,6 @@ export default function PermissionsPage() {
   const getEntityFields = useCallback((entityId: string) => {
     return customFields[`${selectedModule}-${entityId}`] || [];
   }, [customFields, selectedModule]);
-
-  // Get categories for a specific entity
-  const getEntityCategories = useCallback((entityKey: string) => {
-    return categories.filter(c => 
-      c.module === selectedModule && 
-      c.entity === entityKey && 
-      c.isActive
-    );
-  }, [categories, selectedModule]);
 
   // Update permission
   const updatePermission = useCallback((
@@ -404,7 +423,6 @@ export default function PermissionsPage() {
     if (!entityObj) return;
 
     const fields = getEntityFields(entity);
-    const cats = getEntityCategories(entityObj.entityKey);
     
     // System columns (basic fields)
     const systemColumns = ['name', 'createdAt', 'updatedAt', 'createdBy'];
@@ -416,12 +434,7 @@ export default function PermissionsPage() {
     fields.forEach(field => {
       updateColumnPermission(userId, module, entity, field.fieldKey, type, value);
     });
-
-    // Categories
-    cats.forEach(cat => {
-      updateColumnPermission(userId, module, entity, `category-${cat._id}`, type, value);
-    });
-  }, [entities, getEntityFields, getEntityCategories, updateColumnPermission]);
+  }, [entities, getEntityFields, updateColumnPermission]);
 
   // Save permissions for a user
   const savePermissions = async (userId: string) => {
@@ -485,13 +498,17 @@ export default function PermissionsPage() {
     toast.success('Permissions copied');
   };
 
-  // Filter users
+  // Filter users by search and source
   const filteredUsers = useMemo(() => 
-    users.filter(user =>
-      user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [users, searchTerm]
+    users.filter(user => {
+      const matchesSearch = user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.role.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesSource = userSource === 'all' || user.source === userSource;
+      
+      return matchesSearch && matchesSource;
+    }), [users, searchTerm, userSource]
   );
 
   // Toggle entity expansion
@@ -509,6 +526,7 @@ export default function PermissionsPage() {
 
   // Get current user permissions
   const currentUserPerms = selectedUser ? permissions[selectedUser]?.[selectedModule] || {} : {};
+  const selectedUserObj = users.find(u => u._id === selectedUser);
 
   if (isLoading) {
     return (
@@ -545,7 +563,7 @@ export default function PermissionsPage() {
                 </h1>
                 <p className="text-sm text-gray-500 mt-0.5 flex items-center">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2 animate-pulse"></span>
-                  Configure granular access controls from database
+                  Manage permissions for ERP & Module users
                 </p>
               </div>
             </div>
@@ -558,41 +576,52 @@ export default function PermissionsPage() {
                     <Users className="h-4 w-4 text-blue-600" />
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500">Users</span>
+                    <span className="text-xs text-gray-500">Total Users</span>
                     <span className="text-xl font-bold text-blue-600 block leading-5">{stats.totalUsers}</span>
                   </div>
                 </div>
               </div>
               <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center space-x-2">
-                  <div className="p-1.5 bg-green-100 rounded-lg">
-                    <LayoutDashboard className="h-4 w-4 text-green-600" />
+                  <div className="p-1.5 bg-emerald-100 rounded-lg">
+                    <Globe className="h-4 w-4 text-emerald-600" />
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500">Entities</span>
-                    <span className="text-xl font-bold text-green-600 block leading-5">{stats.totalEntities}</span>
+                    <span className="text-xs text-gray-500">ERP Users</span>
+                    <span className="text-xl font-bold text-emerald-600 block leading-5">{stats.erpUsers}</span>
                   </div>
                 </div>
               </div>
               <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center space-x-2">
                   <div className="p-1.5 bg-purple-100 rounded-lg">
-                    <Grid3x3 className="h-4 w-4 text-purple-600" />
+                    <Box className="h-4 w-4 text-purple-600" />
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500">Fields</span>
-                    <span className="text-xl font-bold text-purple-600 block leading-5">{stats.totalFields}</span>
+                    <span className="text-xs text-gray-500">Module Users</span>
+                    <span className="text-xl font-bold text-purple-600 block leading-5">{stats.moduleUsers}</span>
                   </div>
                 </div>
               </div>
               <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center space-x-2">
                   <div className="p-1.5 bg-amber-100 rounded-lg">
-                    <FolderTree className="h-4 w-4 text-amber-600" />
+                    <LayoutDashboard className="h-4 w-4 text-amber-600" />
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500">Categories</span>
-                    <span className="text-xl font-bold text-amber-600 block leading-5">{stats.totalCategories}</span>
+                    <span className="text-xs text-gray-500">Entities</span>
+                    <span className="text-xl font-bold text-amber-600 block leading-5">{stats.totalEntities}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center space-x-2">
+                  <div className="p-1.5 bg-indigo-100 rounded-lg">
+                    <Grid3x3 className="h-4 w-4 text-indigo-600" />
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500">Fields</span>
+                    <span className="text-xl font-bold text-indigo-600 block leading-5">{stats.totalFields}</span>
                   </div>
                 </div>
               </div>
@@ -621,6 +650,19 @@ export default function PermissionsPage() {
                   className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm text-gray-900 placeholder-gray-400"
                 />
               </div>
+            </div>
+
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">User Source</label>
+              <select
+                value={userSource}
+                onChange={(e) => setUserSource(e.target.value as UserSource)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white text-gray-700 font-medium"
+              >
+                <option value="all">All Users</option>
+                <option value="erp">ERP Users</option>
+                <option value="module">Module Users</option>
+              </select>
             </div>
 
             <div className="lg:col-span-3">
@@ -676,17 +718,6 @@ export default function PermissionsPage() {
                   <Grid3x3 className="h-4 w-4 inline mr-1" />
                   Fields
                 </button>
-                <button
-                  onClick={() => setViewMode('categories')}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
-                    viewMode === 'categories'
-                      ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <FolderTree className="h-4 w-4 inline mr-1" />
-                  Categories
-                </button>
               </div>
             </div>
 
@@ -732,6 +763,19 @@ export default function PermissionsPage() {
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">User Source</label>
+                <select
+                  value={userSource}
+                  onChange={(e) => setUserSource(e.target.value as UserSource)}
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-700"
+                >
+                  <option value="all">All Users</option>
+                  <option value="erp">ERP Users</option>
+                  <option value="module">Module Users</option>
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Module</label>
                 <div className="flex rounded-xl overflow-hidden bg-white border-2 border-gray-200">
                   <button
@@ -759,7 +803,7 @@ export default function PermissionsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">View</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setViewMode('entities')}
                     className={`p-2 border-2 rounded-xl text-xs font-medium ${
@@ -779,16 +823,6 @@ export default function PermissionsPage() {
                     }`}
                   >
                     Fields
-                  </button>
-                  <button
-                    onClick={() => setViewMode('categories')}
-                    className={`p-2 border-2 rounded-xl text-xs font-medium ${
-                      viewMode === 'categories'
-                        ? 'border-purple-500 bg-purple-50 text-purple-700'
-                        : 'border-gray-200 text-gray-600'
-                    }`}
-                  >
-                    Categories
                   </button>
                 </div>
               </div>
@@ -847,7 +881,25 @@ export default function PermissionsPage() {
                   <div className="flex-1">
                     <div className="flex items-start justify-between">
                       <div>
-                        <h3 className="font-semibold text-gray-900">{user.fullName}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-gray-900">{user.fullName}</h3>
+                          <span className={`px-2 py-0.5 text-xs rounded-full ${
+                            user.source === 'erp' 
+                              ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                              : 'bg-purple-100 text-purple-700 border border-purple-200'
+                          }`}>
+                            {user.source === 'erp' ? 'ERP' : 'Module'}
+                          </span>
+                          {user.source === 'module' && user.module && (
+                            <span className={`px-2 py-0.5 text-xs rounded-full ${
+                              user.module === 're' 
+                                ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                                : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                            }`}>
+                              {user.module === 're' ? 'RE' : 'Expense'}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-gray-500">{user.email}</p>
                       </div>
                       {!bulkMode && selectedUser === user._id && (
@@ -916,13 +968,22 @@ export default function PermissionsPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
-                        {users.find(u => u._id === selectedUser)?.fullName.charAt(0)}
+                        {selectedUserObj?.fullName.charAt(0)}
                       </div>
                       <div>
-                        <h2 className="text-2xl font-bold text-gray-900">
-                          {users.find(u => u._id === selectedUser)?.fullName}
-                        </h2>
-                        <p className="text-gray-500">{users.find(u => u._id === selectedUser)?.email}</p>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-2xl font-bold text-gray-900">
+                            {selectedUserObj?.fullName}
+                          </h2>
+                          <span className={`px-3 py-1 text-xs rounded-full ${
+                            selectedUserObj?.source === 'erp' 
+                              ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                              : 'bg-purple-100 text-purple-700 border border-purple-200'
+                          }`}>
+                            {selectedUserObj?.source === 'erp' ? 'ERP User' : 'Module User'}
+                          </span>
+                        </div>
+                        <p className="text-gray-500">{selectedUserObj?.email}</p>
                       </div>
                     </div>
                     <button
@@ -956,7 +1017,6 @@ export default function PermissionsPage() {
                       };
                       const isExpanded = expandedEntities.has(entity._id);
                       const fields = getEntityFields(entity._id);
-                      const cats = getEntityCategories(entity.entityKey);
 
                       return (
                         <div key={entity._id} className="bg-white rounded-2xl border-2 border-gray-200 shadow-lg overflow-hidden hover:shadow-xl transition-all">
@@ -1241,62 +1301,6 @@ export default function PermissionsPage() {
                                           </tr>
                                         );
                                       })}
-
-                                      {/* Categories */}
-                                      {cats.map((cat) => {
-                                        const columnKey = `category-${cat._id}`;
-                                        const columnPerms = entityPerms.columns?.[columnKey] || {
-                                          view: true,
-                                          edit: false
-                                        };
-
-                                        return (
-                                          <tr key={cat._id} className="hover:bg-green-50 transition-colors">
-                                            <td className="px-6 py-3">
-                                              <div className="flex items-center space-x-2">
-                                                <FolderTree className="h-4 w-4 text-green-600" />
-                                                <span className="text-sm font-medium text-gray-900">{cat.name}</span>
-                                              </div>
-                                            </td>
-                                            <td className="px-6 py-3 text-center">
-                                              <input
-                                                type="checkbox"
-                                                checked={columnPerms.view}
-                                                onChange={(e) => updateColumnPermission(
-                                                  selectedUser,
-                                                  selectedModule,
-                                                  entity._id,
-                                                  columnKey,
-                                                  'view',
-                                                  e.target.checked
-                                                )}
-                                                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                              />
-                                            </td>
-                                            <td className="px-6 py-3 text-center">
-                                              <input
-                                                type="checkbox"
-                                                checked={columnPerms.edit}
-                                                onChange={(e) => updateColumnPermission(
-                                                  selectedUser,
-                                                  selectedModule,
-                                                  entity._id,
-                                                  columnKey,
-                                                  'edit',
-                                                  e.target.checked
-                                                )}
-                                                disabled={!columnPerms.view}
-                                                className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-50"
-                                              />
-                                            </td>
-                                            <td className="px-6 py-3">
-                                              <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs rounded-full border border-green-200">
-                                                Category
-                                              </span>
-                                            </td>
-                                          </tr>
-                                        );
-                                      })}
                                     </tbody>
                                   </table>
                                 </div>
@@ -1350,49 +1354,6 @@ export default function PermissionsPage() {
                               ))}
                               {fields.length > 3 && (
                                 <p className="text-xs text-gray-400">+{fields.length - 3} more fields</p>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {viewMode === 'categories' && (
-                  <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Category Permissions</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {categories.map((cat) => {
-                        const entity = entities.find(e => e.entityKey === cat.entity);
-                        if (!entity) return null;
-                        
-                        const entityPerms = currentUserPerms[entity._id] || { columns: {} };
-                        const columnKey = `category-${cat._id}`;
-
-                        return (
-                          <div key={cat._id} className="border-2 border-gray-200 rounded-xl p-4 hover:shadow-md transition-all">
-                            <div className="flex items-center space-x-3 mb-3">
-                              <FolderTree className="h-5 w-5 text-green-600" />
-                              <div>
-                                <h4 className="font-semibold text-gray-900">{cat.name}</h4>
-                                <p className="text-xs text-gray-500">{entity.name}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-gray-600">View Permission</span>
-                              {entityPerms.columns?.[columnKey]?.view ? (
-                                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">Enabled</span>
-                              ) : (
-                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">Disabled</span>
-                              )}
-                            </div>
-                            <div className="flex items-center justify-between mt-2">
-                              <span className="text-sm text-gray-600">Edit Permission</span>
-                              {entityPerms.columns?.[columnKey]?.edit ? (
-                                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">Enabled</span>
-                              ) : (
-                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">Disabled</span>
                               )}
                             </div>
                           </div>
