@@ -2842,7 +2842,7 @@ export default function FieldsContent() {
             opacity: 1;
             transform: scale(1);
           }
-        }
+        } 
 
         .animate-slideDown {
           animation: slideDown 0.2s ease-out;
