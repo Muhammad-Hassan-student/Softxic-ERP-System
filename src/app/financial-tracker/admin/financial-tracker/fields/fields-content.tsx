@@ -174,7 +174,9 @@ interface Field {
   order: number;
   defaultValue?: any;
   options?: string[];
-  categoryId?: string; // For category-linked fields
+  categoryId?: string; // For single category link
+  categoryIds?: string[]; // For multiple categories (select/radio)
+  categorySource?: 'all' | 'entity' | 'specific'; // 'all' = all categories in module, 'entity' = all categories for this entity, 'specific' = selected categories
   validation?: {
     min?: number;
     max?: number;
@@ -213,6 +215,8 @@ type ViewMode = 'grid' | 'list' | 'compact' | 'detail' | 'table';
 type SortOption = 'name' | 'type' | 'order' | 'created' | 'updated';
 type SortDirection = 'asc' | 'desc';
 
+// Category source types
+type CategorySource = 'all' | 'entity' | 'specific' | 'none';
 // ✅ Global helper functions
 const getTypeIcon = (type: string) => {
   switch (type) {
@@ -277,13 +281,24 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
     zIndex: isDragging ? 50 : 1
   };
 
+  const getCategorySourceText = (source?: string, count?: number) => {
+    if (!source) return null;
+    switch (source) {
+      case 'all': return 'All Categories';
+      case 'entity': return 'All Entity Categories';
+      case 'specific': return `${count || 0} Categories`;
+      default: return null;
+    }
+  };
+
   if (viewMode === 'compact') {
     return (
       <div
         ref={setNodeRef}
         style={style}
-        className={`group relative bg-white rounded-xl border-2 shadow-sm hover:shadow-md transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
-          } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
+        className={`group relative bg-white rounded-xl border-2 shadow-sm hover:shadow-md transition-all duration-300 ${
+          !field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
+        } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
       >
         <div className="p-3">
           <div className="flex items-center justify-between">
@@ -305,10 +320,10 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   <span className="font-mono">{field.fieldKey}</span>
-                  {field.categoryId && (
+                  {field.categorySource && (
                     <span className="flex items-center text-green-600">
                       <FolderTree className="h-3 w-3 mr-1" />
-                      Category
+                      {getCategorySourceText(field.categorySource, field.categoryIds?.length)}
                     </span>
                   )}
                 </div>
@@ -317,8 +332,9 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
             <div className="flex items-center gap-1">
               <button
                 onClick={() => onToggle(field._id)}
-                className={`p-1.5 rounded-lg transition-colors ${field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
-                  }`}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                }`}
               >
                 {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               </button>
@@ -340,13 +356,15 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
       <div
         ref={setNodeRef}
         style={style}
-        className={`group relative bg-white rounded-2xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
-          } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
+        className={`group relative bg-white rounded-2xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 ${
+          !field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
+        } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
       >
-        <div className={`absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl ${field.isEnabled
+        <div className={`absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl ${
+          field.isEnabled
             ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500'
             : 'bg-gradient-to-r from-gray-400 to-gray-500'
-          }`}></div>
+        }`}></div>
 
         <div className="p-6">
           <div className="flex items-start justify-between mb-4">
@@ -393,12 +411,14 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
                 <p className="text-sm font-medium text-red-600">Yes</p>
               </div>
             )}
-            {field.categoryId && (
+            {field.categorySource && (
               <div className="bg-gray-50 p-3 rounded-xl">
-                <p className="text-xs text-gray-500 mb-1">Category Linked</p>
+                <p className="text-xs text-gray-500 mb-1">Category Source</p>
                 <p className="text-sm font-medium text-green-600 flex items-center">
                   <FolderTree className="h-4 w-4 mr-1" />
-                  Yes
+                  {field.categorySource === 'all' && 'All Categories'}
+                  {field.categorySource === 'entity' && 'All Entity Categories'}
+                  {field.categorySource === 'specific' && `${field.categoryIds?.length || 0} Selected`}
                 </p>
               </div>
             )}
@@ -461,8 +481,9 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
               </button>
               <button
                 onClick={() => onToggle(field._id)}
-                className={`p-1.5 rounded-lg ${field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
-                  }`}
+                className={`p-1.5 rounded-lg ${
+                  field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                }`}
               >
                 {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               </button>
@@ -493,19 +514,21 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
     );
   }
 
-  // Default list view (existing implementation)
+  // Default list view
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : ''
-        } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : 'border-gray-200 hover:border-blue-300'}`}
+      className={`group relative bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${
+        !field.isEnabled ? 'opacity-70 bg-gray-50/50' : ''
+      } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : 'border-gray-200 hover:border-blue-300'}`}
     >
       {/* Status Indicator Bar */}
-      <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${field.isEnabled
+      <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${
+        field.isEnabled
           ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500'
           : 'bg-gradient-to-r from-gray-400 to-gray-500'
-        }`}></div>
+      }`}></div>
 
       <div className="p-6">
         <div className="flex flex-col lg:flex-row lg:items-start gap-4">
@@ -532,10 +555,12 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
                 <span className="text-sm text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded-lg border border-gray-200">
                   {field.fieldKey}
                 </span>
-                {field.categoryId && (
+                {field.categorySource && (
                   <span className="flex items-center text-xs text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-200">
                     <FolderTree className="h-3 w-3 mr-1" />
-                    Category Linked
+                    {field.categorySource === 'all' && 'All Categories'}
+                    {field.categorySource === 'entity' && 'All Entity Categories'}
+                    {field.categorySource === 'specific' && `${field.categoryIds?.length || 0} Categories`}
                   </span>
                 )}
               </div>
@@ -666,10 +691,11 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => onToggle(field._id)}
-                className={`p-2.5 rounded-xl transition-all border-2 ${field.isEnabled
+                className={`p-2.5 rounded-xl transition-all border-2 ${
+                  field.isEnabled
                     ? 'text-emerald-600 hover:bg-emerald-50 border-emerald-200 hover:border-emerald-300'
                     : 'text-gray-400 hover:bg-gray-50 border-gray-200 hover:border-gray-300'
-                  }`}
+                }`}
                 title={field.isEnabled ? 'Disable field' : 'Enable field'}
               >
                 {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
@@ -735,6 +761,8 @@ export default function FieldsContent() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [selectedFieldForCategory, setSelectedFieldForCategory] = useState<Field | null>(null);
   const [categorySearch, setCategorySearch] = useState('');
+  const [categorySource, setCategorySource] = useState<CategorySource>('entity');
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [stats, setStats] = useState({ total: 0, visible: 0, required: 0, system: 0, categoryLinked: 0 });
 
   const [formData, setFormData] = useState({
@@ -750,6 +778,8 @@ export default function FieldsContent() {
     defaultValue: '',
     options: [''] as string[],
     categoryId: '',
+    categoryIds: [] as string[],
+    categorySource: undefined as CategorySource | undefined,
     validation: {
       min: undefined as number | undefined,
       max: undefined as number | undefined,
@@ -783,7 +813,7 @@ export default function FieldsContent() {
       visible: fields.filter(f => f.visible).length,
       required: fields.filter(f => f.required).length,
       system: fields.filter(f => f.isSystem).length,
-      categoryLinked: fields.filter(f => f.categoryId).length
+      categoryLinked: fields.filter(f => f.categorySource).length
     });
   }, [fields]);
 
@@ -914,7 +944,6 @@ export default function FieldsContent() {
     input.onchange = (e: any) => {
       const file = e.target.files[0];
       if (file) {
-        // Implement import logic
         toast.success('Import feature coming soon');
       }
     };
@@ -936,6 +965,8 @@ export default function FieldsContent() {
       defaultValue: field.defaultValue || '',
       options: field.options || [''],
       categoryId: field.categoryId || '',
+      categoryIds: field.categoryIds || [],
+      categorySource: field.categorySource,
       validation: {
         min: field.validation?.min,
         max: field.validation?.max,
@@ -1014,8 +1045,8 @@ export default function FieldsContent() {
 
     const filteredOptions = formData.options?.filter(opt => opt.trim() !== '') || [];
 
-    if ((formData.type === 'select' || formData.type === 'radio') && filteredOptions.length === 0) {
-      toast.error('Please add at least one option');
+    if ((formData.type === 'select' || formData.type === 'radio') && filteredOptions.length === 0 && !formData.categorySource) {
+      toast.error('Please add at least one option or link categories');
       return;
     }
 
@@ -1027,23 +1058,45 @@ export default function FieldsContent() {
 
       const method = editingField ? 'PUT' : 'POST';
 
+      // Prepare payload
+      const payload: any = {
+        ...formData,
+        options: filteredOptions.length > 0 ? filteredOptions : undefined,
+        validation: {
+          ...formData.validation,
+          regex: formData.validation.regex || undefined,
+          allowedFileTypes: formData.validation.allowedFileTypes?.filter(t => t) || undefined,
+          maxFileSize: formData.validation.maxFileSize || undefined
+        }
+      };
+
+      // Handle category linking
+      if (formData.categorySource) {
+        payload.categorySource = formData.categorySource;
+        if (formData.categorySource === 'specific') {
+          payload.categoryIds = selectedCategoryIds;
+        } else if (formData.categorySource === 'all') {
+          // Get all categories for this module
+          const allCategories = categories.filter(c => c.module === selectedModule && c.isActive);
+          payload.categoryIds = allCategories.map(c => c._id);
+        } else if (formData.categorySource === 'entity' && selectedEntityObj) {
+          // Get all categories for this entity
+          const entityCategories = categories.filter(c => 
+            c.module === selectedModule && 
+            c.entity === selectedEntityObj.entityKey && 
+            c.isActive
+          );
+          payload.categoryIds = entityCategories.map(c => c._id);
+        }
+      }
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          ...formData,
-          options: filteredOptions.length > 0 ? filteredOptions : undefined,
-          categoryId: formData.categoryId || undefined,
-          validation: {
-            ...formData.validation,
-            regex: formData.validation.regex || undefined,
-            allowedFileTypes: formData.validation.allowedFileTypes?.filter(t => t) || undefined,
-            maxFileSize: formData.validation.maxFileSize || undefined
-          }
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -1162,6 +1215,8 @@ export default function FieldsContent() {
       defaultValue: '',
       options: [''],
       categoryId: '',
+      categoryIds: [],
+      categorySource: undefined,
       validation: {
         min: undefined,
         max: undefined,
@@ -1170,6 +1225,8 @@ export default function FieldsContent() {
         maxFileSize: undefined
       }
     });
+    setCategorySource('entity');
+    setSelectedCategoryIds([]);
   };
 
   const handleEdit = (field: Field) => {
@@ -1187,6 +1244,8 @@ export default function FieldsContent() {
       defaultValue: field.defaultValue || '',
       options: field.options && field.options.length > 0 ? field.options : [''],
       categoryId: field.categoryId || '',
+      categoryIds: field.categoryIds || [],
+      categorySource: field.categorySource,
       validation: {
         min: field.validation?.min,
         max: field.validation?.max,
@@ -1195,6 +1254,8 @@ export default function FieldsContent() {
         maxFileSize: field.validation?.maxFileSize
       }
     });
+    setCategorySource(field.categorySource || 'entity');
+    setSelectedCategoryIds(field.categoryIds || []);
     setIsModalOpen(true);
   };
 
@@ -1234,6 +1295,25 @@ export default function FieldsContent() {
       c.isActive
     ), [categories, selectedModule, selectedEntityObj]
   );
+
+  // Get all categories for current module
+  const moduleCategories = useMemo(() =>
+    categories.filter(c => c.module === selectedModule && c.isActive),
+    [categories, selectedModule]
+  );
+
+  // Handle category selection in modal
+  const handleLinkCategories = () => {
+    setFormData(prev => ({
+      ...prev,
+      categorySource,
+      categoryIds: categorySource === 'specific' ? selectedCategoryIds : 
+                    categorySource === 'all' ? moduleCategories.map(c => c._id) :
+                    entityCategories.map(c => c._id)
+    }));
+    setShowCategoryModal(false);
+    toast.success('Categories linked successfully');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30">
@@ -1339,10 +1419,11 @@ export default function FieldsContent() {
                     setSelectedModule('re');
                     setSelectedEntity('');
                   }}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${selectedModule === 're'
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
+                    selectedModule === 're'
                       ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
+                  }`}
                 >
                   <DollarSign className="h-4 w-4 inline mr-1" />
                   RE Module
@@ -1352,10 +1433,11 @@ export default function FieldsContent() {
                     setSelectedModule('expense');
                     setSelectedEntity('');
                   }}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${selectedModule === 'expense'
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
+                    selectedModule === 'expense'
                       ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/25'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
+                  }`}
                 >
                   <CreditCard className="h-4 w-4 inline mr-1" />
                   Expense Module
@@ -1462,10 +1544,11 @@ export default function FieldsContent() {
                       setSelectedModule('re');
                       setSelectedEntity('');
                     }}
-                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${selectedModule === 're'
+                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${
+                      selectedModule === 're'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'bg-white text-gray-700'
-                      }`}
+                    }`}
                   >
                     RE
                   </button>
@@ -1474,10 +1557,11 @@ export default function FieldsContent() {
                       setSelectedModule('expense');
                       setSelectedEntity('');
                     }}
-                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${selectedModule === 'expense'
+                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${
+                      selectedModule === 'expense'
                         ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white'
                         : 'bg-white text-gray-700'
-                      }`}
+                    }`}
                   >
                     Expense
                   </button>
@@ -1577,20 +1661,22 @@ export default function FieldsContent() {
               <div className="flex space-x-6">
                 <button
                   onClick={() => setActiveTab('fields')}
-                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${activeTab === 'fields'
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${
+                    activeTab === 'fields'
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
+                  }`}
                 >
                   <Layers className="h-4 w-4" />
                   <span>Fields ({filteredFields.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('preview')}
-                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${activeTab === 'preview'
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${
+                    activeTab === 'preview'
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
+                  }`}
                 >
                   <Eye className="h-4 w-4" />
                   <span>Preview</span>
@@ -1615,8 +1701,9 @@ export default function FieldsContent() {
                     onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
                     className="px-3 py-2.5 hover:bg-gray-50 transition-colors"
                   >
-                    <ArrowUpDown className={`h-4 w-4 text-gray-500 transition-transform ${sortDirection === 'desc' ? 'rotate-180' : ''
-                      }`} />
+                    <ArrowUpDown className={`h-4 w-4 text-gray-500 transition-transform ${
+                      sortDirection === 'desc' ? 'rotate-180' : ''
+                    }`} />
                   </button>
                 </div>
 
@@ -1624,40 +1711,44 @@ export default function FieldsContent() {
                 <div className="flex border-2 border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`p-2.5 transition-all ${viewMode === 'list'
+                    className={`p-2.5 transition-all ${
+                      viewMode === 'list'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'text-gray-500 hover:bg-gray-50'
-                      }`}
+                    }`}
                     title="List View"
                   >
                     <List className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${viewMode === 'grid'
+                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${
+                      viewMode === 'grid'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'text-gray-500 hover:bg-gray-50'
-                      }`}
+                    }`}
                     title="Grid View"
                   >
                     <Grid3x3 className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => setViewMode('compact')}
-                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${viewMode === 'compact'
+                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${
+                      viewMode === 'compact'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'text-gray-500 hover:bg-gray-50'
-                      }`}
+                    }`}
                     title="Compact View"
                   >
                     <LayoutGrid className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => setViewMode('detail')}
-                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${viewMode === 'detail'
+                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${
+                      viewMode === 'detail'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'text-gray-500 hover:bg-gray-50'
-                      }`}
+                    }`}
                     title="Detail View"
                   >
                     <Table className="h-5 w-5" />
@@ -1764,22 +1855,27 @@ export default function FieldsContent() {
                     {filteredFields.map((field, index) => (
                       <div
                         key={field._id}
-                        className={`bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
-                          }`}
+                        className={`bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${
+                          !field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
+                        }`}
                       >
                         <div className="p-5">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center space-x-3">
-                              <div className={`p-2.5 rounded-xl border-2 ${field.isEnabled ? getTypeColor(field.type) : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                              <div className={`p-2.5 rounded-xl border-2 ${
+                                field.isEnabled ? getTypeColor(field.type) : 'bg-gray-100 text-gray-500 border-gray-200'
+                              }`}>
                                 {getTypeIcon(field.type)}
                               </div>
                               <div>
                                 <h4 className="font-semibold text-gray-900">{field.label}</h4>
                                 <p className="text-xs text-gray-500 font-mono">{field.fieldKey}</p>
-                                {field.categoryId && (
+                                {field.categorySource && (
                                   <span className="inline-flex items-center mt-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
                                     <FolderTree className="h-3 w-3 mr-1" />
-                                    Category
+                                    {field.categorySource === 'all' && 'All Categories'}
+                                    {field.categorySource === 'entity' && 'All Entity Categories'}
+                                    {field.categorySource === 'specific' && `${field.categoryIds?.length || 0} Categories`}
                                   </span>
                                 )}
                               </div>
@@ -1787,8 +1883,9 @@ export default function FieldsContent() {
                             <div className="flex space-x-1">
                               <button
                                 onClick={() => handleToggleField(field._id)}
-                                className={`p-1.5 rounded-lg transition-colors ${field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
-                                  }`}
+                                className={`p-1.5 rounded-lg transition-colors ${
+                                  field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                                }`}
                               >
                                 {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                               </button>
@@ -1857,7 +1954,7 @@ export default function FieldsContent() {
             </DndContext>
           )
         ) : (
-          // Preview Mode (keep existing preview code)
+          // Preview Mode
           <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-xl p-6 sm:p-8 max-w-3xl mx-auto">
             <div className="flex items-center space-x-3 mb-6 pb-4 border-b-2 border-gray-200">
               <div className="p-2.5 bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl shadow-lg shadow-purple-500/25">
@@ -1877,9 +1974,10 @@ export default function FieldsContent() {
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     {field.label}
                     {field.required && <span className="text-red-500 ml-1">*</span>}
-                    {field.categoryId && (
+                    {field.categorySource && (
                       <span className="ml-2 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-                        Category
+                        <FolderTree className="h-3 w-3 inline mr-1" />
+                        Categories
                       </span>
                     )}
                     {field.readOnly && (
@@ -1924,12 +2022,16 @@ export default function FieldsContent() {
                     />
                   )}
 
-                  {field.type === 'select' && field.options && field.options.length > 0 && (
+                  {field.type === 'select' && (
                     <select className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-900" disabled>
                       <option>Select {field.label}</option>
-                      {field.options.map((opt, i) => (
-                        <option key={i}>{opt}</option>
-                      ))}
+                      {field.categorySource ? (
+                        <option>Loading categories...</option>
+                      ) : (
+                        field.options?.map((opt, i) => (
+                          <option key={i}>{opt}</option>
+                        ))
+                      )}
                     </select>
                   )}
 
@@ -1940,15 +2042,19 @@ export default function FieldsContent() {
                     </div>
                   )}
 
-                  {field.type === 'radio' && field.options && (
+                  {field.type === 'radio' && (
                     <div className="space-y-2 p-3 border-2 border-gray-200 rounded-xl bg-gray-50">
-                      {field.options.slice(0, 2).map((opt, i) => (
-                        <div key={i} className="flex items-center space-x-3">
-                          <input type="radio" className="h-4 w-4 text-blue-600 border-gray-300" disabled />
-                          <span className="text-sm text-gray-600">{opt}</span>
-                        </div>
-                      ))}
-                      {field.options.length > 2 && (
+                      {field.categorySource ? (
+                        <p className="text-sm text-gray-500">Radio options from categories</p>
+                      ) : (
+                        field.options?.slice(0, 2).map((opt, i) => (
+                          <div key={i} className="flex items-center space-x-3">
+                            <input type="radio" className="h-4 w-4 text-blue-600 border-gray-300" disabled />
+                            <span className="text-sm text-gray-600">{opt}</span>
+                          </div>
+                        ))
+                      )}
+                      {field.options && field.options.length > 2 && (
                         <p className="text-xs text-gray-400 mt-1">+{field.options.length - 2} more options</p>
                       )}
                     </div>
@@ -2093,15 +2199,18 @@ export default function FieldsContent() {
                       key={type}
                       type="button"
                       onClick={() => setFormData({ ...formData, type: type as any })}
-                      className={`p-4 border-2 rounded-xl flex flex-col items-center transition-all ${formData.type === type
+                      className={`p-4 border-2 rounded-xl flex flex-col items-center transition-all ${
+                        formData.type === type
                           ? `border-${color}-500 bg-${color}-50 ring-2 ring-${color}-100`
                           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
+                      }`}
                     >
-                      <Icon className={`h-6 w-6 mb-1 ${formData.type === type ? `text-${color}-600` : 'text-gray-500'
-                        }`} />
-                      <span className={`text-xs font-medium ${formData.type === type ? `text-${color}-700` : 'text-gray-600'
-                        }`}>
+                      <Icon className={`h-6 w-6 mb-1 ${
+                        formData.type === type ? `text-${color}-600` : 'text-gray-500'
+                      }`} />
+                      <span className={`text-xs font-medium ${
+                        formData.type === type ? `text-${color}-700` : 'text-gray-600'
+                      }`}>
                         {label}
                       </span>
                     </button>
@@ -2109,73 +2218,146 @@ export default function FieldsContent() {
                 </div>
               </div>
 
-              {/* Options for Select/Radio */}
+              {/* Options or Category Source for Select/Radio */}
               {(formData.type === 'select' || formData.type === 'radio') && (
-                <div className="bg-gray-50 p-5 rounded-xl border-2 border-gray-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Options <span className="text-red-500">*</span>
+                <div className="space-y-4">
+                  {/* Category Source Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Option Source
                     </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCategorySource('none');
+                          setFormData(prev => ({
+                            ...prev,
+                            categorySource: undefined,
+                            categoryIds: []
+                          }));
+                        }}
+                        className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${
+                          !formData.categorySource
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <span className="text-sm font-medium">Manual Options</span>
+                        <span className="text-xs text-gray-500 mt-1">Enter options manually</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCategorySource('entity');
+                          setFormData(prev => ({
+                            ...prev,
+                            categorySource: 'entity',
+                            options: []
+                          }));
+                        }}
+                        className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${
+                          formData.categorySource === 'entity'
+                            ? 'border-green-500 bg-green-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <FolderTree className="h-5 w-5 mb-1 text-green-600" />
+                        <span className="text-sm font-medium">Entity Categories</span>
+                        <span className="text-xs text-gray-500 mt-1">{entityCategories.length} available</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCategorySource('all');
+                          setFormData(prev => ({
+                            ...prev,
+                            categorySource: 'all',
+                            options: []
+                          }));
+                        }}
+                        className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${
+                          formData.categorySource === 'all'
+                            ? 'border-purple-500 bg-purple-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <FolderTree className="h-5 w-5 mb-1 text-purple-600" />
+                        <span className="text-sm font-medium">All Module Categories</span>
+                        <span className="text-xs text-gray-500 mt-1">{moduleCategories.length} available</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Manual Options */}
+                  {!formData.categorySource && (
+                    <div className="bg-gray-50 p-5 rounded-xl border-2 border-gray-200">
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Options <span className="text-red-500">*</span>
+                      </label>
+                      {formData.options.map((opt, i) => (
+                        <div key={i} className="flex mb-2">
+                          <input
+                            type="text"
+                            value={opt}
+                            onChange={(e) => handleOptionChange(i, e.target.value)}
+                            className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                            placeholder={`Option ${i + 1}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeOption(i)}
+                            className="ml-2 p-2 text-red-600 hover:bg-red-50 rounded-lg border-2 border-red-200 hover:border-red-300"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={addOption}
+                        className="mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Option
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Category Selection for Specific */}
+                  {formData.categorySource === 'specific' && (
                     <button
                       type="button"
                       onClick={() => setShowCategoryModal(true)}
-                      className="text-sm text-purple-600 hover:text-purple-800 font-medium flex items-center"
+                      className="w-full p-4 border-2 border-dashed border-purple-300 rounded-xl hover:bg-purple-50 transition-all flex items-center justify-center"
                     >
-                      <FolderTree className="h-4 w-4 mr-1" />
-                      Link Categories
+                      <FolderTree className="h-5 w-5 mr-2 text-purple-600" />
+                      <span className="text-sm font-medium text-purple-700">
+                        Select Specific Categories ({selectedCategoryIds.length} selected)
+                      </span>
                     </button>
-                  </div>
-                  {formData.options.map((opt, i) => (
-                    <div key={i} className="flex mb-2">
-                      <input
-                        type="text"
-                        value={opt}
-                        onChange={(e) => handleOptionChange(i, e.target.value)}
-                        className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
-                        placeholder={`Option ${i + 1}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeOption(i)}
-                        className="ml-2 p-2 text-red-600 hover:bg-red-50 rounded-lg border-2 border-red-200 hover:border-red-300"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={addOption}
-                    className="mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Option
-                  </button>
-                </div>
-              )}
+                  )}
 
-              {/* Category Selection (if categories exist) */}
-              {entityCategories.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Link to Category (Optional)
-                  </label>
-                  <select
-                    value={formData.categoryId}
-                    onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 bg-white text-gray-900"
-                  >
-                    <option value="">None (Not linked to category)</option>
-                    {entityCategories.map(cat => (
-                      <option key={cat._id} value={cat._id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1 flex items-center">
-                    <FolderTree className="h-3 w-3 mr-1 text-purple-500" />
-                    Linking to a category will automatically populate select options
-                  </p>
+                  {/* Category Source Info */}
+                  {formData.categorySource && (
+                    <div className="bg-green-50 p-4 rounded-xl border-2 border-green-200">
+                      <div className="flex items-start">
+                        <FolderTree className="h-5 w-5 text-green-600 mr-2 mt-0.5" />
+                        <div>
+                          <p className="font-medium text-green-800">
+                            {formData.categorySource === 'entity' && 'Using all categories from this entity'}
+                            {formData.categorySource === 'all' && 'Using all categories from this module'}
+                          </p>
+                          <p className="text-sm text-green-600 mt-1">
+                            {formData.categorySource === 'entity' && `${entityCategories.length} categories will be available as options`}
+                            {formData.categorySource === 'all' && `${moduleCategories.length} categories will be available as options`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2309,10 +2491,11 @@ export default function FieldsContent() {
                 ].map(({ key, label, description, color }) => (
                   <label
                     key={key}
-                    className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${formData[key as keyof typeof formData]
+                    className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      formData[key as keyof typeof formData]
                         ? `border-${color}-500 bg-${color}-50`
                         : 'border-gray-200 hover:border-gray-300'
-                      }`}
+                    }`}
                   >
                     <input
                       type="checkbox"
@@ -2324,10 +2507,11 @@ export default function FieldsContent() {
                       <p className="font-medium text-gray-900">{label}</p>
                       <p className="text-xs text-gray-500">{description}</p>
                     </div>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${formData[key as keyof typeof formData]
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                      formData[key as keyof typeof formData]
                         ? `border-${color}-500 bg-${color}-500`
                         : 'border-gray-300'
-                      }`}>
+                    }`}>
                       {formData[key as keyof typeof formData] && <Check className="h-4 w-4 text-white" />}
                     </div>
                   </label>
@@ -2370,7 +2554,7 @@ export default function FieldsContent() {
                     <FolderTree className="h-5 w-5 text-white" />
                   </div>
                   <h2 className="text-xl font-semibold text-white">
-                    Link Categories to Field
+                    Select Categories
                   </h2>
                 </div>
                 <button
@@ -2383,6 +2567,40 @@ export default function FieldsContent() {
             </div>
 
             <div className="p-6">
+              {/* Source Selection */}
+              <div className="mb-4 flex space-x-2">
+                <button
+                  onClick={() => setCategorySource('all')}
+                  className={`flex-1 p-2 border-2 rounded-xl text-sm font-medium transition-all ${
+                    categorySource === 'all'
+                      ? 'border-purple-500 bg-purple-50 text-purple-700'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  All Module
+                </button>
+                <button
+                  onClick={() => setCategorySource('entity')}
+                  className={`flex-1 p-2 border-2 rounded-xl text-sm font-medium transition-all ${
+                    categorySource === 'entity'
+                      ? 'border-green-500 bg-green-50 text-green-700'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  This Entity
+                </button>
+                <button
+                  onClick={() => setCategorySource('specific')}
+                  className={`flex-1 p-2 border-2 rounded-xl text-sm font-medium transition-all ${
+                    categorySource === 'specific'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Specific
+                </button>
+              </div>
+
               {/* Search */}
               <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -2397,7 +2615,7 @@ export default function FieldsContent() {
 
               {/* Category List */}
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {entityCategories
+                {(categorySource === 'all' ? moduleCategories : entityCategories)
                   .filter(cat => cat.name.toLowerCase().includes(categorySearch.toLowerCase()))
                   .map((category) => (
                     <label
@@ -2406,6 +2624,14 @@ export default function FieldsContent() {
                     >
                       <input
                         type="checkbox"
+                        checked={selectedCategoryIds.includes(category._id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedCategoryIds([...selectedCategoryIds, category._id]);
+                          } else {
+                            setSelectedCategoryIds(selectedCategoryIds.filter(id => id !== category._id));
+                          }
+                        }}
                         className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                       />
                       <div className="ml-3 flex-1">
@@ -2430,13 +2656,10 @@ export default function FieldsContent() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    toast.success('Categories linked successfully');
-                    setShowCategoryModal(false);
-                  }}
+                  onClick={handleLinkCategories}
                   className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all font-medium shadow-lg shadow-purple-500/25"
                 >
-                  Link Categories
+                  Link {selectedCategoryIds.length} Categories
                 </button>
               </div>
             </div>
