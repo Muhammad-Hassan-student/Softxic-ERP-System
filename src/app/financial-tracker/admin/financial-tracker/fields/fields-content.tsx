@@ -176,7 +176,7 @@ interface Field {
   options?: string[];
   categoryId?: string; // For single category link
   categoryIds?: string[]; // For multiple categories (select/radio)
-  categorySource?: 'all' | 'entity' | 'specific'; // 'all' = all categories in module, 'entity' = all categories for this entity, 'specific' = selected categories
+  categorySource?: 'all' | 'entity' | 'specific' | 'manual'; // 'all' = all categories in module, 'entity' = all categories for this entity, 'specific' = selected categories, 'manual' = manual options
   validation?: {
     min?: number;
     max?: number;
@@ -196,6 +196,8 @@ interface Entity {
   entityKey: string;
   name: string;
   description?: string;
+  color?: string;
+  icon?: string;
 }
 
 interface Category {
@@ -206,6 +208,9 @@ interface Category {
   isActive: boolean;
   color?: string;
   icon?: string;
+  description?: string;
+  parentId?: string; // For nested categories
+  children?: Category[]; // For nested categories
 }
 
 // View modes
@@ -216,7 +221,8 @@ type SortOption = 'name' | 'type' | 'order' | 'created' | 'updated';
 type SortDirection = 'asc' | 'desc';
 
 // Category source types
-type CategorySource = 'all' | 'entity' | 'specific' | 'none';
+type CategorySource = 'all' | 'entity' | 'specific' | 'manual';
+
 // ✅ Global helper functions
 const getTypeIcon = (type: string) => {
   switch (type) {
@@ -282,11 +288,11 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
   };
 
   const getCategorySourceText = (source?: string, count?: number) => {
-    if (!source) return null;
+    if (!source || source === 'manual') return null;
     switch (source) {
-      case 'all': return 'All Categories';
+      case 'all': return 'All Module Categories';
       case 'entity': return 'All Entity Categories';
-      case 'specific': return `${count || 0} Categories`;
+      case 'specific': return `${count || 0} Selected Categories`;
       default: return null;
     }
   };
@@ -320,7 +326,7 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   <span className="font-mono">{field.fieldKey}</span>
-                  {field.categorySource && (
+                  {field.categorySource && field.categorySource !== 'manual' && (
                     <span className="flex items-center text-green-600">
                       <FolderTree className="h-3 w-3 mr-1" />
                       {getCategorySourceText(field.categorySource, field.categoryIds?.length)}
@@ -411,12 +417,12 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
                 <p className="text-sm font-medium text-red-600">Yes</p>
               </div>
             )}
-            {field.categorySource && (
+            {field.categorySource && field.categorySource !== 'manual' && (
               <div className="bg-gray-50 p-3 rounded-xl">
                 <p className="text-xs text-gray-500 mb-1">Category Source</p>
                 <p className="text-sm font-medium text-green-600 flex items-center">
                   <FolderTree className="h-4 w-4 mr-1" />
-                  {field.categorySource === 'all' && 'All Categories'}
+                  {field.categorySource === 'all' && 'All Module Categories'}
                   {field.categorySource === 'entity' && 'All Entity Categories'}
                   {field.categorySource === 'specific' && `${field.categoryIds?.length || 0} Selected`}
                 </p>
@@ -555,12 +561,12 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
                 <span className="text-sm text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded-lg border border-gray-200">
                   {field.fieldKey}
                 </span>
-                {field.categorySource && (
+                {field.categorySource && field.categorySource !== 'manual' && (
                   <span className="flex items-center text-xs text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-200">
                     <FolderTree className="h-3 w-3 mr-1" />
-                    {field.categorySource === 'all' && 'All Categories'}
+                    {field.categorySource === 'all' && 'All Module Categories'}
                     {field.categorySource === 'entity' && 'All Entity Categories'}
-                    {field.categorySource === 'specific' && `${field.categoryIds?.length || 0} Categories`}
+                    {field.categorySource === 'specific' && `${field.categoryIds?.length || 0} Selected Categories`}
                   </span>
                 )}
               </div>
@@ -761,7 +767,7 @@ export default function FieldsContent() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [selectedFieldForCategory, setSelectedFieldForCategory] = useState<Field | null>(null);
   const [categorySearch, setCategorySearch] = useState('');
-  const [categorySource, setCategorySource] = useState<CategorySource>('entity');
+  const [categorySource, setCategorySource] = useState<CategorySource>('manual');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [stats, setStats] = useState({ total: 0, visible: 0, required: 0, system: 0, categoryLinked: 0 });
 
@@ -813,7 +819,7 @@ export default function FieldsContent() {
       visible: fields.filter(f => f.visible).length,
       required: fields.filter(f => f.required).length,
       system: fields.filter(f => f.isSystem).length,
-      categoryLinked: fields.filter(f => f.categorySource).length
+      categoryLinked: fields.filter(f => f.categorySource && f.categorySource !== 'manual').length
     });
   }, [fields]);
 
@@ -1071,7 +1077,7 @@ export default function FieldsContent() {
       };
 
       // Handle category linking
-      if (formData.categorySource) {
+      if (formData.categorySource && formData.categorySource !== 'manual') {
         payload.categorySource = formData.categorySource;
         if (formData.categorySource === 'specific') {
           payload.categoryIds = selectedCategoryIds;
@@ -1081,13 +1087,16 @@ export default function FieldsContent() {
           payload.categoryIds = allCategories.map(c => c._id);
         } else if (formData.categorySource === 'entity' && selectedEntityObj) {
           // Get all categories for this entity
-          const entityCategories = categories.filter(c => 
+          const entityCategoriesList = categories.filter(c => 
             c.module === selectedModule && 
             c.entity === selectedEntityObj.entityKey && 
             c.isActive
           );
-          payload.categoryIds = entityCategories.map(c => c._id);
+          payload.categoryIds = entityCategoriesList.map(c => c._id);
         }
+      } else {
+        payload.categorySource = 'manual';
+        payload.categoryIds = [];
       }
 
       const response = await fetch(url, {
@@ -1225,7 +1234,7 @@ export default function FieldsContent() {
         maxFileSize: undefined
       }
     });
-    setCategorySource('entity');
+    setCategorySource('manual');
     setSelectedCategoryIds([]);
   };
 
@@ -1254,7 +1263,7 @@ export default function FieldsContent() {
         maxFileSize: field.validation?.maxFileSize
       }
     });
-    setCategorySource(field.categorySource || 'entity');
+    setCategorySource(field.categorySource || 'manual');
     setSelectedCategoryIds(field.categoryIds || []);
     setIsModalOpen(true);
   };
@@ -1302,6 +1311,20 @@ export default function FieldsContent() {
     [categories, selectedModule]
   );
 
+  // Group categories by entity for display
+  const categoriesByEntity = useMemo(() => {
+    const grouped: Record<string, Category[]> = {};
+    categories
+      .filter(c => c.module === selectedModule && c.isActive)
+      .forEach(c => {
+        if (!grouped[c.entity]) {
+          grouped[c.entity] = [];
+        }
+        grouped[c.entity].push(c);
+      });
+    return grouped;
+  }, [categories, selectedModule]);
+
   // Handle category selection in modal
   const handleLinkCategories = () => {
     setFormData(prev => ({
@@ -1309,7 +1332,8 @@ export default function FieldsContent() {
       categorySource,
       categoryIds: categorySource === 'specific' ? selectedCategoryIds : 
                     categorySource === 'all' ? moduleCategories.map(c => c._id) :
-                    entityCategories.map(c => c._id)
+                    categorySource === 'entity' ? entityCategories.map(c => c._id) :
+                    []
     }));
     setShowCategoryModal(false);
     toast.success('Categories linked successfully');
@@ -1334,7 +1358,7 @@ export default function FieldsContent() {
                 </h1>
                 <p className="text-sm text-gray-500 mt-0.5 flex items-center">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2 animate-pulse"></span>
-                  Configure custom fields for each entity
+                  Configure custom fields with smart category integration
                 </p>
               </div>
             </div>
@@ -1870,12 +1894,12 @@ export default function FieldsContent() {
                               <div>
                                 <h4 className="font-semibold text-gray-900">{field.label}</h4>
                                 <p className="text-xs text-gray-500 font-mono">{field.fieldKey}</p>
-                                {field.categorySource && (
+                                {field.categorySource && field.categorySource !== 'manual' && (
                                   <span className="inline-flex items-center mt-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
                                     <FolderTree className="h-3 w-3 mr-1" />
-                                    {field.categorySource === 'all' && 'All Categories'}
+                                    {field.categorySource === 'all' && 'All Module Categories'}
                                     {field.categorySource === 'entity' && 'All Entity Categories'}
-                                    {field.categorySource === 'specific' && `${field.categoryIds?.length || 0} Categories`}
+                                    {field.categorySource === 'specific' && `${field.categoryIds?.length || 0} Selected`}
                                   </span>
                                 )}
                               </div>
@@ -1974,10 +1998,12 @@ export default function FieldsContent() {
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     {field.label}
                     {field.required && <span className="text-red-500 ml-1">*</span>}
-                    {field.categorySource && (
+                    {field.categorySource && field.categorySource !== 'manual' && (
                       <span className="ml-2 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
                         <FolderTree className="h-3 w-3 inline mr-1" />
-                        Categories
+                        {field.categorySource === 'all' && 'All Categories'}
+                        {field.categorySource === 'entity' && 'Entity Categories'}
+                        {field.categorySource === 'specific' && `${field.categoryIds?.length || 0} Categories`}
                       </span>
                     )}
                     {field.readOnly && (
@@ -2226,11 +2252,11 @@ export default function FieldsContent() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Option Source
                     </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                       <button
                         type="button"
                         onClick={() => {
-                          setCategorySource('none');
+                          setCategorySource('manual');
                           setFormData(prev => ({
                             ...prev,
                             categorySource: undefined,
@@ -2243,8 +2269,8 @@ export default function FieldsContent() {
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
-                        <span className="text-sm font-medium">Manual Options</span>
-                        <span className="text-xs text-gray-500 mt-1">Enter options manually</span>
+                        <span className="text-sm font-medium">Manual</span>
+                        <span className="text-xs text-gray-500 mt-1">Enter options</span>
                       </button>
 
                       <button
@@ -2264,8 +2290,8 @@ export default function FieldsContent() {
                         }`}
                       >
                         <FolderTree className="h-5 w-5 mb-1 text-green-600" />
-                        <span className="text-sm font-medium">Entity Categories</span>
-                        <span className="text-xs text-gray-500 mt-1">{entityCategories.length} available</span>
+                        <span className="text-sm font-medium">Entity</span>
+                        <span className="text-xs text-gray-500 mt-1">{entityCategories.length} cats</span>
                       </button>
 
                       <button
@@ -2285,8 +2311,29 @@ export default function FieldsContent() {
                         }`}
                       >
                         <FolderTree className="h-5 w-5 mb-1 text-purple-600" />
-                        <span className="text-sm font-medium">All Module Categories</span>
-                        <span className="text-xs text-gray-500 mt-1">{moduleCategories.length} available</span>
+                        <span className="text-sm font-medium">All Module</span>
+                        <span className="text-xs text-gray-500 mt-1">{moduleCategories.length} cats</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCategorySource('specific');
+                          setFormData(prev => ({
+                            ...prev,
+                            categorySource: 'specific',
+                            options: []
+                          }));
+                        }}
+                        className={`p-3 border-2 rounded-xl flex flex-col items-center transition-all ${
+                          formData.categorySource === 'specific'
+                            ? 'border-amber-500 bg-amber-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <FolderTree className="h-5 w-5 mb-1 text-amber-600" />
+                        <span className="text-sm font-medium">Specific</span>
+                        <span className="text-xs text-gray-500 mt-1">Select manually</span>
                       </button>
                     </div>
                   </div>
@@ -2331,26 +2378,36 @@ export default function FieldsContent() {
                     <button
                       type="button"
                       onClick={() => setShowCategoryModal(true)}
-                      className="w-full p-4 border-2 border-dashed border-purple-300 rounded-xl hover:bg-purple-50 transition-all flex items-center justify-center"
+                      className="w-full p-4 border-2 border-dashed border-amber-300 rounded-xl hover:bg-amber-50 transition-all flex items-center justify-center"
                     >
-                      <FolderTree className="h-5 w-5 mr-2 text-purple-600" />
-                      <span className="text-sm font-medium text-purple-700">
-                        Select Specific Categories ({selectedCategoryIds.length} selected)
+                      <FolderTree className="h-5 w-5 mr-2 text-amber-600" />
+                      <span className="text-sm font-medium text-amber-700">
+                        {selectedCategoryIds.length > 0 
+                          ? `${selectedCategoryIds.length} Categories Selected` 
+                          : 'Select Specific Categories'}
                       </span>
                     </button>
                   )}
 
                   {/* Category Source Info */}
-                  {formData.categorySource && (
-                    <div className="bg-green-50 p-4 rounded-xl border-2 border-green-200">
+                  {formData.categorySource && formData.categorySource !== 'specific' && (
+                    <div className={`p-4 rounded-xl border-2 ${
+                      formData.categorySource === 'entity' ? 'bg-green-50 border-green-200' : 'bg-purple-50 border-purple-200'
+                    }`}>
                       <div className="flex items-start">
-                        <FolderTree className="h-5 w-5 text-green-600 mr-2 mt-0.5" />
+                        <FolderTree className={`h-5 w-5 mr-2 mt-0.5 ${
+                          formData.categorySource === 'entity' ? 'text-green-600' : 'text-purple-600'
+                        }`} />
                         <div>
-                          <p className="font-medium text-green-800">
+                          <p className={`font-medium ${
+                            formData.categorySource === 'entity' ? 'text-green-800' : 'text-purple-800'
+                          }`}>
                             {formData.categorySource === 'entity' && 'Using all categories from this entity'}
                             {formData.categorySource === 'all' && 'Using all categories from this module'}
                           </p>
-                          <p className="text-sm text-green-600 mt-1">
+                          <p className={`text-sm mt-1 ${
+                            formData.categorySource === 'entity' ? 'text-green-600' : 'text-purple-600'
+                          }`}>
                             {formData.categorySource === 'entity' && `${entityCategories.length} categories will be available as options`}
                             {formData.categorySource === 'all' && `${moduleCategories.length} categories will be available as options`}
                           </p>
@@ -2546,8 +2603,8 @@ export default function FieldsContent() {
       {/* Category Selection Modal */}
       {showCategoryModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-scaleIn border-2 border-gray-200">
-            <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-t-2xl px-6 py-4 sticky top-0">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto animate-scaleIn border-2 border-gray-200">
+            <div className="bg-gradient-to-r from-amber-600 to-amber-700 rounded-t-2xl px-6 py-4 sticky top-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="bg-white/20 rounded-xl p-2">
@@ -2567,40 +2624,6 @@ export default function FieldsContent() {
             </div>
 
             <div className="p-6">
-              {/* Source Selection */}
-              <div className="mb-4 flex space-x-2">
-                <button
-                  onClick={() => setCategorySource('all')}
-                  className={`flex-1 p-2 border-2 rounded-xl text-sm font-medium transition-all ${
-                    categorySource === 'all'
-                      ? 'border-purple-500 bg-purple-50 text-purple-700'
-                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  All Module
-                </button>
-                <button
-                  onClick={() => setCategorySource('entity')}
-                  className={`flex-1 p-2 border-2 rounded-xl text-sm font-medium transition-all ${
-                    categorySource === 'entity'
-                      ? 'border-green-500 bg-green-50 text-green-700'
-                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  This Entity
-                </button>
-                <button
-                  onClick={() => setCategorySource('specific')}
-                  className={`flex-1 p-2 border-2 rounded-xl text-sm font-medium transition-all ${
-                    categorySource === 'specific'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  Specific
-                </button>
-              </div>
-
               {/* Search */}
               <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -2609,55 +2632,81 @@ export default function FieldsContent() {
                   placeholder="Search categories..."
                   value={categorySearch}
                   onChange={(e) => setCategorySearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 text-gray-900"
+                  className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 text-gray-900"
                 />
               </div>
 
-              {/* Category List */}
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {(categorySource === 'all' ? moduleCategories : entityCategories)
-                  .filter(cat => cat.name.toLowerCase().includes(categorySearch.toLowerCase()))
-                  .map((category) => (
-                    <label
-                      key={category._id}
-                      className="flex items-center p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:bg-purple-50 transition-all"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedCategoryIds.includes(category._id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedCategoryIds([...selectedCategoryIds, category._id]);
-                          } else {
-                            setSelectedCategoryIds(selectedCategoryIds.filter(id => id !== category._id));
-                          }
-                        }}
-                        className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                      />
-                      <div className="ml-3 flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-gray-900">{category.name}</span>
-                          <span className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-600">
-                            {category.module.toUpperCase()}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-500">Entity: {category.entity}</p>
+              {/* Category List by Entity */}
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {Object.entries(categoriesByEntity).map(([entity, cats]) => {
+                  const entityObj = entities.find(e => e.entityKey === entity);
+                  const filteredCats = cats.filter(cat => 
+                    cat.name.toLowerCase().includes(categorySearch.toLowerCase())
+                  );
+
+                  if (filteredCats.length === 0) return null;
+
+                  return (
+                    <div key={entity} className="border-2 border-gray-200 rounded-xl overflow-hidden">
+                      <div className="bg-gray-50 px-4 py-2 border-b-2 border-gray-200">
+                        <h3 className="font-medium text-gray-700">
+                          {entityObj?.name || entity}
+                        </h3>
                       </div>
-                    </label>
-                  ))}
+                      <div className="p-3 space-y-2">
+                        {filteredCats.map((category) => (
+                          <label
+                            key={category._id}
+                            className="flex items-center p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-amber-50 transition-all"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedCategoryIds.includes(category._id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedCategoryIds([...selectedCategoryIds, category._id]);
+                                } else {
+                                  setSelectedCategoryIds(selectedCategoryIds.filter(id => id !== category._id));
+                                }
+                              }}
+                              className="w-5 h-5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                            />
+                            <div className="ml-3 flex-1">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-gray-900">{category.name}</span>
+                                {category.color && (
+                                  <span 
+                                    className="w-4 h-4 rounded-full" 
+                                    style={{ backgroundColor: category.color }}
+                                  />
+                                )}
+                              </div>
+                              {category.description && (
+                                <p className="text-sm text-gray-500">{category.description}</p>
+                              )}
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Actions */}
               <div className="mt-6 flex justify-end space-x-3">
                 <button
-                  onClick={() => setShowCategoryModal(false)}
+                  onClick={() => {
+                    setSelectedCategoryIds([]);
+                    setShowCategoryModal(false);
+                  }}
                   className="px-6 py-2.5 border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleLinkCategories}
-                  className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all font-medium shadow-lg shadow-purple-500/25"
+                  className="px-6 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-xl hover:from-amber-700 hover:to-amber-800 transition-all font-medium shadow-lg shadow-amber-500/25"
                 >
                   Link {selectedCategoryIds.length} Categories
                 </button>
