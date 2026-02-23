@@ -1,7 +1,7 @@
 // src/app/admin/financial-tracker/fields/fields-content.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Plus,
@@ -81,7 +81,56 @@ import {
   Sun,
   Monitor,
   Tablet,
-  Smartphone as MobileIcon
+  Smartphone as MobileIcon,
+  LayoutGrid,
+  List,
+  Table,
+  Columns,
+  Maximize2,
+  Minimize2,
+  Pin,
+  PinOff,
+  Star as StarIcon,
+  Award,
+  TrendingUp,
+  TrendingDown,
+  BarChart3,
+  PieChart,
+  Activity,
+  Github,
+  GitBranch,
+  GitCommit,
+  GitMerge,
+  GitPullRequest,
+  Box,
+  Package,
+  Archive,
+  ArchiveRestore,
+  ArchiveX,
+  ScrollText,
+  FileJson,
+  FileSpreadsheet,
+  FileCode,
+  FileDigit,
+  Binary,
+  Braces,
+  Terminal,
+  Command,
+  Cpu,
+  HardDrive,
+  Network,
+  Cloud,
+  CloudOff,
+  WifiOff,
+  Battery,
+  BatteryCharging,
+  BatteryWarning,
+  Power,
+  PowerOff,
+  ToggleLeft,
+  ToggleRight,
+  ToggleLeft as ToggleLeftIcon,
+  ToggleRight as ToggleRightIcon
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
@@ -125,6 +174,7 @@ interface Field {
   order: number;
   defaultValue?: any;
   options?: string[];
+  categoryId?: string; // For category-linked fields
   validation?: {
     min?: number;
     max?: number;
@@ -146,7 +196,24 @@ interface Entity {
   description?: string;
 }
 
-// ✅ Global helper functions (defined outside components)
+interface Category {
+  _id: string;
+  name: string;
+  module: 're' | 'expense';
+  entity: string;
+  isActive: boolean;
+  color?: string;
+  icon?: string;
+}
+
+// View modes
+type ViewMode = 'grid' | 'list' | 'compact' | 'detail' | 'table';
+
+// Sort options
+type SortOption = 'name' | 'type' | 'order' | 'created' | 'updated';
+type SortDirection = 'asc' | 'desc';
+
+// ✅ Global helper functions
 const getTypeIcon = (type: string) => {
   switch (type) {
     case 'text': return <Type className="h-4 w-4" />;
@@ -179,21 +246,21 @@ const getTypeColor = (type: string) => {
 
 const getTypeBadgeColor = (type: string) => {
   switch (type) {
-    case 'text': return 'bg-blue-100 text-blue-700';
-    case 'number': return 'bg-emerald-100 text-emerald-700';
-    case 'date': return 'bg-purple-100 text-purple-700';
-    case 'select': return 'bg-amber-100 text-amber-700';
-    case 'textarea': return 'bg-orange-100 text-orange-700';
-    case 'file': return 'bg-indigo-100 text-indigo-700';
-    case 'image': return 'bg-pink-100 text-pink-700';
-    case 'checkbox': return 'bg-teal-100 text-teal-700';
-    case 'radio': return 'bg-cyan-100 text-cyan-700';
-    default: return 'bg-gray-100 text-gray-700';
+    case 'text': return 'bg-blue-100 text-blue-700 border-blue-200';
+    case 'number': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    case 'date': return 'bg-purple-100 text-purple-700 border-purple-200';
+    case 'select': return 'bg-amber-100 text-amber-700 border-amber-200';
+    case 'textarea': return 'bg-orange-100 text-orange-700 border-orange-200';
+    case 'file': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
+    case 'image': return 'bg-pink-100 text-pink-700 border-pink-200';
+    case 'checkbox': return 'bg-teal-100 text-teal-700 border-teal-200';
+    case 'radio': return 'bg-cyan-100 text-cyan-700 border-cyan-200';
+    default: return 'bg-gray-100 text-gray-700 border-gray-200';
   }
 };
 
-// ✅ Beautiful Sortable Field Item with Enterprise Design
-const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, index, totalItems, onMove }: any) => {
+// ✅ Sortable Field Item Component
+const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, index, totalItems, onMove, viewMode = 'list' }: any) => {
   const {
     attributes,
     listeners,
@@ -210,20 +277,235 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
     zIndex: isDragging ? 50 : 1
   };
 
+  if (viewMode === 'compact') {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`group relative bg-white rounded-xl border-2 shadow-sm hover:shadow-md transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
+          } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
+      >
+        <div className="p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3 min-w-0 flex-1">
+              <div
+                {...attributes}
+                {...listeners}
+                className="cursor-move text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <GripVertical className="h-4 w-4" />
+              </div>
+              <div className={`p-2 rounded-lg border-2 ${getTypeColor(field.type)}`}>
+                {getTypeIcon(field.type)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-900 truncate">{field.label}</span>
+                  {field.required && <span className="text-red-500 text-xs">*</span>}
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span className="font-mono">{field.fieldKey}</span>
+                  {field.categoryId && (
+                    <span className="flex items-center text-green-600">
+                      <FolderTree className="h-3 w-3 mr-1" />
+                      Category
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => onToggle(field._id)}
+                className={`p-1.5 rounded-lg transition-colors ${field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                  }`}
+              >
+                {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              </button>
+              <button
+                onClick={() => onEdit(field)}
+                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
+              >
+                <Edit className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (viewMode === 'detail') {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`group relative bg-white rounded-2xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
+          } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : ''}`}
+      >
+        <div className={`absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl ${field.isEnabled
+            ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500'
+            : 'bg-gradient-to-r from-gray-400 to-gray-500'
+          }`}></div>
+
+        <div className="p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center space-x-4">
+              <div className={`p-4 rounded-xl border-2 ${getTypeColor(field.type)}`}>
+                {getTypeIcon(field.type)}
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">{field.label}</h3>
+                <p className="text-sm text-gray-500 font-mono">{field.fieldKey}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`px-3 py-1.5 rounded-full text-xs font-medium border-2 ${getTypeColor(field.type)}`}>
+                {field.type}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="bg-gray-50 p-3 rounded-xl">
+              <p className="text-xs text-gray-500 mb-1">Status</p>
+              <div className="flex items-center">
+                {field.isEnabled ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                    <span className="text-sm font-medium text-green-700">Active</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-4 w-4 text-gray-400 mr-2" />
+                    <span className="text-sm font-medium text-gray-500">Inactive</span>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="bg-gray-50 p-3 rounded-xl">
+              <p className="text-xs text-gray-500 mb-1">Order</p>
+              <p className="text-sm font-medium text-gray-900">#{field.order + 1}</p>
+            </div>
+            {field.required && (
+              <div className="bg-gray-50 p-3 rounded-xl">
+                <p className="text-xs text-gray-500 mb-1">Required</p>
+                <p className="text-sm font-medium text-red-600">Yes</p>
+              </div>
+            )}
+            {field.categoryId && (
+              <div className="bg-gray-50 p-3 rounded-xl">
+                <p className="text-xs text-gray-500 mb-1">Category Linked</p>
+                <p className="text-sm font-medium text-green-600 flex items-center">
+                  <FolderTree className="h-4 w-4 mr-1" />
+                  Yes
+                </p>
+              </div>
+            )}
+          </div>
+
+          {field.options && field.options.length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs text-gray-500 mb-2">Options ({field.options.length})</p>
+              <div className="flex flex-wrap gap-2">
+                {field.options.slice(0, 3).map((opt: any, i: any) => (
+                  <span key={i} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg border border-gray-200">
+                    {opt}
+                  </span>
+                ))}
+                {field.options.length > 3 && (
+                  <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg">
+                    +{field.options.length - 3} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {field.validation && (
+            <div className="mb-4">
+              <p className="text-xs text-gray-500 mb-2">Validation</p>
+              <div className="flex flex-wrap gap-2">
+                {field.validation.min !== undefined && (
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg">Min: {field.validation.min}</span>
+                )}
+                {field.validation.max !== undefined && (
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg">Max: {field.validation.max}</span>
+                )}
+                {field.validation.regex && (
+                  <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-lg font-mono">/{field.validation.regex}/</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+            <div className="flex items-center text-xs text-gray-400">
+              <Clock className="h-3 w-3 mr-1" />
+              {new Date(field.updatedAt || '').toLocaleDateString()}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onMove(field._id, 'up')}
+                disabled={index === 0}
+                className="p-1.5 hover:bg-gray-100 rounded-lg disabled:opacity-30"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => onMove(field._id, 'down')}
+                disabled={index === totalItems - 1}
+                className="p-1.5 hover:bg-gray-100 rounded-lg disabled:opacity-30"
+              >
+                <ArrowDown className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => onToggle(field._id)}
+                className={`p-1.5 rounded-lg ${field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                  }`}
+              >
+                {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              </button>
+              <button
+                onClick={() => onDuplicate(field)}
+                className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => onEdit(field)}
+                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
+              >
+                <Edit className="h-4 w-4" />
+              </button>
+              {!field.isSystem && (
+                <button
+                  onClick={() => onDelete(field)}
+                  className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Default list view (existing implementation)
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${
-        !field.isEnabled ? 'opacity-70 bg-gray-50/50' : ''
-      } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : 'border-gray-200 hover:border-blue-300'}`}
+      className={`group relative bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : ''
+        } ${isDragging ? 'shadow-2xl ring-4 ring-blue-500 ring-opacity-30 scale-[1.02] border-blue-500' : 'border-gray-200 hover:border-blue-300'}`}
     >
       {/* Status Indicator Bar */}
-      <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${
-        field.isEnabled 
-          ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500' 
+      <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${field.isEnabled
+          ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500'
           : 'bg-gradient-to-r from-gray-400 to-gray-500'
-      }`}></div>
+        }`}></div>
 
       <div className="p-6">
         <div className="flex flex-col lg:flex-row lg:items-start gap-4">
@@ -250,8 +532,14 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
                 <span className="text-sm text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded-lg border border-gray-200">
                   {field.fieldKey}
                 </span>
+                {field.categoryId && (
+                  <span className="flex items-center text-xs text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-200">
+                    <FolderTree className="h-3 w-3 mr-1" />
+                    Category Linked
+                  </span>
+                )}
               </div>
-              
+
               <div className="flex items-center gap-2 flex-wrap">
                 {field.required && (
                   <span className="inline-flex items-center px-2.5 py-1 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-medium rounded-full shadow-sm shadow-red-500/25">
@@ -285,7 +573,7 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
               <span className={`px-3 py-1.5 rounded-lg text-xs font-medium border-2 ${getTypeColor(field.type)}`}>
                 {field.type.charAt(0).toUpperCase() + field.type.slice(1)}
               </span>
-              
+
               {field.options && field.options.length > 0 && (
                 <span className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg border border-gray-200 flex items-center">
                   <ListChecks className="h-3 w-3 mr-1" />
@@ -340,8 +628,8 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
             {/* Footer Metadata */}
             <div className="mt-4 flex items-center text-xs text-gray-400 border-t border-gray-100 pt-3">
               <Clock className="h-3 w-3 mr-1" />
-              <span>Updated {new Date(field.updatedAt || '').toLocaleDateString('en-US', { 
-                month: 'short', 
+              <span>Updated {new Date(field.updatedAt || '').toLocaleDateString('en-US', {
+                month: 'short',
                 day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit'
@@ -378,11 +666,10 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => onToggle(field._id)}
-                className={`p-2.5 rounded-xl transition-all border-2 ${
-                  field.isEnabled 
-                    ? 'text-emerald-600 hover:bg-emerald-50 border-emerald-200 hover:border-emerald-300' 
+                className={`p-2.5 rounded-xl transition-all border-2 ${field.isEnabled
+                    ? 'text-emerald-600 hover:bg-emerald-50 border-emerald-200 hover:border-emerald-300'
                     : 'text-gray-400 hover:bg-gray-50 border-gray-200 hover:border-gray-300'
-                }`}
+                  }`}
                 title={field.isEnabled ? 'Disable field' : 'Enable field'}
               >
                 {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
@@ -421,13 +708,14 @@ const SortableFieldItem = ({ field, onEdit, onToggle, onDelete, onDuplicate, ind
   );
 };
 
-// ✅ Main Fields Content Component with Enterprise UI
+// ✅ Main Fields Content Component
 export default function FieldsContent() {
   const searchParams = useSearchParams();
   const moduleParam = searchParams.get('module');
 
   const [fields, setFields] = useState<Field[]>([]);
   const [entities, setEntities] = useState<Entity[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedModule, setSelectedModule] = useState<'re' | 'expense'>(
     (moduleParam as 're' | 'expense') || 're'
@@ -440,8 +728,14 @@ export default function FieldsContent() {
   const [showInactive, setShowInactive] = useState(false);
   const [activeTab, setActiveTab] = useState<'fields' | 'preview'>('fields');
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-  const [stats, setStats] = useState({ total: 0, visible: 0, required: 0, system: 0 });
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [sortBy, setSortBy] = useState<SortOption>('order');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [selectedFieldForCategory, setSelectedFieldForCategory] = useState<Field | null>(null);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [stats, setStats] = useState({ total: 0, visible: 0, required: 0, system: 0, categoryLinked: 0 });
 
   const [formData, setFormData] = useState({
     module: 're' as 're' | 'expense',
@@ -455,6 +749,7 @@ export default function FieldsContent() {
     isEnabled: true,
     defaultValue: '',
     options: [''] as string[],
+    categoryId: '',
     validation: {
       min: undefined as number | undefined,
       max: undefined as number | undefined,
@@ -475,29 +770,34 @@ export default function FieldsContent() {
     })
   );
 
-  // ✅ Update stats
+  // Field types for filtering
+  const fieldTypes = useMemo(() =>
+    ['text', 'number', 'date', 'select', 'textarea', 'file', 'image', 'checkbox', 'radio'],
+    []
+  );
+
+  // Update stats
   useEffect(() => {
     setStats({
       total: fields.length,
       visible: fields.filter(f => f.visible).length,
       required: fields.filter(f => f.required).length,
-      system: fields.filter(f => f.isSystem).length
+      system: fields.filter(f => f.isSystem).length,
+      categoryLinked: fields.filter(f => f.categoryId).length
     });
   }, [fields]);
 
-  // ✅ Fetch entities
+  // Fetch entities
   const fetchEntities = async () => {
     try {
       const token = getToken();
       const response = await fetch(`/financial-tracker/api/financial-tracker/entities?module=${selectedModule}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
         setEntities(data.entities || []);
-        
+
         if (data.entities.length > 0 && !selectedEntity) {
           setSelectedEntity(data.entities[0]._id);
           setSelectedEntityObj(data.entities[0]);
@@ -509,26 +809,65 @@ export default function FieldsContent() {
     }
   };
 
-  // ✅ Fetch fields
+  // Fetch categories
+  const fetchCategories = async () => {
+    try {
+      const token = getToken();
+      const response = await fetch('/financial-tracker/api/financial-tracker/categories?active=true', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data.categories || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
+    }
+  };
+
+  // Fetch fields
   const fetchFields = async () => {
     if (!selectedEntity) return;
-    
+
     try {
       setIsLoading(true);
       const token = getToken();
       const response = await fetch(
         `/financial-tracker/api/financial-tracker/fields?module=${selectedModule}&entityId=${selectedEntity}${!showInactive ? '' : '&includeDisabled=true'}`,
         {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` }
         }
       );
 
       if (!response.ok) throw new Error('Failed to fetch fields');
-      
+
       const data = await response.json();
-      setFields(data.fields?.sort((a: Field, b: Field) => a.order - b.order) || []);
+      let sortedFields = data.fields?.sort((a: Field, b: Field) => a.order - b.order) || [];
+
+      // Apply sorting
+      sortedFields.sort((a: any, b: any) => {
+        let comparison = 0;
+        switch (sortBy) {
+          case 'name':
+            comparison = a.label.localeCompare(b.label);
+            break;
+          case 'type':
+            comparison = a.type.localeCompare(b.type);
+            break;
+          case 'order':
+            comparison = a.order - b.order;
+            break;
+          case 'created':
+            comparison = new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+            break;
+          case 'updated':
+            comparison = new Date(a.updatedAt || 0).getTime() - new Date(b.updatedAt || 0).getTime();
+            break;
+        }
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+
+      setFields(sortedFields);
     } catch (error) {
       toast.error('Failed to load fields');
     } finally {
@@ -536,7 +875,7 @@ export default function FieldsContent() {
     }
   };
 
-  // ✅ Handle export
+  // Handle export
   const handleExport = async () => {
     try {
       const token = getToken();
@@ -544,13 +883,13 @@ export default function FieldsContent() {
       if (selectedModule) params.append('module', selectedModule);
       if (selectedEntity) params.append('entityId', selectedEntity);
       if (showInactive) params.append('includeDisabled', 'true');
-      
+
       const response = await fetch(`/financial-tracker/api/financial-tracker/fields/export?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (!response.ok) throw new Error('Export failed');
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -560,13 +899,29 @@ export default function FieldsContent() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      
+
       toast.success('Fields exported successfully');
     } catch (error) {
       toast.error('Failed to export fields');
     }
   };
 
+  // Handle import
+  const handleImport = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv';
+    input.onchange = (e: any) => {
+      const file = e.target.files[0];
+      if (file) {
+        // Implement import logic
+        toast.success('Import feature coming soon');
+      }
+    };
+    input.click();
+  };
+
+  // Handle duplicate
   const handleDuplicate = async (field: Field) => {
     setFormData({
       module: field.module,
@@ -580,6 +935,7 @@ export default function FieldsContent() {
       isEnabled: field.isEnabled,
       defaultValue: field.defaultValue || '',
       options: field.options || [''],
+      categoryId: field.categoryId || '',
       validation: {
         min: field.validation?.min,
         max: field.validation?.max,
@@ -601,13 +957,14 @@ export default function FieldsContent() {
 
   useEffect(() => {
     fetchEntities();
+    fetchCategories();
   }, [selectedModule]);
 
   useEffect(() => {
     if (selectedEntity) {
       fetchFields();
     }
-  }, [selectedEntity, showInactive]);
+  }, [selectedEntity, showInactive, sortBy, sortDirection]);
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -639,14 +996,7 @@ export default function FieldsContent() {
         });
 
         if (!response.ok) throw new Error('Failed to save order');
-        toast.success('Fields reordered successfully', {
-          icon: '🔄',
-          style: {
-            borderRadius: '10px',
-            background: '#333',
-            color: '#fff',
-          },
-        });
+        toast.success('Fields reordered successfully');
       } catch (error) {
         toast.error('Failed to save field order');
         fetchFields();
@@ -671,10 +1021,10 @@ export default function FieldsContent() {
 
     try {
       const token = getToken();
-      const url = editingField 
+      const url = editingField
         ? `/financial-tracker/api/financial-tracker/fields/${editingField._id}`
         : '/financial-tracker/api/financial-tracker/fields';
-      
+
       const method = editingField ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -686,6 +1036,7 @@ export default function FieldsContent() {
         body: JSON.stringify({
           ...formData,
           options: filteredOptions.length > 0 ? filteredOptions : undefined,
+          categoryId: formData.categoryId || undefined,
           validation: {
             ...formData.validation,
             regex: formData.validation.regex || undefined,
@@ -700,14 +1051,7 @@ export default function FieldsContent() {
         throw new Error(error.error || 'Failed to save field');
       }
 
-      toast.success(editingField ? 'Field updated successfully' : 'Field created successfully', {
-        icon: editingField ? '✏️' : '✨',
-        style: {
-          borderRadius: '10px',
-          background: '#333',
-          color: '#fff',
-        },
-      });
+      toast.success(editingField ? 'Field updated successfully' : 'Field created successfully');
       setIsModalOpen(false);
       setEditingField(null);
       resetForm();
@@ -729,9 +1073,7 @@ export default function FieldsContent() {
 
       if (!response.ok) throw new Error('Failed to toggle field');
 
-      toast.success('Field status updated successfully', {
-        icon: '✅',
-      });
+      toast.success('Field status updated successfully');
       fetchFields();
     } catch (error) {
       toast.error('Failed to toggle field');
@@ -757,9 +1099,7 @@ export default function FieldsContent() {
 
       if (!response.ok) throw new Error('Failed to delete field');
 
-      toast.success('Field deleted successfully', {
-        icon: '🗑️',
-      });
+      toast.success('Field deleted successfully');
       fetchFields();
     } catch (error) {
       toast.error('Failed to delete field');
@@ -769,7 +1109,7 @@ export default function FieldsContent() {
   const handleMoveField = async (fieldId: string, direction: 'up' | 'down') => {
     const index = fields.findIndex(f => f._id === fieldId);
     if (
-      (direction === 'up' && index === 0) || 
+      (direction === 'up' && index === 0) ||
       (direction === 'down' && index === fields.length - 1)
     ) return;
 
@@ -821,6 +1161,7 @@ export default function FieldsContent() {
       isEnabled: true,
       defaultValue: '',
       options: [''],
+      categoryId: '',
       validation: {
         min: undefined,
         max: undefined,
@@ -845,6 +1186,7 @@ export default function FieldsContent() {
       isEnabled: field.isEnabled,
       defaultValue: field.defaultValue || '',
       options: field.options && field.options.length > 0 ? field.options : [''],
+      categoryId: field.categoryId || '',
       validation: {
         min: field.validation?.min,
         max: field.validation?.max,
@@ -873,16 +1215,30 @@ export default function FieldsContent() {
     }
   };
 
-  const filteredFields = fields.filter(field =>
-    field.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    field.fieldKey.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    field.type.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filter fields
+  const filteredFields = fields.filter(field => {
+    const matchesSearch = field.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      field.fieldKey.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      field.type.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesType = selectedTypes.length === 0 || selectedTypes.includes(field.type);
+
+    return matchesSearch && matchesType;
+  });
+
+  // Get categories for current entity
+  const entityCategories = useMemo(() =>
+    categories.filter(c =>
+      c.module === selectedModule &&
+      c.entity === selectedEntityObj?.entityKey &&
+      c.isActive
+    ), [categories, selectedModule, selectedEntityObj]
   );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30">
       {/* Enterprise Header */}
-      <div className="bg-white/90 backdrop-blur-xl border-b border-gray-200/80 sticky top-0 z-40 shadow-sm">
+      <div className="bg-white/90 backdrop-blur-xl border-b border-gray-200/80 sticky top-0 z-40 shadow-lg">
         <div className="px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -902,7 +1258,7 @@ export default function FieldsContent() {
                 </p>
               </div>
             </div>
-            
+
             {/* Desktop Stats */}
             {selectedEntity && (
               <div className="hidden lg:flex items-center space-x-3">
@@ -950,6 +1306,17 @@ export default function FieldsContent() {
                     </div>
                   </div>
                 </div>
+                <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-1.5 bg-emerald-100 rounded-lg">
+                      <FolderTree className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500">Categories</span>
+                      <span className="text-xl font-bold text-emerald-600 block leading-5">{stats.categoryLinked}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -972,11 +1339,10 @@ export default function FieldsContent() {
                     setSelectedModule('re');
                     setSelectedEntity('');
                   }}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
-                    selectedModule === 're'
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${selectedModule === 're'
                       ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <DollarSign className="h-4 w-4 inline mr-1" />
                   RE Module
@@ -986,11 +1352,10 @@ export default function FieldsContent() {
                     setSelectedModule('expense');
                     setSelectedEntity('');
                   }}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
-                    selectedModule === 'expense'
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${selectedModule === 'expense'
                       ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/25'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <CreditCard className="h-4 w-4 inline mr-1" />
                   Expense Module
@@ -1043,7 +1408,7 @@ export default function FieldsContent() {
                   />
                   <span className="text-sm font-medium text-gray-700">Show inactive</span>
                 </label>
-                
+
                 <button
                   onClick={handleExport}
                   disabled={!selectedEntity}
@@ -1051,6 +1416,15 @@ export default function FieldsContent() {
                   title="Export"
                 >
                   <Download className="h-5 w-5 text-gray-500" />
+                </button>
+
+                <button
+                  onClick={handleImport}
+                  disabled={!selectedEntity}
+                  className="p-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 bg-white shadow-sm disabled:opacity-50 transition-all hover:shadow-md"
+                  title="Import"
+                >
+                  <Upload className="h-5 w-5 text-gray-500" />
                 </button>
 
                 <button
@@ -1088,11 +1462,10 @@ export default function FieldsContent() {
                       setSelectedModule('re');
                       setSelectedEntity('');
                     }}
-                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${
-                      selectedModule === 're'
+                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${selectedModule === 're'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'bg-white text-gray-700'
-                    }`}
+                      }`}
                   >
                     RE
                   </button>
@@ -1101,11 +1474,10 @@ export default function FieldsContent() {
                       setSelectedModule('expense');
                       setSelectedEntity('');
                     }}
-                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${
-                      selectedModule === 'expense'
+                    className={`flex-1 px-4 py-2.5 text-sm font-medium ${selectedModule === 'expense'
                         ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white'
                         : 'bg-white text-gray-700'
-                    }`}
+                      }`}
                   >
                     Expense
                   </button>
@@ -1145,6 +1517,30 @@ export default function FieldsContent() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Field Type</label>
+                <div className="flex flex-wrap gap-2">
+                  {fieldTypes.map(type => (
+                    <label key={type} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        value={type}
+                        checked={selectedTypes.includes(type)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedTypes([...selectedTypes, type]);
+                          } else {
+                            setSelectedTypes(selectedTypes.filter(t => t !== type));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-blue-600"
+                      />
+                      <span className="text-sm text-gray-700 capitalize">{type}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <label className="flex items-center space-x-2 p-3 bg-gray-50 rounded-xl border-2 border-gray-200">
                 <input
                   type="checkbox"
@@ -1181,22 +1577,20 @@ export default function FieldsContent() {
               <div className="flex space-x-6">
                 <button
                   onClick={() => setActiveTab('fields')}
-                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${
-                    activeTab === 'fields'
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${activeTab === 'fields'
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
+                    }`}
                 >
                   <Layers className="h-4 w-4" />
                   <span>Fields ({filteredFields.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('preview')}
-                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${
-                    activeTab === 'preview'
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-all flex items-center space-x-2 ${activeTab === 'preview'
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
+                    }`}
                 >
                   <Eye className="h-4 w-4" />
                   <span>Preview</span>
@@ -1204,29 +1598,69 @@ export default function FieldsContent() {
               </div>
 
               <div className="flex items-center space-x-3 mt-3 sm:mt-0">
-                {/* View Toggle */}
+                {/* Sort Options */}
+                <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortOption)}
+                    className="px-3 py-2.5 text-sm border-r-2 border-gray-200 focus:outline-none bg-white text-gray-700"
+                  >
+                    <option value="order">Order</option>
+                    <option value="name">Name</option>
+                    <option value="type">Type</option>
+                    <option value="created">Created</option>
+                    <option value="updated">Updated</option>
+                  </select>
+                  <button
+                    onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    className="px-3 py-2.5 hover:bg-gray-50 transition-colors"
+                  >
+                    <ArrowUpDown className={`h-4 w-4 text-gray-500 transition-transform ${sortDirection === 'desc' ? 'rotate-180' : ''
+                      }`} />
+                  </button>
+                </div>
+
+                {/* View Mode Toggle */}
                 <div className="flex border-2 border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`p-2.5 transition-all ${
-                      viewMode === 'list'
+                    className={`p-2.5 transition-all ${viewMode === 'list'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'text-gray-500 hover:bg-gray-50'
-                    }`}
+                      }`}
                     title="List View"
                   >
-                    <Menu className="h-5 w-5" />
+                    <List className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${
-                      viewMode === 'grid'
+                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${viewMode === 'grid'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
                         : 'text-gray-500 hover:bg-gray-50'
-                    }`}
+                      }`}
                     title="Grid View"
                   >
                     <Grid3x3 className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('compact')}
+                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${viewMode === 'compact'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
+                        : 'text-gray-500 hover:bg-gray-50'
+                      }`}
+                    title="Compact View"
+                  >
+                    <LayoutGrid className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('detail')}
+                    className={`p-2.5 border-l-2 border-gray-200 transition-all ${viewMode === 'detail'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
+                        : 'text-gray-500 hover:bg-gray-50'
+                      }`}
+                    title="Detail View"
+                  >
+                    <Table className="h-5 w-5" />
                   </button>
                 </div>
 
@@ -1315,7 +1749,7 @@ export default function FieldsContent() {
                 Create First Field
               </button>
             </div>
-          ) : viewMode === 'list' ? (
+          ) : (
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
@@ -1323,101 +1757,107 @@ export default function FieldsContent() {
             >
               <SortableContext
                 items={filteredFields.map(f => f._id)}
-                strategy={verticalListSortingStrategy}
+                strategy={viewMode === 'grid' ? undefined : verticalListSortingStrategy}
               >
-                <div className="space-y-3">
-                  {filteredFields.map((field, index) => (
-                    <SortableFieldItem
-                      key={field._id}
-                      field={field}
-                      index={index}
-                      totalItems={filteredFields.length}
-                      onEdit={handleEdit}
-                      onToggle={handleToggleField}
-                      onDelete={handleDeleteField}
-                      onDuplicate={handleDuplicate}
-                      onMove={handleMoveField}
-                    />
-                  ))}
-                </div>
+                {viewMode === 'grid' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {filteredFields.map((field, index) => (
+                      <div
+                        key={field._id}
+                        className={`bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${!field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
+                          }`}
+                      >
+                        <div className="p-5">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center space-x-3">
+                              <div className={`p-2.5 rounded-xl border-2 ${field.isEnabled ? getTypeColor(field.type) : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                                {getTypeIcon(field.type)}
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-gray-900">{field.label}</h4>
+                                <p className="text-xs text-gray-500 font-mono">{field.fieldKey}</p>
+                                {field.categoryId && (
+                                  <span className="inline-flex items-center mt-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                                    <FolderTree className="h-3 w-3 mr-1" />
+                                    Category
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex space-x-1">
+                              <button
+                                onClick={() => handleToggleField(field._id)}
+                                className={`p-1.5 rounded-lg transition-colors ${field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                                  }`}
+                              >
+                                {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                              </button>
+                              <button
+                                onClick={() => handleDuplicate(field)}
+                                className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleEdit(field)}
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap gap-1">
+                              <span className={`px-2 py-0.5 text-xs rounded-full ${getTypeBadgeColor(field.type)}`}>
+                                {field.type}
+                              </span>
+                              {field.required && (
+                                <span className="px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full">Required</span>
+                              )}
+                              {field.isSystem && (
+                                <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full">System</span>
+                              )}
+                            </div>
+
+                            {field.options && field.options.length > 0 && (
+                              <p className="text-xs text-gray-500">
+                                {field.options.length} option{field.options.length > 1 ? 's' : ''}
+                              </p>
+                            )}
+
+                            <div className="flex items-center justify-between text-xs text-gray-400 border-t border-gray-100 pt-2">
+                              <span>Order: {field.order + 1}</span>
+                              <span>{new Date(field.updatedAt || '').toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredFields.map((field, index) => (
+                      <SortableFieldItem
+                        key={field._id}
+                        field={field}
+                        index={index}
+                        totalItems={filteredFields.length}
+                        onEdit={handleEdit}
+                        onToggle={handleToggleField}
+                        onDelete={handleDeleteField}
+                        onDuplicate={handleDuplicate}
+                        onMove={handleMoveField}
+                        viewMode={viewMode}
+                      />
+                    ))}
+                  </div>
+                )}
               </SortableContext>
             </DndContext>
-          ) : (
-            /* Grid View */
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filteredFields.map((field, index) => (
-                <div
-                  key={field._id}
-                  className={`bg-white rounded-2xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 ${
-                    !field.isEnabled ? 'opacity-70 bg-gray-50/50' : 'border-gray-200 hover:border-blue-300'
-                  }`}
-                >
-                  <div className="p-5">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        <div className={`p-2.5 rounded-xl border-2 ${field.isEnabled ? getTypeColor(field.type) : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
-                          {getTypeIcon(field.type)}
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-900">{field.label}</h4>
-                          <p className="text-xs text-gray-500 font-mono">{field.fieldKey}</p>
-                        </div>
-                      </div>
-                      <div className="flex space-x-1">
-                        <button
-                          onClick={() => handleToggleField(field._id)}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            field.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
-                          }`}
-                        >
-                          {field.isEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                        </button>
-                        <button
-                          onClick={() => handleDuplicate(field)}
-                          className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleEdit(field)}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap gap-1">
-                        <span className={`px-2 py-0.5 text-xs rounded-full ${getTypeBadgeColor(field.type)}`}>
-                          {field.type}
-                        </span>
-                        {field.required && (
-                          <span className="px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full">Required</span>
-                        )}
-                        {field.isSystem && (
-                          <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full">System</span>
-                        )}
-                      </div>
-
-                      {field.options && field.options.length > 0 && (
-                        <p className="text-xs text-gray-500">
-                          {field.options.length} option{field.options.length > 1 ? 's' : ''}
-                        </p>
-                      )}
-
-                      <div className="flex items-center justify-between text-xs text-gray-400 border-t border-gray-100 pt-2">
-                        <span>Order: {field.order + 1}</span>
-                        <span>{new Date(field.updatedAt || '').toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           )
         ) : (
-          // Preview Mode
+          // Preview Mode (keep existing preview code)
           <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-xl p-6 sm:p-8 max-w-3xl mx-auto">
             <div className="flex items-center space-x-3 mb-6 pb-4 border-b-2 border-gray-200">
               <div className="p-2.5 bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl shadow-lg shadow-purple-500/25">
@@ -1437,13 +1877,18 @@ export default function FieldsContent() {
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     {field.label}
                     {field.required && <span className="text-red-500 ml-1">*</span>}
+                    {field.categoryId && (
+                      <span className="ml-2 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                        Category
+                      </span>
+                    )}
                     {field.readOnly && (
                       <span className="ml-2 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
                         Read only
                       </span>
                     )}
                   </label>
-                  
+
                   {field.type === 'text' && (
                     <input
                       type="text"
@@ -1452,7 +1897,7 @@ export default function FieldsContent() {
                       disabled
                     />
                   )}
-                  
+
                   {field.type === 'number' && (
                     <input
                       type="number"
@@ -1461,7 +1906,7 @@ export default function FieldsContent() {
                       disabled
                     />
                   )}
-                  
+
                   {field.type === 'date' && (
                     <input
                       type="date"
@@ -1469,7 +1914,7 @@ export default function FieldsContent() {
                       disabled
                     />
                   )}
-                  
+
                   {field.type === 'textarea' && (
                     <textarea
                       rows={3}
@@ -1478,20 +1923,23 @@ export default function FieldsContent() {
                       disabled
                     />
                   )}
-                  
-                  {field.type === 'select' && (
+
+                  {field.type === 'select' && field.options && field.options.length > 0 && (
                     <select className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-900" disabled>
                       <option>Select {field.label}</option>
+                      {field.options.map((opt, i) => (
+                        <option key={i}>{opt}</option>
+                      ))}
                     </select>
                   )}
-                  
+
                   {field.type === 'checkbox' && (
                     <div className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-xl bg-gray-50">
                       <input type="checkbox" className="h-5 w-5 text-blue-600 border-gray-300 rounded" disabled />
                       <span className="text-sm text-gray-600">Enable {field.label}</span>
                     </div>
                   )}
-                  
+
                   {field.type === 'radio' && field.options && (
                     <div className="space-y-2 p-3 border-2 border-gray-200 rounded-xl bg-gray-50">
                       {field.options.slice(0, 2).map((opt, i) => (
@@ -1505,7 +1953,7 @@ export default function FieldsContent() {
                       )}
                     </div>
                   )}
-                  
+
                   {field.type === 'file' && (
                     <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center bg-gray-50">
                       <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
@@ -1517,14 +1965,14 @@ export default function FieldsContent() {
                       )}
                     </div>
                   )}
-                  
+
                   {field.type === 'image' && (
                     <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center bg-gray-50">
                       <ImageIcon className="h-8 w-8 mx-auto mb-2 text-gray-400" />
                       <p className="text-sm text-gray-500">Click to upload image</p>
                     </div>
                   )}
-                  
+
                   {field.validation && (
                     <p className="text-xs text-gray-400 mt-1.5 flex items-center">
                       <Info className="h-3 w-3 mr-1" />
@@ -1645,18 +2093,15 @@ export default function FieldsContent() {
                       key={type}
                       type="button"
                       onClick={() => setFormData({ ...formData, type: type as any })}
-                      className={`p-4 border-2 rounded-xl flex flex-col items-center transition-all ${
-                        formData.type === type
+                      className={`p-4 border-2 rounded-xl flex flex-col items-center transition-all ${formData.type === type
                           ? `border-${color}-500 bg-${color}-50 ring-2 ring-${color}-100`
                           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
-                      <Icon className={`h-6 w-6 mb-1 ${
-                        formData.type === type ? `text-${color}-600` : 'text-gray-500'
-                      }`} />
-                      <span className={`text-xs font-medium ${
-                        formData.type === type ? `text-${color}-700` : 'text-gray-600'
-                      }`}>
+                      <Icon className={`h-6 w-6 mb-1 ${formData.type === type ? `text-${color}-600` : 'text-gray-500'
+                        }`} />
+                      <span className={`text-xs font-medium ${formData.type === type ? `text-${color}-700` : 'text-gray-600'
+                        }`}>
                         {label}
                       </span>
                     </button>
@@ -1667,9 +2112,19 @@ export default function FieldsContent() {
               {/* Options for Select/Radio */}
               {(formData.type === 'select' || formData.type === 'radio') && (
                 <div className="bg-gray-50 p-5 rounded-xl border-2 border-gray-200">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Options <span className="text-red-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Options <span className="text-red-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryModal(true)}
+                      className="text-sm text-purple-600 hover:text-purple-800 font-medium flex items-center"
+                    >
+                      <FolderTree className="h-4 w-4 mr-1" />
+                      Link Categories
+                    </button>
+                  </div>
                   {formData.options.map((opt, i) => (
                     <div key={i} className="flex mb-2">
                       <input
@@ -1696,6 +2151,31 @@ export default function FieldsContent() {
                     <Plus className="h-4 w-4 mr-1" />
                     Add Option
                   </button>
+                </div>
+              )}
+
+              {/* Category Selection (if categories exist) */}
+              {entityCategories.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Link to Category (Optional)
+                  </label>
+                  <select
+                    value={formData.categoryId}
+                    onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 bg-white text-gray-900"
+                  >
+                    <option value="">None (Not linked to category)</option>
+                    {entityCategories.map(cat => (
+                      <option key={cat._id} value={cat._id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1 flex items-center">
+                    <FolderTree className="h-3 w-3 mr-1 text-purple-500" />
+                    Linking to a category will automatically populate select options
+                  </p>
                 </div>
               )}
 
@@ -1829,11 +2309,10 @@ export default function FieldsContent() {
                 ].map(({ key, label, description, color }) => (
                   <label
                     key={key}
-                    className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      formData[key as keyof typeof formData]
+                    className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${formData[key as keyof typeof formData]
                         ? `border-${color}-500 bg-${color}-50`
                         : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <input
                       type="checkbox"
@@ -1845,11 +2324,10 @@ export default function FieldsContent() {
                       <p className="font-medium text-gray-900">{label}</p>
                       <p className="text-xs text-gray-500">{description}</p>
                     </div>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                      formData[key as keyof typeof formData]
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${formData[key as keyof typeof formData]
                         ? `border-${color}-500 bg-${color}-500`
                         : 'border-gray-300'
-                    }`}>
+                      }`}>
                       {formData[key as keyof typeof formData] && <Check className="h-4 w-4 text-white" />}
                     </div>
                   </label>
@@ -1877,6 +2355,91 @@ export default function FieldsContent() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Category Selection Modal */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-scaleIn border-2 border-gray-200">
+            <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-t-2xl px-6 py-4 sticky top-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-white/20 rounded-xl p-2">
+                    <FolderTree className="h-5 w-5 text-white" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-white">
+                    Link Categories to Field
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setShowCategoryModal(false)}
+                  className="text-white/80 hover:text-white transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {/* Search */}
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search categories..."
+                  value={categorySearch}
+                  onChange={(e) => setCategorySearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 text-gray-900"
+                />
+              </div>
+
+              {/* Category List */}
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {entityCategories
+                  .filter(cat => cat.name.toLowerCase().includes(categorySearch.toLowerCase()))
+                  .map((category) => (
+                    <label
+                      key={category._id}
+                      className="flex items-center p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:bg-purple-50 transition-all"
+                    >
+                      <input
+                        type="checkbox"
+                        className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                      />
+                      <div className="ml-3 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-gray-900">{category.name}</span>
+                          <span className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-600">
+                            {category.module.toUpperCase()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-500">Entity: {category.entity}</p>
+                      </div>
+                    </label>
+                  ))}
+              </div>
+
+              {/* Actions */}
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowCategoryModal(false)}
+                  className="px-6 py-2.5 border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    toast.success('Categories linked successfully');
+                    setShowCategoryModal(false);
+                  }}
+                  className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all font-medium shadow-lg shadow-purple-500/25"
+                >
+                  Link Categories
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
