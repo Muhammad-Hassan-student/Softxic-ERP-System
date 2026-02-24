@@ -1,7 +1,7 @@
 // src/app/admin/financial-tracker/permissions/page.tsx
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Shield,
   Users,
@@ -149,7 +149,7 @@ import {
   List,
   Grid,
   Table,
-  Map,
+  // Map,
   Compass,
   Target,
   Crosshair,
@@ -174,18 +174,56 @@ import {
   Scale,
   Clock as ClockIcon,
   Timer as TimerIcon,
-
   Square as SquareIcon,
-
-
-} from 'lucide-react';
-import { toast } from 'react-hot-toast';
+  Brain,
+  Rocket,
+  Cpu as CpuIcon,
+  HardDrive as HardDriveIcon,
+  Network as NetworkIcon,
+  Shield as ShieldIcon,
+  Lock as LockIcon,
+  Key as KeyIcon,
+  Eye as EyeIcon2,
+  EyeOff as EyeOffIcon2,
+  UserCheck,
+  UserX,
+  UserPlus,
+  UserMinus,
+  UserCog,
+  Users as UsersIcon,
+  UsersRound,
+  UserRound,
+  UserRoundCheck,
+  UserRoundX,
+  UserRoundPlus,
+  UserRoundMinus,
+  UserRoundCog,
+  UserSearch,
+  UserRoundSearch,
+  Users2,
+  Users2Icon,
+  UserSquare,
+  UserSquare2,
+  UserCircle,
+  UserCircle2,
+  WifiHigh,
+  WifiLow,
+  WifiZero,
+  WifiOff as WifiOffIcon,
+  Satellite,
+  Radio,
+  RadioTower,
+  Antenna,
+  Wifi as WifiIcon
+} from "lucide-react";
+import { toast } from "react-hot-toast";
+import { useSocket } from "@/app/financial-tracker/hooks/useSocket";
 
 // ✅ Token utility
 const getToken = (): string => {
-  if (typeof document === 'undefined') return '';
+  if (typeof document === "undefined") return "";
   const match = document.cookie.match(/token=([^;]+)/);
-  return match ? match[1] : '';
+  return match ? match[1] : "";
 };
 
 interface User {
@@ -196,8 +234,8 @@ interface User {
   department?: string;
   avatar?: string;
   lastActive?: string;
-  source: 'erp' | 'module';
-  module?: 're' | 'expense' | 'both';
+  source: "erp" | "module";
+  module?: "re" | "expense" | "both";
   isActive?: boolean;
   createdAt?: string;
 }
@@ -207,11 +245,14 @@ interface Permission {
   create: boolean;
   edit: boolean;
   delete: boolean;
-  scope: 'own' | 'all' | 'department';
-  columns: Record<string, {
-    view: boolean;
-    edit: boolean;
-  }>;
+  scope: "own" | "all" | "department";
+  columns: Record<
+    string,
+    {
+      view: boolean;
+      edit: boolean;
+    }
+  >;
 }
 
 interface UserPermissions {
@@ -223,7 +264,7 @@ interface UserPermissions {
 
 interface Entity {
   _id: string;
-  module: 're' | 'expense';
+  module: "re" | "expense";
   entityKey: string;
   name: string;
   description?: string;
@@ -250,44 +291,88 @@ interface ActivityLog {
   id: string;
   userId: string;
   userName: string;
-  action: 'CREATE' | 'UPDATE' | 'DELETE';
+  action: "CREATE" | "UPDATE" | "DELETE";
   entity: string;
   changes: any;
   timestamp: string;
 }
 
+// Permission summary for quick view
+interface PermissionSummary {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userRole: string;
+  userSource: string;
+  totalAccess: number;
+  totalCreate: number;
+  totalEdit: number;
+  totalDelete: number;
+  totalColumns: number;
+  entities: {
+    [entityId: string]: {
+      name: string;
+      access: boolean;
+      create: boolean;
+      edit: boolean;
+      delete: boolean;
+      scope: string;
+    };
+  };
+}
+
 // View modes
-type ViewMode = 'entities' | 'fields' | 'summary' | 'timeline';
+type ViewMode = "entities" | "fields" | "summary" | "timeline" | "matrix";
 
 // User source filter
-type UserSource = 'all' | 'erp' | 'module';
+type UserSource = "all" | "erp" | "module";
 
 // Sort options
-type SortOption = 'name' | 'email' | 'role' | 'source' | 'created';
-type SortDirection = 'asc' | 'desc';
+type SortOption =
+  | "name"
+  | "email"
+  | "role"
+  | "source"
+  | "created"
+  | "permissions";
+type SortDirection = "asc" | "desc";
 
 export default function PermissionsPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [entities, setEntities] = useState<Entity[]>([]);
-  const [customFields, setCustomFields] = useState<Record<string, CustomField[]>>({});
+  const [customFields, setCustomFields] = useState<
+    Record<string, CustomField[]>
+  >({});
   const [permissions, setPermissions] = useState<UserPermissions>({});
+  const [permissionSummaries, setPermissionSummaries] = useState<
+    Record<string, PermissionSummary>
+  >({});
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<string>('');
+  const [selectedUser, setSelectedUser] = useState<string>("");
   const [compareUser, setCompareUser] = useState<string | null>(null);
-  const [selectedModule, setSelectedModule] = useState<'re' | 'expense'>('re');
-  const [expandedEntities, setExpandedEntities] = useState<Set<string>>(new Set());
-  const [searchTerm, setSearchTerm] = useState('');
-  const [userSource, setUserSource] = useState<UserSource>('all');
-  const [sortBy, setSortBy] = useState<SortOption>('name');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [selectedModule, setSelectedModule] = useState<"re" | "expense">("re");
+  const [expandedEntities, setExpandedEntities] = useState<Set<string>>(
+    new Set(),
+  );
+  const [searchTerm, setSearchTerm] = useState("");
+  const [userSource, setUserSource] = useState<UserSource>("all");
+  const [sortBy, setSortBy] = useState<SortOption>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [isSaving, setIsSaving] = useState(false);
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('entities');
+  const [viewMode, setViewMode] = useState<ViewMode>("entities");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [showPermissionMatrix, setShowPermissionMatrix] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json');
+  const [exportFormat, setExportFormat] = useState<"json" | "csv">("json");
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(
+    null,
+  );
+  const [liveSyncStatus, setLiveSyncStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
+  const [pendingChanges, setPendingChanges] = useState<Map<string, boolean>>(new Map());
   const [stats, setStats] = useState({
     totalUsers: 0,
     erpUsers: 0,
@@ -295,106 +380,322 @@ export default function PermissionsPage() {
     totalEntities: 0,
     totalFields: 0,
     activeUsers: 0,
-    inactiveUsers: 0
+    inactiveUsers: 0,
+    totalPermissions: 0,
+    usersWithPermissions: 0,
   });
+
+  // Initialize socket connection
+  const { socket, isConnected, error: socketError, joinRoom, leaveRoom, emit } = useSocket('admin', 'permissions');
+
+  // Update live sync status
+  useEffect(() => {
+    if (isConnected) {
+      setLiveSyncStatus('connected');
+    } else if (socketError) {
+      setLiveSyncStatus('disconnected');
+    } else {
+      setLiveSyncStatus('connecting');
+    }
+  }, [isConnected, socketError]);
+
+  // Listen for real-time permission updates
+  useEffect(() => {
+    if (!socket) return;
+
+    // Join admin room for permission updates
+    joinRoom('admin', 'permissions');
+
+    // Listen for permission updates
+    socket.on('permission:updated', (data: { userId: string, permissions: any, timestamp: string }) => {
+      console.log('🔔 Permission update received:', data);
+      
+      // Update permissions state
+      setPermissions(prev => ({
+        ...prev,
+        [data.userId]: data.permissions
+      }));
+
+      // Update summary for this user
+      const user = users.find((u) => u._id === data.userId);
+      if (user) {
+        setPermissionSummaries(prev => ({
+          ...prev,
+          [data.userId]: createPermissionSummary(user, data.permissions)
+        }));
+      }
+
+      // Show notification
+      toast.success(`Permissions updated for ${users.find(u => u._id === data.userId)?.fullName || 'user'}`, {
+        icon: '🔄',
+        duration: 3000
+      });
+
+      // Update last synced time
+      setLastUpdated(new Date());
+    });
+
+    // Listen for bulk updates
+    socket.on('permission:bulk-updated', (data: { userIds: string[], timestamp: string }) => {
+      console.log('🔔 Bulk permission update received:', data);
+      
+      // Refresh all affected users
+      data.userIds.forEach(userId => {
+        fetchUserPermissions(userId, true);
+      });
+
+      toast.success(`Bulk permissions updated for ${data.userIds.length} users`, {
+        icon: '🔄',
+        duration: 3000
+      });
+    });
+
+    // Listen for permission matrix updates
+    socket.on('permission:matrix-updated', () => {
+      console.log('🔔 Permission matrix update received');
+      fetchAllData(true);
+    });
+
+    return () => {
+      leaveRoom('admin', 'permissions');
+      socket.off('permission:updated');
+      socket.off('permission:bulk-updated');
+      socket.off('permission:matrix-updated');
+    };
+  }, [socket, users]);
 
   // Fetch all data
   useEffect(() => {
     fetchAllData();
-  }, []);
 
-  const fetchAllData = async () => {
+    // Auto refresh if enabled
+    if (autoRefresh) {
+      const interval = setInterval(() => {
+        fetchAllData(true);
+      }, 30000); // Refresh every 30 seconds
+      setRefreshInterval(interval);
+    }
+
+    return () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    };
+  }, [autoRefresh]);
+
+  // Auto refresh when dependencies change
+  useEffect(() => {
+    if (selectedUser && autoRefresh) {
+      fetchUserPermissions(selectedUser);
+    }
+  }, [selectedUser, autoRefresh]);
+
+  const fetchAllData = async (silent: boolean = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
+
       await Promise.all([
-        fetchUsers(),
-        fetchEntities(),
-        fetchActivityLogs()
+        fetchUsers(silent),
+        fetchEntities(silent),
+        fetchActivityLogs(silent),
       ]);
+
+      setLastUpdated(new Date());
+
+      if (!silent) {
+        toast.success("Data refreshed successfully");
+      }
     } catch (error) {
-      toast.error('Failed to load data');
+      if (!silent) toast.error("Failed to load data");
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
   // Fetch users from both ERP and Module
-  const fetchUsers = async () => {
+  const fetchUsers = async (silent: boolean = false) => {
     try {
       // Fetch ERP users
-      const erpResponse = await fetch('/financial-tracker/api/financial-tracker/admin/users', {
-        headers: { 'Authorization': getToken() }
-      });
+      const erpResponse = await fetch(
+        "/financial-tracker/api/financial-tracker/admin/users",
+        {
+          headers: { Authorization: getToken() },
+        },
+      );
 
       // Fetch Module users
-      const moduleResponse = await fetch('/financial-tracker/api/financial-tracker/module-users', {
-        headers: { 'Authorization': getToken() }
-      });
+      const moduleResponse = await fetch(
+        "/financial-tracker/api/financial-tracker/module-users",
+        {
+          headers: { Authorization: getToken() },
+        },
+      );
 
-      const erpUsers = erpResponse.ok ? (await erpResponse.json()).users || [] : [];
-      const moduleUsers = moduleResponse.ok ? (await moduleResponse.json()).users || [] : [];
+      const erpUsers = erpResponse.ok
+        ? (await erpResponse.json()).users || []
+        : [];
+      const moduleUsers = moduleResponse.ok
+        ? (await moduleResponse.json()).users || []
+        : [];
 
       // Combine users with source identifier
       const allUsers: User[] = [
-        ...erpUsers.map((u: any) => ({ ...u, source: 'erp' as const })),
-        ...moduleUsers.map((u: any) => ({ ...u, source: 'module' as const }))
+        ...erpUsers.map((u: any) => ({ ...u, source: "erp" as const })),
+        ...moduleUsers.map((u: any) => ({ ...u, source: "module" as const })),
       ];
 
       // Sort users
       const sortedUsers = sortUsers(allUsers, sortBy, sortDirection);
       setUsers(sortedUsers);
-      
-      const activeUsers = allUsers.filter(u => u.isActive !== false).length;
-      setStats(prev => ({
+
+      const activeUsers = allUsers.filter((u) => u.isActive !== false).length;
+
+      // Fetch permissions for each user
+      const perms: UserPermissions = {};
+      const summaries: Record<string, PermissionSummary> = {};
+
+      let usersWithPerms = 0;
+
+      for (const user of allUsers) {
+        const permResponse = await fetch(
+          `/financial-tracker/api/financial-tracker/admin/users/${user._id}/permissions`,
+          {
+            headers: { Authorization: getToken() },
+          },
+        );
+        if (permResponse.ok) {
+          const permData = await permResponse.json();
+          perms[user._id] = permData.permissions || { re: {}, expense: {} };
+
+          // Create permission summary
+          summaries[user._id] = createPermissionSummary(
+            user,
+            permData.permissions,
+          );
+
+          // Count users with any permissions
+          const userPerms = permData.permissions?.[selectedModule] || {};
+          if (Object.keys(userPerms).length > 0) {
+            usersWithPerms++;
+          }
+        }
+      }
+
+      setPermissions(perms);
+      setPermissionSummaries(summaries);
+
+      // Calculate total permissions
+      const totalPerms = Object.values(perms).reduce((acc, userPerms) => {
+        const modulePerms = userPerms[selectedModule] || {};
+        return acc + Object.keys(modulePerms).length;
+      }, 0);
+
+      setStats((prev) => ({
         ...prev,
         totalUsers: allUsers.length,
         erpUsers: erpUsers.length,
         moduleUsers: moduleUsers.length,
         activeUsers,
-        inactiveUsers: allUsers.length - activeUsers
+        inactiveUsers: allUsers.length - activeUsers,
+        totalPermissions: totalPerms,
+        usersWithPermissions: usersWithPerms,
       }));
-      
-      // Fetch permissions for each user
-      const perms: UserPermissions = {};
-      for (const user of allUsers) {
-        const permResponse = await fetch(`/financial-tracker/api/financial-tracker/admin/users/${user._id}/permissions`, {
-          headers: { 'Authorization': getToken() }
-        });
-        if (permResponse.ok) {
-          const permData = await permResponse.json();
-          perms[user._id] = permData.permissions || { re: {}, expense: {} };
-        }
-      }
-      setPermissions(perms);
-      
+
       if (allUsers.length > 0 && !selectedUser) {
         setSelectedUser(allUsers[0]._id);
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
-      toast.error('Failed to load users');
+      console.error("Error fetching users:", error);
+      if (!silent) toast.error("Failed to load users");
     }
   };
 
+  // ✅ FIXED: Create permission summary for a user with proper typing
+  const createPermissionSummary = (
+    user: User,
+    userPerms: any,
+  ): PermissionSummary => {
+    const modulePerms = userPerms?.[selectedModule] || {};
+
+    let totalAccess = 0;
+    let totalCreate = 0;
+    let totalEdit = 0;
+    let totalDelete = 0;
+    let totalColumns = 0;
+    const entitiesSummary: {
+      [entityId: string]: {
+        name: string;
+        access: boolean;
+        create: boolean;
+        edit: boolean;
+        delete: boolean;
+        scope: string;
+      };
+    } = {};
+
+    Object.entries(modulePerms).forEach(([entityId, perm]: [string, any]) => {
+      // ✅ FIXED: Properly find entity by ID
+      const entity = entities.find((e: Entity) => e._id === entityId);
+
+      if (perm.access) totalAccess++;
+      if (perm.create) totalCreate++;
+      if (perm.edit) totalEdit++;
+      if (perm.delete) totalDelete++;
+
+      if (perm.columns) {
+        totalColumns += Object.keys(perm.columns).length;
+      }
+
+      entitiesSummary[entityId] = {
+        name: entity?.name || entityId,
+        access: perm.access || false,
+        create: perm.create || false,
+        edit: perm.edit || false,
+        delete: perm.delete || false,
+        scope: perm.scope || "own",
+      };
+    });
+
+    return {
+      userId: user._id,
+      userName: user.fullName,
+      userEmail: user.email,
+      userRole: user.role,
+      userSource: user.source,
+      totalAccess,
+      totalCreate,
+      totalEdit,
+      totalDelete,
+      totalColumns,
+      entities: entitiesSummary,
+    };
+  };
+
   // Fetch entities from database
-  const fetchEntities = async () => {
+  const fetchEntities = async (silent: boolean = false) => {
     try {
-      const response = await fetch('/financial-tracker/api/financial-tracker/entities?includeDisabled=true', {
-        headers: { 'Authorization': getToken() }
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch entities');
-      
+      const response = await fetch(
+        "/financial-tracker/api/financial-tracker/entities?includeDisabled=true",
+        {
+          headers: { Authorization: getToken() },
+        },
+      );
+
+      if (!response.ok) throw new Error("Failed to fetch entities");
+
       const data = await response.json();
       setEntities(data.entities || []);
-      setStats(prev => ({ ...prev, totalEntities: data.entities?.length || 0 }));
+      setStats((prev) => ({
+        ...prev,
+        totalEntities: data.entities?.length || 0,
+      }));
 
       // Fetch custom fields for each entity
       const fields: Record<string, CustomField[]> = {};
       for (const entity of data.entities || []) {
         const fieldResponse = await fetch(
           `/financial-tracker/api/financial-tracker/fields?module=${entity.module}&entityId=${entity._id}&includeDisabled=true`,
-          { headers: { 'Authorization': getToken() } }
+          { headers: { Authorization: getToken() } },
         );
         if (fieldResponse.ok) {
           const fieldData = await fieldResponse.json();
@@ -402,299 +703,518 @@ export default function PermissionsPage() {
         }
       }
       setCustomFields(fields);
-      
+
       // Calculate total fields
-      const totalFields = Object.values(fields).reduce((acc, curr) => acc + curr.length, 0);
-      setStats(prev => ({ ...prev, totalFields }));
+      const totalFields = Object.values(fields).reduce(
+        (acc, curr) => acc + curr.length,
+        0,
+      );
+      setStats((prev) => ({ ...prev, totalFields }));
     } catch (error) {
-      console.error('Error fetching entities:', error);
+      console.error("Error fetching entities:", error);
+      if (!silent) toast.error("Failed to fetch entities");
     }
   };
 
   // Fetch activity logs
-  const fetchActivityLogs = async () => {
+  const fetchActivityLogs = async (silent: boolean = false) => {
     try {
-      const response = await fetch('/financial-tracker/api/financial-tracker/admin/activity-logs?entity=permissions', {
-        headers: { 'Authorization': getToken() }
-      });
-      
+      const response = await fetch(
+        "/financial-tracker/api/financial-tracker/admin/activity-logs?entity=permissions",
+        {
+          headers: { Authorization: getToken() },
+        },
+      );
+
       if (response.ok) {
         const data = await response.json();
         setActivityLogs(data.logs || []);
       }
     } catch (error) {
-      console.error('Error fetching activity logs:', error);
+      console.error("Error fetching activity logs:", error);
+    }
+  };
+
+  // Fetch permissions for a specific user
+  const fetchUserPermissions = async (
+    userId: string,
+    silent: boolean = false,
+  ) => {
+    try {
+      const response = await fetch(
+        `/financial-tracker/api/financial-tracker/admin/users/${userId}/permissions`,
+        {
+          headers: { Authorization: getToken() },
+        },
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setPermissions((prev) => ({
+          ...prev,
+          [userId]: data.permissions || { re: {}, expense: {} },
+        }));
+
+        // Update summary
+        const user = users.find((u) => u._id === userId);
+        if (user) {
+          setPermissionSummaries((prev) => ({
+            ...prev,
+            [userId]: createPermissionSummary(user, data.permissions),
+          }));
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user permissions:", error);
     }
   };
 
   // Sort users
-  const sortUsers = (users: User[], by: SortOption, direction: SortDirection) => {
+  const sortUsers = (
+    users: User[],
+    by: SortOption,
+    direction: SortDirection,
+  ) => {
     return [...users].sort((a, b) => {
       let comparison = 0;
       switch (by) {
-        case 'name':
+        case "name":
           comparison = a.fullName.localeCompare(b.fullName);
           break;
-        case 'email':
+        case "email":
           comparison = a.email.localeCompare(b.email);
           break;
-        case 'role':
-          comparison = (a.role || '').localeCompare(b.role || '');
+        case "role":
+          comparison = (a.role || "").localeCompare(b.role || "");
           break;
-        case 'source':
+        case "source":
           comparison = a.source.localeCompare(b.source);
           break;
-        case 'created':
-          comparison = new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        case "created":
+          comparison =
+            new Date(a.createdAt || 0).getTime() -
+            new Date(b.createdAt || 0).getTime();
+          break;
+        case "permissions":
+          const aPerms = permissionSummaries[a._id]?.totalAccess || 0;
+          const bPerms = permissionSummaries[b._id]?.totalAccess || 0;
+          comparison = aPerms - bPerms;
           break;
       }
-      return direction === 'asc' ? comparison : -comparison;
+      return direction === "asc" ? comparison : -comparison;
     });
   };
 
   // Get entities for selected module
   const filteredEntities = useMemo(() => {
-    return entities.filter(e => e.module === selectedModule && e.isEnabled);
+    return entities.filter((e) => e.module === selectedModule && e.isEnabled);
   }, [entities, selectedModule]);
 
   // Get fields for a specific entity
-  const getEntityFields = useCallback((entityId: string) => {
-    return customFields[`${selectedModule}-${entityId}`] || [];
-  }, [customFields, selectedModule]);
+  const getEntityFields = useCallback(
+    (entityId: string) => {
+      return customFields[`${selectedModule}-${entityId}`] || [];
+    },
+    [customFields, selectedModule],
+  );
 
   // Update permission
-  const updatePermission = useCallback((
-    userId: string,
-    module: 're' | 'expense',
-    entity: string,
-    field: keyof Permission,
-    value: any
-  ) => {
-    setPermissions(prev => {
-      const currentUserPerms = prev[userId]?.[module]?.[entity] || {
-        access: false,
-        create: false,
-        edit: false,
-        delete: false,
-        scope: 'own',
-        columns: {}
-      };
+  const updatePermission = useCallback(
+    (
+      userId: string,
+      module: "re" | "expense",
+      entity: string,
+      field: keyof Permission,
+      value: any,
+    ) => {
+      // Mark as pending
+      setPendingChanges(prev => new Map(prev).set(`${userId}-${entity}-${String(field)}`, true));
 
-      return {
-        ...prev,
-        [userId]: {
-          ...prev[userId],
-          [module]: {
-            ...prev[userId]?.[module],
-            [entity]: {
-              ...currentUserPerms,
-              [field]: value
-            }
-          }
-        }
-      };
-    });
-  }, []);
+      setPermissions((prev) => {
+        const currentUserPerms = prev[userId]?.[module]?.[entity] || {
+          access: false,
+          create: false,
+          edit: false,
+          delete: false,
+          scope: "own",
+          columns: {},
+        };
+
+        return {
+          ...prev,
+          [userId]: {
+            ...prev[userId],
+            [module]: {
+              ...prev[userId]?.[module],
+              [entity]: {
+                ...currentUserPerms,
+                [field]: value,
+              },
+            },
+          },
+        };
+      });
+
+      // Update summary
+      const user = users.find((u) => u._id === userId);
+      if (user) {
+        setPermissionSummaries((prev) => ({
+          ...prev,
+          [userId]: createPermissionSummary(user, permissions[userId]),
+        }));
+      }
+
+      // Clear pending after update
+      setTimeout(() => {
+        setPendingChanges(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(`${userId}-${entity}-${String(field)}`);
+          return newMap;
+        });
+      }, 1000);
+    },
+    [users, permissions],
+  );
 
   // Update column permission
-  const updateColumnPermission = useCallback((
-    userId: string,
-    module: 're' | 'expense',
-    entity: string,
-    column: string,
-    type: 'view' | 'edit',
-    value: boolean
-  ) => {
-    setPermissions(prev => {
-      const currentUserPerms = prev[userId]?.[module]?.[entity] || {
-        access: false,
-        create: false,
-        edit: false,
-        delete: false,
-        scope: 'own',
-        columns: {}
-      };
+  const updateColumnPermission = useCallback(
+    (
+      userId: string,
+      module: "re" | "expense",
+      entity: string,
+      column: string,
+      type: "view" | "edit",
+      value: boolean,
+    ) => {
+      // Mark as pending
+      setPendingChanges(prev => new Map(prev).set(`${userId}-${entity}-${column}-${type}`, true));
 
-      const currentColumnPerms = currentUserPerms.columns[column] || {
-        view: true,
-        edit: false
-      };
+      setPermissions((prev) => {
+        const currentUserPerms = prev[userId]?.[module]?.[entity] || {
+          access: false,
+          create: false,
+          edit: false,
+          delete: false,
+          scope: "own",
+          columns: {},
+        };
 
-      return {
-        ...prev,
-        [userId]: {
-          ...prev[userId],
-          [module]: {
-            ...prev[userId]?.[module],
-            [entity]: {
-              ...currentUserPerms,
-              columns: {
-                ...currentUserPerms.columns,
-                [column]: {
-                  ...currentColumnPerms,
-                  [type]: value
-                }
-              }
-            }
-          }
-        }
-      };
-    });
-  }, []);
+        const currentColumnPerms = currentUserPerms.columns[column] || {
+          view: true,
+          edit: false,
+        };
+
+        return {
+          ...prev,
+          [userId]: {
+            ...prev[userId],
+            [module]: {
+              ...prev[userId]?.[module],
+              [entity]: {
+                ...currentUserPerms,
+                columns: {
+                  ...currentUserPerms.columns,
+                  [column]: {
+                    ...currentColumnPerms,
+                    [type]: value,
+                  },
+                },
+              },
+            },
+          },
+        };
+      });
+
+      // Update summary
+      const user = users.find((u) => u._id === userId);
+      if (user) {
+        setPermissionSummaries((prev) => ({
+          ...prev,
+          [userId]: createPermissionSummary(user, permissions[userId]),
+        }));
+      }
+
+      // Clear pending after update
+      setTimeout(() => {
+        setPendingChanges(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(`${userId}-${entity}-${column}-${type}`);
+          return newMap;
+        });
+      }, 1000);
+    },
+    [users, permissions],
+  );
 
   // Toggle all columns for an entity
-  const toggleAllColumns = useCallback((
-    userId: string,
-    module: 're' | 'expense',
-    entity: string,
-    type: 'view' | 'edit',
-    value: boolean
-  ) => {
-    const entityObj = entities.find(e => e._id === entity);
-    if (!entityObj) return;
+  const toggleAllColumns = useCallback(
+    (
+      userId: string,
+      module: "re" | "expense",
+      entity: string,
+      type: "view" | "edit",
+      value: boolean,
+    ) => {
+      const entityObj = entities.find((e) => e._id === entity);
+      if (!entityObj) return;
 
-    const fields = getEntityFields(entity);
-    
-    // System columns (basic fields)
-    const systemColumns = ['name', 'createdAt', 'updatedAt', 'createdBy'];
-    systemColumns.forEach(col => {
-      updateColumnPermission(userId, module, entity, col, type, value);
-    });
+      const fields = getEntityFields(entity);
 
-    // Custom fields
-    fields.forEach(field => {
-      updateColumnPermission(userId, module, entity, field.fieldKey, type, value);
-    });
-  }, [entities, getEntityFields, updateColumnPermission]);
+      // System columns (basic fields)
+      const systemColumns = ["name", "createdAt", "updatedAt", "createdBy"];
+      systemColumns.forEach((col) => {
+        updateColumnPermission(userId, module, entity, col, type, value);
+      });
 
-  // Save permissions for a user
+      // Custom fields
+      fields.forEach((field) => {
+        updateColumnPermission(
+          userId,
+          module,
+          entity,
+          field.fieldKey,
+          type,
+          value,
+        );
+      });
+    },
+    [entities, getEntityFields, updateColumnPermission],
+  );
+
+  // Save permissions for a user with live sync
   const savePermissions = async (userId: string) => {
     try {
       setIsSaving(true);
-      
-      const response = await fetch(`/financial-tracker/api/financial-tracker/admin/users/${userId}/permissions`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': getToken()
-        },
-        body: JSON.stringify({ permissions: permissions[userId] })
-      });
 
-      if (!response.ok) throw new Error('Failed to save permissions');
-      
-      toast.success('Permissions saved successfully');
+      const response = await fetch(
+        `/financial-tracker/api/financial-tracker/admin/users/${userId}/permissions`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: getToken(),
+          },
+          body: JSON.stringify({ permissions: permissions[userId] }),
+        },
+      );
+
+      if (!response.ok) throw new Error("Failed to save permissions");
+
+      // Emit live update via socket
+      if (socket && isConnected) {
+        emit('permission:updated', {
+          userId,
+          permissions: permissions[userId],
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      toast.success("Permissions saved successfully");
       fetchActivityLogs(); // Refresh activity logs
+
+      // Update last saved timestamp
+      setLastUpdated(new Date());
     } catch (error) {
-      toast.error('Failed to save permissions');
+      toast.error("Failed to save permissions");
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Bulk save permissions
+  // Bulk save permissions with live sync
   const bulkSavePermissions = async () => {
     try {
       setIsSaving(true);
-      
+
       let successCount = 0;
       let failCount = 0;
+      const errors: string[] = [];
 
       for (const userId of selectedUsers) {
         try {
-          await fetch(`/financial-tracker/api/financial-tracker/admin/users/${userId}/permissions`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': getToken()
+          const response = await fetch(
+            `/financial-tracker/api/financial-tracker/admin/users/${userId}/permissions`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: getToken(),
+              },
+              body: JSON.stringify({ permissions: permissions[userId] }),
             },
-            body: JSON.stringify({ permissions: permissions[userId] })
-          });
-          successCount++;
+          );
+
+          if (response.ok) {
+            successCount++;
+          } else {
+            failCount++;
+            errors.push(`Failed for user ${userId}`);
+          }
         } catch {
           failCount++;
         }
       }
-      
-      toast.success(`Permissions saved: ${successCount} successful, ${failCount} failed`);
+
+      // Emit bulk update via socket
+      if (socket && isConnected) {
+        emit('permission:bulk-updated', {
+          userIds: selectedUsers,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      if (failCount === 0) {
+        toast.success(`All ${successCount} permissions saved successfully`);
+      } else {
+        toast.error(`Saved: ${successCount}, Failed: ${failCount}`);
+      }
+
       setBulkMode(false);
       setSelectedUsers([]);
       fetchActivityLogs();
+      setLastUpdated(new Date());
     } catch (error) {
-      toast.error('Failed to save permissions');
+      toast.error("Failed to save permissions");
     } finally {
       setIsSaving(false);
     }
   };
 
   // Copy permissions from another user
-  const copyPermissions = async (sourceUserId: string, targetUserId: string) => {
-    if (!confirm('Copy permissions from selected user?')) return;
-    
-    setPermissions(prev => ({
+  const copyPermissions = async (
+    sourceUserId: string,
+    targetUserId: string,
+  ) => {
+    if (!confirm("Copy permissions from selected user?")) return;
+
+    setPermissions((prev) => ({
       ...prev,
-      [targetUserId]: JSON.parse(JSON.stringify(prev[sourceUserId]))
+      [targetUserId]: JSON.parse(JSON.stringify(prev[sourceUserId])),
     }));
-    
-    toast.success('Permissions copied');
+
+    // Update summary
+    const user = users.find((u) => u._id === targetUserId);
+    if (user) {
+      setPermissionSummaries((prev) => ({
+        ...prev,
+        [targetUserId]: createPermissionSummary(
+          user,
+          permissions[sourceUserId],
+        ),
+      }));
+    }
+
+    toast.success("Permissions copied");
   };
 
   // Export permissions
   const exportPermissions = async () => {
     try {
-      const data = exportFormat === 'json' 
-        ? JSON.stringify(permissions, null, 2)
-        : convertToCSV(permissions);
+      const data =
+        exportFormat === "json"
+          ? JSON.stringify(permissions, null, 2)
+          : convertToCSV(permissions);
 
-      const blob = new Blob([data], { type: exportFormat === 'json' ? 'application/json' : 'text/csv' });
+      const blob = new Blob([data], {
+        type: exportFormat === "json" ? "application/json" : "text/csv",
+      });
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `permissions-export-${new Date().toISOString().split('T')[0]}.${exportFormat}`;
+      a.download = `permissions-export-${new Date().toISOString().split("T")[0]}.${exportFormat}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      
-      toast.success('Permissions exported successfully');
+
+      toast.success("Permissions exported successfully");
     } catch (error) {
-      toast.error('Failed to export permissions');
+      toast.error("Failed to export permissions");
     }
+  };
+
+  // Import permissions
+  const importPermissions = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,.csv";
+    input.onchange = async (e: any) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          try {
+            const content = event.target?.result as string;
+            const imported = JSON.parse(content);
+
+            // Validate imported data
+            if (typeof imported === "object") {
+              setPermissions((prev) => ({
+                ...prev,
+                ...imported,
+              }));
+              toast.success("Permissions imported successfully");
+            } else {
+              toast.error("Invalid import file format");
+            }
+          } catch (error) {
+            toast.error("Failed to import permissions");
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
   };
 
   // Convert permissions to CSV
   const convertToCSV = (perms: UserPermissions): string => {
-    const rows: string[] = ['User ID,Module,Entity,Access,Create,Edit,Delete,Scope'];
-    
+    const rows: string[] = [
+      "User ID,User Name,Module,Entity,Access,Create,Edit,Delete,Scope",
+    ];
+
     Object.entries(perms).forEach(([userId, userPerms]) => {
+      const user = users.find((u) => u._id === userId);
+      const userName = user?.fullName || userId;
+
       Object.entries(userPerms).forEach(([module, modulePerms]) => {
         Object.entries(modulePerms).forEach(([entity, perm]) => {
-          rows.push(`${userId},${module},${entity},${perm.access},${perm.create},${perm.edit},${perm.delete},${perm.scope}`);
+          rows.push(
+            `${userId},${userName},${module},${entity},${perm.access},${perm.create},${perm.edit},${perm.delete},${perm.scope}`,
+          );
         });
       });
     });
-    
-    return rows.join('\n');
+
+    return rows.join("\n");
   };
 
   // Filter users by search and source
   const filteredUsers = useMemo(() => {
-    let filtered = users.filter(user => {
-      const matchesSearch = user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    let filtered = users.filter((user) => {
+      const matchesSearch =
+        user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.role.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesSource = userSource === 'all' || user.source === userSource;
-      
+
+      const matchesSource = userSource === "all" || user.source === userSource;
+
       return matchesSearch && matchesSource;
     });
 
     return sortUsers(filtered, sortBy, sortDirection);
-  }, [users, searchTerm, userSource, sortBy, sortDirection]);
+  }, [
+    users,
+    searchTerm,
+    userSource,
+    sortBy,
+    sortDirection,
+    permissionSummaries,
+  ]);
 
   // Toggle entity expansion
   const toggleEntity = (entity: string) => {
-    setExpandedEntities(prev => {
+    setExpandedEntities((prev) => {
       const next = new Set(prev);
       if (next.has(entity)) {
         next.delete(entity);
@@ -707,7 +1227,7 @@ export default function PermissionsPage() {
 
   // Expand all entities
   const expandAll = () => {
-    setExpandedEntities(new Set(filteredEntities.map(e => e._id)));
+    setExpandedEntities(new Set(filteredEntities.map((e) => e._id)));
   };
 
   // Collapse all entities
@@ -716,10 +1236,17 @@ export default function PermissionsPage() {
   };
 
   // Get current user permissions
-  const currentUserPerms = selectedUser ? permissions[selectedUser]?.[selectedModule] || {} : {};
-  const compareUserPerms = compareUser ? permissions[compareUser]?.[selectedModule] || {} : {};
-  const selectedUserObj = users.find(u => u._id === selectedUser);
-  const compareUserObj = users.find(u => u._id === compareUser);
+  const currentUserPerms = selectedUser
+    ? permissions[selectedUser]?.[selectedModule] || {}
+    : {};
+  const compareUserPerms = compareUser
+    ? permissions[compareUser]?.[selectedModule] || {}
+    : {};
+  const selectedUserObj = users.find((u) => u._id === selectedUser);
+  const compareUserObj = users.find((u) => u._id === compareUser);
+  const selectedUserSummary = selectedUser
+    ? permissionSummaries[selectedUser]
+    : null;
 
   // Calculate permission stats
   const permissionStats = useMemo(() => {
@@ -729,9 +1256,9 @@ export default function PermissionsPage() {
     let totalDelete = 0;
     let totalColumns = 0;
 
-    Object.values(permissions).forEach(userPerms => {
-      Object.values(userPerms).forEach(modulePerms => {
-        Object.values(modulePerms).forEach(perm => {
+    Object.values(permissions).forEach((userPerms) => {
+      Object.values(userPerms).forEach((modulePerms) => {
+        Object.values(modulePerms).forEach((perm) => {
           if (perm.access) totalAccess++;
           if (perm.create) totalCreate++;
           if (perm.edit) totalEdit++;
@@ -754,7 +1281,9 @@ export default function PermissionsPage() {
               <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent"></div>
             </div>
           </div>
-          <p className="mt-4 text-lg font-medium text-gray-600">Loading permissions...</p>
+          <p className="mt-4 text-lg font-medium text-gray-600">
+            Loading permissions...
+          </p>
         </div>
       </div>
     );
@@ -784,6 +1313,26 @@ export default function PermissionsPage() {
               </div>
             </div>
 
+            {/* Live Sync Status */}
+            <div className="hidden lg:flex items-center space-x-2 bg-gray-100 px-3 py-1.5 rounded-full">
+              {liveSyncStatus === 'connected' ? (
+                <>
+                  <WifiIcon className="h-4 w-4 text-green-500" />
+                  <span className="text-xs text-green-600 font-medium">Live Sync Active</span>
+                </>
+              ) : liveSyncStatus === 'connecting' ? (
+                <>
+                  <RadioTower className="h-4 w-4 text-yellow-500 animate-pulse" />
+                  <span className="text-xs text-yellow-600 font-medium">Connecting...</span>
+                </>
+              ) : (
+                <>
+                  <WifiOffIcon className="h-4 w-4 text-red-500" />
+                  <span className="text-xs text-red-600 font-medium">Offline</span>
+                </>
+              )}
+            </div>
+
             {/* Desktop Stats */}
             <div className="hidden lg:flex items-center space-x-3">
               <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
@@ -793,7 +1342,9 @@ export default function PermissionsPage() {
                   </div>
                   <div>
                     <span className="text-xs text-gray-500">Total Users</span>
-                    <span className="text-xl font-bold text-blue-600 block leading-5">{stats.totalUsers}</span>
+                    <span className="text-xl font-bold text-blue-600 block leading-5">
+                      {stats.totalUsers}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -804,7 +1355,9 @@ export default function PermissionsPage() {
                   </div>
                   <div>
                     <span className="text-xs text-gray-500">Active</span>
-                    <span className="text-xl font-bold text-green-600 block leading-5">{stats.activeUsers}</span>
+                    <span className="text-xl font-bold text-green-600 block leading-5">
+                      {stats.activeUsers}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -815,7 +1368,9 @@ export default function PermissionsPage() {
                   </div>
                   <div>
                     <span className="text-xs text-gray-500">ERP</span>
-                    <span className="text-xl font-bold text-emerald-600 block leading-5">{stats.erpUsers}</span>
+                    <span className="text-xl font-bold text-emerald-600 block leading-5">
+                      {stats.erpUsers}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -826,29 +1381,35 @@ export default function PermissionsPage() {
                   </div>
                   <div>
                     <span className="text-xs text-gray-500">Module</span>
-                    <span className="text-xl font-bold text-purple-600 block leading-5">{stats.moduleUsers}</span>
+                    <span className="text-xl font-bold text-purple-600 block leading-5">
+                      {stats.moduleUsers}
+                    </span>
                   </div>
                 </div>
               </div>
               <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center space-x-2">
                   <div className="p-1.5 bg-amber-100 rounded-lg">
-                    <LayoutDashboard className="h-4 w-4 text-amber-600" />
+                    <Key className="h-4 w-4 text-amber-600" />
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500">Entities</span>
-                    <span className="text-xl font-bold text-amber-600 block leading-5">{stats.totalEntities}</span>
+                    <span className="text-xs text-gray-500">Permissions</span>
+                    <span className="text-xl font-bold text-amber-600 block leading-5">
+                      {stats.totalPermissions}
+                    </span>
                   </div>
                 </div>
               </div>
               <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center space-x-2">
                   <div className="p-1.5 bg-indigo-100 rounded-lg">
-                    <Grid3x3 className="h-4 w-4 text-indigo-600" />
+                    <LayoutDashboard className="h-4 w-4 text-indigo-600" />
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500">Fields</span>
-                    <span className="text-xl font-bold text-indigo-600 block leading-5">{stats.totalFields}</span>
+                    <span className="text-xs text-gray-500">Entities</span>
+                    <span className="text-xl font-bold text-indigo-600 block leading-5">
+                      {stats.totalEntities}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -866,7 +1427,9 @@ export default function PermissionsPage() {
           {/* Search and Filters */}
           <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-4">
             <div className="lg:col-span-3">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Search Users</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Search Users
+              </label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
@@ -880,7 +1443,9 @@ export default function PermissionsPage() {
             </div>
 
             <div className="lg:col-span-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">User Source</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                User Source
+              </label>
               <select
                 value={userSource}
                 onChange={(e) => setUserSource(e.target.value as UserSource)}
@@ -893,7 +1458,9 @@ export default function PermissionsPage() {
             </div>
 
             <div className="lg:col-span-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Sort By</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Sort By
+              </label>
               <div className="flex rounded-xl overflow-hidden bg-white border-2 border-gray-200 shadow-sm">
                 <select
                   value={sortBy}
@@ -905,38 +1472,47 @@ export default function PermissionsPage() {
                   <option value="role">Role</option>
                   <option value="source">Source</option>
                   <option value="created">Created</option>
+                  <option value="permissions">Permissions Count</option>
                 </select>
                 <button
-                  onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                  onClick={() =>
+                    setSortDirection((prev) =>
+                      prev === "asc" ? "desc" : "asc",
+                    )
+                  }
                   className="px-3 py-3 hover:bg-gray-50 transition-colors"
                 >
-                  <ArrowUpDown className={`h-4 w-4 text-gray-500 transition-transform ${
-                    sortDirection === 'desc' ? 'rotate-180' : ''
-                  }`} />
+                  <ArrowUpDown
+                    className={`h-4 w-4 text-gray-500 transition-transform ${
+                      sortDirection === "desc" ? "rotate-180" : ""
+                    }`}
+                  />
                 </button>
               </div>
             </div>
 
             <div className="lg:col-span-3">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Module & View</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Module & View
+              </label>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex rounded-xl overflow-hidden bg-white border-2 border-gray-200 shadow-sm">
                   <button
-                    onClick={() => setSelectedModule('re')}
+                    onClick={() => setSelectedModule("re")}
                     className={`flex-1 px-3 py-3 text-sm font-medium transition-all ${
-                      selectedModule === 're'
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                      selectedModule === "re"
+                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
+                        : "bg-white text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     RE
                   </button>
                   <button
-                    onClick={() => setSelectedModule('expense')}
+                    onClick={() => setSelectedModule("expense")}
                     className={`flex-1 px-3 py-3 text-sm font-medium transition-all ${
-                      selectedModule === 'expense'
-                        ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                      selectedModule === "expense"
+                        ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white"
+                        : "bg-white text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     EXP
@@ -944,41 +1520,41 @@ export default function PermissionsPage() {
                 </div>
                 <div className="flex rounded-xl overflow-hidden bg-white border-2 border-gray-200 shadow-sm">
                   <button
-                    onClick={() => setViewMode('entities')}
+                    onClick={() => setViewMode("entities")}
                     className={`flex-1 px-2 py-3 text-xs font-medium transition-all ${
-                      viewMode === 'entities'
-                        ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                      viewMode === "entities"
+                        ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white"
+                        : "bg-white text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     Entities
                   </button>
                   <button
-                    onClick={() => setViewMode('fields')}
+                    onClick={() => setViewMode("fields")}
                     className={`flex-1 px-2 py-3 text-xs font-medium transition-all ${
-                      viewMode === 'fields'
-                        ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                      viewMode === "fields"
+                        ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white"
+                        : "bg-white text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     Fields
                   </button>
                   <button
-                    onClick={() => setViewMode('summary')}
+                    onClick={() => setViewMode("summary")}
                     className={`flex-1 px-2 py-3 text-xs font-medium transition-all ${
-                      viewMode === 'summary'
-                        ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                      viewMode === "summary"
+                        ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white"
+                        : "bg-white text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     Summary
                   </button>
                   <button
-                    onClick={() => setViewMode('timeline')}
+                    onClick={() => setViewMode("timeline")}
                     className={`flex-1 px-2 py-3 text-xs font-medium transition-all ${
-                      viewMode === 'timeline'
-                        ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                      viewMode === "timeline"
+                        ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white"
+                        : "bg-white text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     Timeline
@@ -988,18 +1564,20 @@ export default function PermissionsPage() {
             </div>
 
             <div className="lg:col-span-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">&nbsp;</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                &nbsp;
+              </label>
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setBulkMode(!bulkMode)}
                   className={`flex-1 px-3 py-3 border-2 rounded-xl transition-all text-sm ${
-                    bulkMode 
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-400 shadow-lg shadow-blue-500/25' 
-                      : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:shadow-md'
+                    bulkMode
+                      ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-400 shadow-lg shadow-blue-500/25"
+                      : "bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:shadow-md"
                   }`}
                 >
                   <Users className="h-4 w-4 inline mr-1" />
-                  {bulkMode ? 'Bulk On' : 'Bulk'}
+                  {bulkMode ? "Bulk On" : "Bulk"}
                 </button>
                 <button
                   onClick={expandAll}
@@ -1023,7 +1601,7 @@ export default function PermissionsPage() {
                   <Grid3x3 className="h-5 w-5 text-gray-500" />
                 </button>
                 <button
-                  onClick={fetchAllData}
+                  onClick={() => fetchAllData()}
                   className="p-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 bg-white shadow-sm"
                   title="Refresh"
                 >
@@ -1031,6 +1609,22 @@ export default function PermissionsPage() {
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Last Updated Indicator */}
+          <div className="mt-2 flex items-center justify-end text-xs text-gray-400">
+            <Clock className="h-3 w-3 mr-1" />
+            Last updated: {lastUpdated.toLocaleTimeString()}
+            <button
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={`ml-2 px-2 py-1 rounded-lg text-xs ${
+                autoRefresh
+                  ? "bg-green-100 text-green-700 border border-green-200"
+                  : "bg-gray-100 text-gray-600 border border-gray-200"
+              }`}
+            >
+              {autoRefresh ? "Auto-refresh ON" : "Auto-refresh OFF"}
+            </button>
           </div>
 
           {/* Mobile Filters Panel */}
@@ -1050,7 +1644,9 @@ export default function PermissionsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">User Source</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  User Source
+                </label>
                 <select
                   value={userSource}
                   onChange={(e) => setUserSource(e.target.value as UserSource)}
@@ -1063,24 +1659,26 @@ export default function PermissionsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Module</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Module
+                </label>
                 <div className="flex rounded-xl overflow-hidden bg-white border-2 border-gray-200">
                   <button
-                    onClick={() => setSelectedModule('re')}
+                    onClick={() => setSelectedModule("re")}
                     className={`flex-1 px-4 py-2.5 text-sm font-medium ${
-                      selectedModule === 're'
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
-                        : 'bg-white text-gray-700'
+                      selectedModule === "re"
+                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
+                        : "bg-white text-gray-700"
                     }`}
                   >
                     RE
                   </button>
                   <button
-                    onClick={() => setSelectedModule('expense')}
+                    onClick={() => setSelectedModule("expense")}
                     className={`flex-1 px-4 py-2.5 text-sm font-medium ${
-                      selectedModule === 'expense'
-                        ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white'
-                        : 'bg-white text-gray-700'
+                      selectedModule === "expense"
+                        ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white"
+                        : "bg-white text-gray-700"
                     }`}
                   >
                     Expense
@@ -1089,44 +1687,46 @@ export default function PermissionsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">View</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  View
+                </label>
                 <div className="grid grid-cols-4 gap-2">
                   <button
-                    onClick={() => setViewMode('entities')}
+                    onClick={() => setViewMode("entities")}
                     className={`p-2 border-2 rounded-xl text-xs font-medium ${
-                      viewMode === 'entities'
-                        ? 'border-purple-500 bg-purple-50 text-purple-700'
-                        : 'border-gray-200 text-gray-600'
+                      viewMode === "entities"
+                        ? "border-purple-500 bg-purple-50 text-purple-700"
+                        : "border-gray-200 text-gray-600"
                     }`}
                   >
                     Entities
                   </button>
                   <button
-                    onClick={() => setViewMode('fields')}
+                    onClick={() => setViewMode("fields")}
                     className={`p-2 border-2 rounded-xl text-xs font-medium ${
-                      viewMode === 'fields'
-                        ? 'border-purple-500 bg-purple-50 text-purple-700'
-                        : 'border-gray-200 text-gray-600'
+                      viewMode === "fields"
+                        ? "border-purple-500 bg-purple-50 text-purple-700"
+                        : "border-gray-200 text-gray-600"
                     }`}
                   >
                     Fields
                   </button>
                   <button
-                    onClick={() => setViewMode('summary')}
+                    onClick={() => setViewMode("summary")}
                     className={`p-2 border-2 rounded-xl text-xs font-medium ${
-                      viewMode === 'summary'
-                        ? 'border-purple-500 bg-purple-50 text-purple-700'
-                        : 'border-gray-200 text-gray-600'
+                      viewMode === "summary"
+                        ? "border-purple-500 bg-purple-50 text-purple-700"
+                        : "border-gray-200 text-gray-600"
                     }`}
                   >
                     Summary
                   </button>
                   <button
-                    onClick={() => setViewMode('timeline')}
+                    onClick={() => setViewMode("timeline")}
                     className={`p-2 border-2 rounded-xl text-xs font-medium ${
-                      viewMode === 'timeline'
-                        ? 'border-purple-500 bg-purple-50 text-purple-700'
-                        : 'border-gray-200 text-gray-600'
+                      viewMode === "timeline"
+                        ? "border-purple-500 bg-purple-50 text-purple-700"
+                        : "border-gray-200 text-gray-600"
                     }`}
                   >
                     Timeline
@@ -1149,16 +1749,30 @@ export default function PermissionsPage() {
                 </button>
               </div>
 
+              <div className="flex items-center justify-between">
+                <label className="text-sm text-gray-600">Auto-refresh</label>
+                <button
+                  onClick={() => setAutoRefresh(!autoRefresh)}
+                  className={`px-3 py-1.5 rounded-lg text-xs ${
+                    autoRefresh
+                      ? "bg-green-100 text-green-700 border border-green-200"
+                      : "bg-gray-100 text-gray-600 border border-gray-200"
+                  }`}
+                >
+                  {autoRefresh ? "ON" : "OFF"}
+                </button>
+              </div>
+
               <button
                 onClick={() => setBulkMode(!bulkMode)}
                 className={`w-full p-3 border-2 rounded-xl font-medium ${
                   bulkMode
-                    ? 'bg-blue-600 text-white border-blue-400'
-                    : 'bg-white text-gray-700 border-gray-200'
+                    ? "bg-blue-600 text-white border-blue-400"
+                    : "bg-white text-gray-700 border-gray-200"
                 }`}
               >
                 <Users className="h-4 w-4 inline mr-2" />
-                {bulkMode ? 'Disable Bulk Mode' : 'Enable Bulk Mode'}
+                {bulkMode ? "Disable Bulk Mode" : "Enable Bulk Mode"}
               </button>
             </div>
           )}
@@ -1193,62 +1807,94 @@ export default function PermissionsPage() {
                 <table className="min-w-full divide-y-2 divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">User</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Source</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Role</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase" colSpan={4}>Permissions</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                        User
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                        Source
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                        Role
+                      </th>
+                      <th
+                        className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase"
+                        colSpan={5}
+                      >
+                        Permissions
+                      </th>
                     </tr>
                     <tr className="bg-gray-100">
                       <th></th>
                       <th></th>
                       <th></th>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-600">Access</th>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-600">Create</th>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-600">Edit</th>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-600">Delete</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-600">
+                        Access
+                      </th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-600">
+                        Create
+                      </th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-600">
+                        Edit
+                      </th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-600">
+                        Delete
+                      </th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-600">
+                        Columns
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y-2 divide-gray-200">
-                    {filteredUsers.slice(0, 10).map((user) => {
-                      const userPerms = permissions[user._id]?.[selectedModule] || {};
-                      const hasAnyAccess = Object.values(userPerms).some(p => p.access);
-                      
+                    {filteredUsers.map((user) => {
+                      const summary = permissionSummaries[user._id];
+
                       return (
                         <tr key={user._id} className="hover:bg-gray-50">
                           <td className="px-4 py-3">
-                            <div className="font-medium text-gray-900">{user.fullName}</div>
-                            <div className="text-xs text-gray-500">{user.email}</div>
+                            <div className="font-medium text-gray-900">
+                              {user.fullName}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {user.email}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              user.source === 'erp' 
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'bg-purple-100 text-purple-700'
-                            }`}>
+                            <span
+                              className={`px-2 py-1 text-xs rounded-full ${
+                                user.source === "erp"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-purple-100 text-purple-700"
+                              }`}
+                            >
                               {user.source}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 capitalize">{user.role}</td>
-                          <td className="px-4 py-3 text-center">
-                            {hasAnyAccess ? (
-                              <CheckCircle className="h-5 w-5 text-green-500 mx-auto" />
-                            ) : (
-                              <XCircle className="h-5 w-5 text-gray-300 mx-auto" />
-                            )}
+                          <td className="px-4 py-3 text-sm text-gray-600 capitalize">
+                            {user.role}
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <span className="text-sm font-medium">
-                              {Object.values(userPerms).filter(p => p.create).length}
+                            <span className="text-sm font-medium text-blue-600">
+                              {summary?.totalAccess || 0}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <span className="text-sm font-medium">
-                              {Object.values(userPerms).filter(p => p.edit).length}
+                            <span className="text-sm font-medium text-green-600">
+                              {summary?.totalCreate || 0}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <span className="text-sm font-medium">
-                              {Object.values(userPerms).filter(p => p.delete).length}
+                            <span className="text-sm font-medium text-amber-600">
+                              {summary?.totalEdit || 0}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="text-sm font-medium text-red-600">
+                              {summary?.totalDelete || 0}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="text-sm font-medium text-purple-600">
+                              {summary?.totalColumns || 0}
                             </span>
                           </td>
                         </tr>
@@ -1258,13 +1904,30 @@ export default function PermissionsPage() {
                 </table>
               </div>
 
-              <div className="mt-4 flex justify-end">
+              <div className="mt-4 flex justify-end space-x-2">
+                <select
+                  value={exportFormat}
+                  onChange={(e) =>
+                    setExportFormat(e.target.value as "json" | "csv")
+                  }
+                  className="px-3 py-2 border-2 border-gray-200 rounded-xl text-sm bg-white"
+                >
+                  <option value="json">JSON</option>
+                  <option value="csv">CSV</option>
+                </select>
                 <button
                   onClick={exportPermissions}
                   className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-500/25 flex items-center"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export Matrix
+                </button>
+                <button
+                  onClick={importPermissions}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all shadow-lg shadow-purple-500/25 flex items-center"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import
                 </button>
               </div>
             </div>
@@ -1298,15 +1961,17 @@ export default function PermissionsPage() {
               {filteredUsers.map((user) => {
                 const isSelected = selectedUser === user._id;
                 const isCompared = compareUser === user._id;
-                
+                const summary = permissionSummaries[user._id];
+                const hasPending = pendingChanges.has(`${user._id}-any`);
+
                 return (
                   <div
                     key={user._id}
                     className={`p-4 cursor-pointer hover:bg-gray-50 transition-all ${
-                      isSelected ? 'bg-blue-50 border-l-4 border-blue-600' : ''
-                    } ${isCompared ? 'bg-purple-50 border-l-4 border-purple-600' : ''} ${
-                      bulkMode ? 'flex items-start space-x-3' : ''
-                    }`}
+                      isSelected ? "bg-blue-50 border-l-4 border-blue-600" : ""
+                    } ${isCompared ? "bg-purple-50 border-l-4 border-purple-600" : ""} ${
+                      bulkMode ? "flex items-start space-x-3" : ""
+                    } ${hasPending ? "opacity-50" : ""}`}
                     onClick={() => {
                       if (bulkMode) return;
                       if (isSelected && !isCompared && selectedUser) {
@@ -1325,7 +1990,9 @@ export default function PermissionsPage() {
                           if (e.target.checked) {
                             setSelectedUsers([...selectedUsers, user._id]);
                           } else {
-                            setSelectedUsers(selectedUsers.filter(id => id !== user._id));
+                            setSelectedUsers(
+                              selectedUsers.filter((id) => id !== user._id),
+                            );
                           }
                         }}
                         className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -1335,21 +2002,27 @@ export default function PermissionsPage() {
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-gray-900">{user.fullName}</h3>
-                            <span className={`px-2 py-0.5 text-xs rounded-full ${
-                              user.source === 'erp' 
-                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                                : 'bg-purple-100 text-purple-700 border border-purple-200'
-                            }`}>
-                              {user.source === 'erp' ? 'ERP' : 'Module'}
+                            <h3 className="font-semibold text-gray-900">
+                              {user.fullName}
+                            </h3>
+                            <span
+                              className={`px-2 py-0.5 text-xs rounded-full ${
+                                user.source === "erp"
+                                  ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                  : "bg-purple-100 text-purple-700 border border-purple-200"
+                              }`}
+                            >
+                              {user.source === "erp" ? "ERP" : "Module"}
                             </span>
-                            {user.source === 'module' && user.module && (
-                              <span className={`px-2 py-0.5 text-xs rounded-full ${
-                                user.module === 're' 
-                                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                                  : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                              }`}>
-                                {user.module === 're' ? 'RE' : 'Expense'}
+                            {user.source === "module" && user.module && (
+                              <span
+                                className={`px-2 py-0.5 text-xs rounded-full ${
+                                  user.module === "re"
+                                    ? "bg-blue-100 text-blue-700 border border-blue-200"
+                                    : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                }`}
+                              >
+                                {user.module === "re" ? "RE" : "Expense"}
                               </span>
                             )}
                             {user.isActive === false && (
@@ -1363,13 +2036,38 @@ export default function PermissionsPage() {
                         {!bulkMode && (isSelected || isCompared) && (
                           <button
                             onClick={() => savePermissions(user._id)}
-                            disabled={isSaving}
+                            disabled={isSaving || hasPending}
                             className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
                           >
                             <Save className="h-4 w-4" />
                           </button>
                         )}
                       </div>
+
+                      {/* Permission Summary Badges */}
+                      {summary && summary.totalAccess > 0 && (
+                        <div className="flex items-center mt-2 space-x-2">
+                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                            Access: {summary.totalAccess}
+                          </span>
+                          {summary.totalCreate > 0 && (
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                              Create: {summary.totalCreate}
+                            </span>
+                          )}
+                          {summary.totalEdit > 0 && (
+                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                              Edit: {summary.totalEdit}
+                            </span>
+                          )}
+                          {summary.totalDelete > 0 && (
+                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                              Delete: {summary.totalDelete}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       <div className="flex items-center mt-2 space-x-2">
                         <span className="text-xs bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 px-2.5 py-1 rounded-full font-medium capitalize border border-blue-300">
                           {user.role}
@@ -1382,7 +2080,8 @@ export default function PermissionsPage() {
                       </div>
                       {user.lastActive && (
                         <p className="text-xs text-gray-400 mt-1">
-                          Last active: {new Date(user.lastActive).toLocaleDateString()}
+                          Last active:{" "}
+                          {new Date(user.lastActive).toLocaleDateString()}
                         </p>
                       )}
                     </div>
@@ -1405,31 +2104,53 @@ export default function PermissionsPage() {
                 <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-3">
                   Select a User
                 </h3>
-                <p className="text-gray-500 text-lg">Choose a user from the list to manage their permissions</p>
+                <p className="text-gray-500 text-lg">
+                  Choose a user from the list to manage their permissions
+                </p>
               </div>
             ) : bulkMode ? (
               <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-xl p-12 text-center">
                 <Users className="h-16 w-16 mx-auto text-blue-500 mb-4" />
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Bulk Mode Selected</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                  Bulk Mode Selected
+                </h3>
                 <p className="text-gray-500 text-lg mb-4">
-                  {selectedUsers.length} user{selectedUsers.length !== 1 ? 's' : ''} selected
+                  {selectedUsers.length} user
+                  {selectedUsers.length !== 1 ? "s" : ""} selected
                 </p>
                 {selectedUsers.length > 0 && (
                   <div className="space-y-3">
                     <div className="bg-gray-50 p-4 rounded-xl text-left">
-                      <h4 className="font-medium text-gray-700 mb-2">Bulk Actions</h4>
+                      <h4 className="font-medium text-gray-700 mb-2">
+                        Bulk Actions
+                      </h4>
                       <div className="space-y-2">
                         <label className="flex items-center justify-between p-2 hover:bg-white rounded-lg">
-                          <span className="text-sm text-gray-600">Enable Access for all entities</span>
-                          <input type="checkbox" className="rounded border-gray-300 text-blue-600" />
+                          <span className="text-sm text-gray-600">
+                            Enable Access for all entities
+                          </span>
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-blue-600"
+                          />
                         </label>
                         <label className="flex items-center justify-between p-2 hover:bg-white rounded-lg">
-                          <span className="text-sm text-gray-600">Set scope to All Records</span>
-                          <input type="checkbox" className="rounded border-gray-300 text-blue-600" />
+                          <span className="text-sm text-gray-600">
+                            Set scope to All Records
+                          </span>
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-blue-600"
+                          />
                         </label>
                         <label className="flex items-center justify-between p-2 hover:bg-white rounded-lg">
-                          <span className="text-sm text-gray-600">Enable all Create permissions</span>
-                          <input type="checkbox" className="rounded border-gray-300 text-blue-600" />
+                          <span className="text-sm text-gray-600">
+                            Enable all Create permissions
+                          </span>
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-blue-600"
+                          />
                         </label>
                       </div>
                     </div>
@@ -1439,7 +2160,9 @@ export default function PermissionsPage() {
                       className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all shadow-lg shadow-green-500/25 font-medium w-full"
                     >
                       <Save className="h-5 w-5 inline mr-2" />
-                      {isSaving ? 'Saving...' : `Save All Changes (${selectedUsers.length})`}
+                      {isSaving
+                        ? "Saving..."
+                        : `Save All Changes (${selectedUsers.length})`}
                     </button>
                   </div>
                 )}
@@ -1458,31 +2181,44 @@ export default function PermissionsPage() {
                           <h2 className="text-2xl font-bold text-gray-900">
                             {selectedUserObj?.fullName}
                           </h2>
-                          <span className={`px-3 py-1 text-xs rounded-full ${
-                            selectedUserObj?.source === 'erp' 
-                              ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                              : 'bg-purple-100 text-purple-700 border border-purple-200'
-                          }`}>
-                            {selectedUserObj?.source === 'erp' ? 'ERP User' : 'Module User'}
+                          <span
+                            className={`px-3 py-1 text-xs rounded-full ${
+                              selectedUserObj?.source === "erp"
+                                ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                : "bg-purple-100 text-purple-700 border border-purple-200"
+                            }`}
+                          >
+                            {selectedUserObj?.source === "erp"
+                              ? "ERP User"
+                              : "Module User"}
                           </span>
                         </div>
-                        <p className="text-gray-500">{selectedUserObj?.email}</p>
+                        <p className="text-gray-500">
+                          {selectedUserObj?.email}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-3">
                       {compareUser && compareUserObj && (
                         <div className="flex items-center space-x-2 bg-purple-50 px-3 py-1.5 rounded-xl border-2 border-purple-200">
                           <GitCompare className="h-4 w-4 text-purple-600" />
-                          <span className="text-sm text-purple-700">Comparing with {compareUserObj.fullName}</span>
+                          <span className="text-sm text-purple-700">
+                            Comparing with {compareUserObj.fullName}
+                          </span>
                         </div>
                       )}
                       <button
                         onClick={() => {
-                          const sourceId = prompt('Enter user ID to copy permissions from:');
-                          if (sourceId && users.find(u => u._id === sourceId)) {
+                          const sourceId = prompt(
+                            "Enter user ID to copy permissions from:",
+                          );
+                          if (
+                            sourceId &&
+                            users.find((u) => u._id === sourceId)
+                          ) {
                             copyPermissions(sourceId, selectedUser);
                           } else if (sourceId) {
-                            toast.error('User not found');
+                            toast.error("User not found");
                           }
                         }}
                         className="flex items-center px-4 py-2 border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-all hover:border-blue-300 hover:shadow-md"
@@ -1505,38 +2241,38 @@ export default function PermissionsPage() {
                     <div className="bg-gray-50 rounded-xl p-3">
                       <p className="text-xs text-gray-500">Access</p>
                       <p className="text-lg font-bold text-blue-600">
-                        {Object.values(currentUserPerms).filter(p => p.access).length}
+                        {selectedUserSummary?.totalAccess || 0}
                       </p>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-3">
                       <p className="text-xs text-gray-500">Create</p>
                       <p className="text-lg font-bold text-green-600">
-                        {Object.values(currentUserPerms).filter(p => p.create).length}
+                        {selectedUserSummary?.totalCreate || 0}
                       </p>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-3">
                       <p className="text-xs text-gray-500">Edit</p>
                       <p className="text-lg font-bold text-amber-600">
-                        {Object.values(currentUserPerms).filter(p => p.edit).length}
+                        {selectedUserSummary?.totalEdit || 0}
                       </p>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-3">
                       <p className="text-xs text-gray-500">Delete</p>
                       <p className="text-lg font-bold text-red-600">
-                        {Object.values(currentUserPerms).filter(p => p.delete).length}
+                        {selectedUserSummary?.totalDelete || 0}
                       </p>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-3">
                       <p className="text-xs text-gray-500">Columns</p>
                       <p className="text-lg font-bold text-purple-600">
-                        {Object.values(currentUserPerms).reduce((acc, p) => acc + Object.keys(p.columns || {}).length, 0)}
+                        {selectedUserSummary?.totalColumns || 0}
                       </p>
                     </div>
                   </div>
                 </div>
 
                 {/* View Mode Content */}
-                {viewMode === 'entities' && (
+                {viewMode === "entities" && (
                   <div className="space-y-4">
                     {filteredEntities.map((entity) => {
                       const entityPerms = currentUserPerms[entity._id] || {
@@ -1544,16 +2280,24 @@ export default function PermissionsPage() {
                         create: false,
                         edit: false,
                         delete: false,
-                        scope: 'own',
-                        columns: {}
+                        scope: "own",
+                        columns: {},
                       };
-                      
-                      const compareEntityPerms = compareUser ? compareUserPerms[entity._id] || null : null;
+
+                      const compareEntityPerms = compareUser
+                        ? compareUserPerms[entity._id] || null
+                        : null;
                       const isExpanded = expandedEntities.has(entity._id);
                       const fields = getEntityFields(entity._id);
+                      const hasPendingChanges = pendingChanges.has(`${selectedUser}-${entity._id}`);
 
                       return (
-                        <div key={entity._id} className="bg-white rounded-2xl border-2 border-gray-200 shadow-lg overflow-hidden hover:shadow-xl transition-all">
+                        <div
+                          key={entity._id}
+                          className={`bg-white rounded-2xl border-2 border-gray-200 shadow-lg overflow-hidden hover:shadow-xl transition-all ${
+                            hasPendingChanges ? 'opacity-70' : ''
+                          }`}
+                        >
                           {/* Entity Header */}
                           <div
                             className="bg-gradient-to-r from-gray-50 to-white px-6 py-4 flex items-center justify-between cursor-pointer hover:from-gray-100 transition-all"
@@ -1572,12 +2316,16 @@ export default function PermissionsPage() {
                                 <h3 className="font-semibold text-lg text-gray-900">
                                   {entity.name}
                                 </h3>
-                                <p className="text-sm text-gray-500">{entity.entityKey}</p>
+                                <p className="text-sm text-gray-500">
+                                  {entity.entityKey}
+                                </p>
                               </div>
                               {compareEntityPerms && (
                                 <div className="flex items-center space-x-1 ml-4">
                                   <div className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
-                                    {compareEntityPerms.access ? 'Has Access' : 'No Access'}
+                                    {compareEntityPerms.access
+                                      ? "Has Access"
+                                      : "No Access"}
                                   </div>
                                 </div>
                               )}
@@ -1588,24 +2336,56 @@ export default function PermissionsPage() {
                                   type="checkbox"
                                   checked={entityPerms.access}
                                   onChange={(e) => {
-                                    updatePermission(selectedUser, selectedModule, entity._id, 'access', e.target.checked);
+                                    updatePermission(
+                                      selectedUser,
+                                      selectedModule,
+                                      entity._id,
+                                      "access",
+                                      e.target.checked,
+                                    );
                                     if (!e.target.checked) {
-                                      updatePermission(selectedUser, selectedModule, entity._id, 'create', false);
-                                      updatePermission(selectedUser, selectedModule, entity._id, 'edit', false);
-                                      updatePermission(selectedUser, selectedModule, entity._id, 'delete', false);
+                                      updatePermission(
+                                        selectedUser,
+                                        selectedModule,
+                                        entity._id,
+                                        "create",
+                                        false,
+                                      );
+                                      updatePermission(
+                                        selectedUser,
+                                        selectedModule,
+                                        entity._id,
+                                        "edit",
+                                        false,
+                                      );
+                                      updatePermission(
+                                        selectedUser,
+                                        selectedModule,
+                                        entity._id,
+                                        "delete",
+                                        false,
+                                      );
                                     }
                                   }}
                                   className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                 />
-                                <span className="text-sm font-medium text-gray-700">Enable Access</span>
+                                <span className="text-sm font-medium text-gray-700">
+                                  Enable Access
+                                </span>
                               </label>
                               {compareEntityPerms && (
-                                <div className={`px-3 py-2 rounded-xl text-xs font-medium ${
-                                  JSON.stringify(entityPerms) === JSON.stringify(compareEntityPerms)
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'bg-amber-100 text-amber-700'
-                                }`}>
-                                  {JSON.stringify(entityPerms) === JSON.stringify(compareEntityPerms) ? 'Match' : 'Different'}
+                                <div
+                                  className={`px-3 py-2 rounded-xl text-xs font-medium ${
+                                    JSON.stringify(entityPerms) ===
+                                    JSON.stringify(compareEntityPerms)
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-amber-100 text-amber-700"
+                                  }`}
+                                >
+                                  {JSON.stringify(entityPerms) ===
+                                  JSON.stringify(compareEntityPerms)
+                                    ? "Match"
+                                    : "Different"}
                                 </div>
                               )}
                             </div>
@@ -1622,41 +2402,78 @@ export default function PermissionsPage() {
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                                   {[
-                                    { key: 'create', label: 'Create', icon: Plus, color: 'green' },
-                                    { key: 'edit', label: 'Edit', icon: Edit3, color: 'blue' },
-                                    { key: 'delete', label: 'Delete', icon: Trash2, color: 'red' }
+                                    {
+                                      key: "create",
+                                      label: "Create",
+                                      icon: Plus,
+                                      color: "green",
+                                    },
+                                    {
+                                      key: "edit",
+                                      label: "Edit",
+                                      icon: Edit3,
+                                      color: "blue",
+                                    },
+                                    {
+                                      key: "delete",
+                                      label: "Delete",
+                                      icon: Trash2,
+                                      color: "red",
+                                    },
                                   ].map(({ key, label, icon: Icon, color }) => (
-                                    <label key={key} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-xl border-2 border-gray-200 cursor-pointer hover:border-${color}-300 transition-all">
+                                    <label
+                                      key={key}
+                                      className="flex items-center space-x-3 p-3 bg-gray-50 rounded-xl border-2 border-gray-200 cursor-pointer hover:border-${color}-300 transition-all"
+                                    >
                                       <input
                                         type="checkbox"
-                                        checked={entityPerms[key as keyof Permission] as boolean}
-                                        onChange={(e) => updatePermission(
-                                          selectedUser,
-                                          selectedModule,
-                                          entity._id,
-                                          key as keyof Permission,
-                                          e.target.checked
-                                        )}
+                                        checked={
+                                          entityPerms[
+                                            key as keyof Permission
+                                          ] as boolean
+                                        }
+                                        onChange={(e) =>
+                                          updatePermission(
+                                            selectedUser,
+                                            selectedModule,
+                                            entity._id,
+                                            key as keyof Permission,
+                                            e.target.checked,
+                                          )
+                                        }
                                         className="w-5 h-5 rounded border-gray-300 text-${color}-600 focus:ring-${color}-500"
                                       />
-                                      <Icon className={`h-4 w-4 text-${color}-600`} />
-                                      <span className="text-sm font-medium text-gray-700">{label}</span>
+                                      <Icon
+                                        className={`h-4 w-4 text-${color}-600`}
+                                      />
+                                      <span className="text-sm font-medium text-gray-700">
+                                        {label}
+                                      </span>
                                     </label>
                                   ))}
                                   <div className="col-span-2">
                                     <select
                                       value={entityPerms.scope}
-                                      onChange={(e) => updatePermission(
-                                        selectedUser,
-                                        selectedModule,
-                                        entity._id,
-                                        'scope',
-                                        e.target.value as 'own' | 'all' | 'department'
-                                      )}
+                                      onChange={(e) =>
+                                        updatePermission(
+                                          selectedUser,
+                                          selectedModule,
+                                          entity._id,
+                                          "scope",
+                                          e.target.value as
+                                            | "own"
+                                            | "all"
+                                            | "department",
+                                        )
+                                      }
                                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 font-medium"
                                     >
-                                      <option value="own">Own Records Only</option>
-                                      <option value="department">Department Records</option>
+                                      <option value="own">
+                                        Own Records Only
+                                      </option>
+                                      <option value="department">
+                                        Department Records
+                                      </option>
                                       <option value="all">All Records</option>
                                     </select>
                                   </div>
@@ -1672,50 +2489,58 @@ export default function PermissionsPage() {
                                   </h4>
                                   <div className="flex items-center space-x-3">
                                     <button
-                                      onClick={() => toggleAllColumns(
-                                        selectedUser,
-                                        selectedModule,
-                                        entity._id,
-                                        'view',
-                                        true
-                                      )}
+                                      onClick={() =>
+                                        toggleAllColumns(
+                                          selectedUser,
+                                          selectedModule,
+                                          entity._id,
+                                          "view",
+                                          true,
+                                        )
+                                      }
                                       className="text-xs px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors border border-blue-200"
                                     >
                                       View All
                                     </button>
                                     <button
-                                      onClick={() => toggleAllColumns(
-                                        selectedUser,
-                                        selectedModule,
-                                        entity._id,
-                                        'view',
-                                        false
-                                      )}
+                                      onClick={() =>
+                                        toggleAllColumns(
+                                          selectedUser,
+                                          selectedModule,
+                                          entity._id,
+                                          "view",
+                                          false,
+                                        )
+                                      }
                                       className="text-xs px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
                                     >
                                       Hide All
                                     </button>
                                     <span className="text-gray-300">|</span>
                                     <button
-                                      onClick={() => toggleAllColumns(
-                                        selectedUser,
-                                        selectedModule,
-                                        entity._id,
-                                        'edit',
-                                        true
-                                      )}
+                                      onClick={() =>
+                                        toggleAllColumns(
+                                          selectedUser,
+                                          selectedModule,
+                                          entity._id,
+                                          "edit",
+                                          true,
+                                        )
+                                      }
                                       className="text-xs px-3 py-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors border border-green-200"
                                     >
                                       Edit All
                                     </button>
                                     <button
-                                      onClick={() => toggleAllColumns(
-                                        selectedUser,
-                                        selectedModule,
-                                        entity._id,
-                                        'edit',
-                                        false
-                                      )}
+                                      onClick={() =>
+                                        toggleAllColumns(
+                                          selectedUser,
+                                          selectedModule,
+                                          entity._id,
+                                          "edit",
+                                          false,
+                                        )
+                                      }
                                       className="text-xs px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
                                     >
                                       Read Only All
@@ -1750,31 +2575,49 @@ export default function PermissionsPage() {
                                     </thead>
                                     <tbody className="divide-y-2 divide-gray-200 bg-white">
                                       {/* System Columns */}
-                                      {['name', 'createdAt', 'updatedAt', 'createdBy'].map((col) => {
-                                        const columnPerms = entityPerms.columns?.[col] || {
+                                      {[
+                                        "name",
+                                        "createdAt",
+                                        "updatedAt",
+                                        "createdBy",
+                                      ].map((col) => {
+                                        const columnPerms = entityPerms
+                                          .columns?.[col] || {
                                           view: true,
-                                          edit: false
+                                          edit: false,
                                         };
-                                        
-                                        const compareColumnPerms = compareEntityPerms?.columns?.[col];
+                                        const isPending = pendingChanges.has(`${selectedUser}-${entity._id}-${col}`);
+
+                                        const compareColumnPerms =
+                                          compareEntityPerms?.columns?.[col];
 
                                         return (
-                                          <tr key={col} className="hover:bg-gray-50 transition-colors">
+                                          <tr
+                                            key={col}
+                                            className={`hover:bg-gray-50 transition-colors ${isPending ? 'bg-yellow-50' : ''}`}
+                                          >
                                             <td className="px-6 py-3 text-sm font-medium text-gray-900 capitalize">
-                                              {col.replace(/([A-Z])/g, ' $1').trim()}
+                                              {col
+                                                .replace(/([A-Z])/g, " $1")
+                                                .trim()}
+                                              {isPending && (
+                                                <span className="ml-2 text-xs text-yellow-600">(syncing...)</span>
+                                              )}
                                             </td>
                                             <td className="px-6 py-3 text-center">
                                               <input
                                                 type="checkbox"
                                                 checked={columnPerms.view}
-                                                onChange={(e) => updateColumnPermission(
-                                                  selectedUser,
-                                                  selectedModule,
-                                                  entity._id,
-                                                  col,
-                                                  'view',
-                                                  e.target.checked
-                                                )}
+                                                onChange={(e) =>
+                                                  updateColumnPermission(
+                                                    selectedUser,
+                                                    selectedModule,
+                                                    entity._id,
+                                                    col,
+                                                    "view",
+                                                    e.target.checked,
+                                                  )
+                                                }
                                                 className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                               />
                                             </td>
@@ -1782,14 +2625,16 @@ export default function PermissionsPage() {
                                               <input
                                                 type="checkbox"
                                                 checked={columnPerms.edit}
-                                                onChange={(e) => updateColumnPermission(
-                                                  selectedUser,
-                                                  selectedModule,
-                                                  entity._id,
-                                                  col,
-                                                  'edit',
-                                                  e.target.checked
-                                                )}
+                                                onChange={(e) =>
+                                                  updateColumnPermission(
+                                                    selectedUser,
+                                                    selectedModule,
+                                                    entity._id,
+                                                    col,
+                                                    "edit",
+                                                    e.target.checked,
+                                                  )
+                                                }
                                                 disabled={!columnPerms.view}
                                                 className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-50"
                                               />
@@ -1805,19 +2650,25 @@ export default function PermissionsPage() {
                                                   <div className="flex items-center justify-center space-x-1">
                                                     <input
                                                       type="checkbox"
-                                                      checked={compareColumnPerms.view}
+                                                      checked={
+                                                        compareColumnPerms.view
+                                                      }
                                                       readOnly
                                                       className="w-4 h-4 rounded border-gray-300 text-blue-600"
                                                     />
                                                     <input
                                                       type="checkbox"
-                                                      checked={compareColumnPerms.edit}
+                                                      checked={
+                                                        compareColumnPerms.edit
+                                                      }
                                                       readOnly
                                                       className="w-4 h-4 rounded border-gray-300 text-green-600"
                                                     />
                                                   </div>
                                                 ) : (
-                                                  <span className="text-xs text-gray-400">—</span>
+                                                  <span className="text-xs text-gray-400">
+                                                    —
+                                                  </span>
                                                 )}
                                               </td>
                                             )}
@@ -1827,36 +2678,55 @@ export default function PermissionsPage() {
 
                                       {/* Custom Fields */}
                                       {fields.map((field) => {
-                                        const columnPerms = entityPerms.columns?.[field.fieldKey] || {
+                                        const columnPerms = entityPerms
+                                          .columns?.[field.fieldKey] || {
                                           view: true,
-                                          edit: false
+                                          edit: false,
                                         };
-                                        
-                                        const compareColumnPerms = compareEntityPerms?.columns?.[field.fieldKey];
+                                        const isPending = pendingChanges.has(`${selectedUser}-${entity._id}-${field.fieldKey}`);
+
+                                        const compareColumnPerms =
+                                          compareEntityPerms?.columns?.[
+                                            field.fieldKey
+                                          ];
 
                                         return (
-                                          <tr key={field._id} className="hover:bg-purple-50 transition-colors">
+                                          <tr
+                                            key={field._id}
+                                            className={`hover:bg-purple-50 transition-colors ${isPending ? 'bg-yellow-50' : ''}`}
+                                          >
                                             <td className="px-6 py-3">
                                               <div className="flex items-center space-x-2">
-                                                <span className="text-sm font-medium text-gray-900">{field.label}</span>
+                                                <span className="text-sm font-medium text-gray-900">
+                                                  {field.label}
+                                                </span>
                                                 {field.required && (
-                                                  <span className="text-xs text-red-500">*</span>
+                                                  <span className="text-xs text-red-500">
+                                                    *
+                                                  </span>
                                                 )}
                                               </div>
-                                              <p className="text-xs text-gray-500 font-mono">{field.fieldKey}</p>
+                                              <p className="text-xs text-gray-500 font-mono">
+                                                {field.fieldKey}
+                                              </p>
+                                              {isPending && (
+                                                <span className="text-xs text-yellow-600">syncing...</span>
+                                              )}
                                             </td>
                                             <td className="px-6 py-3 text-center">
                                               <input
                                                 type="checkbox"
                                                 checked={columnPerms.view}
-                                                onChange={(e) => updateColumnPermission(
-                                                  selectedUser,
-                                                  selectedModule,
-                                                  entity._id,
-                                                  field.fieldKey,
-                                                  'view',
-                                                  e.target.checked
-                                                )}
+                                                onChange={(e) =>
+                                                  updateColumnPermission(
+                                                    selectedUser,
+                                                    selectedModule,
+                                                    entity._id,
+                                                    field.fieldKey,
+                                                    "view",
+                                                    e.target.checked,
+                                                  )
+                                                }
                                                 className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                               />
                                             </td>
@@ -1864,14 +2734,16 @@ export default function PermissionsPage() {
                                               <input
                                                 type="checkbox"
                                                 checked={columnPerms.edit}
-                                                onChange={(e) => updateColumnPermission(
-                                                  selectedUser,
-                                                  selectedModule,
-                                                  entity._id,
-                                                  field.fieldKey,
-                                                  'edit',
-                                                  e.target.checked
-                                                )}
+                                                onChange={(e) =>
+                                                  updateColumnPermission(
+                                                    selectedUser,
+                                                    selectedModule,
+                                                    entity._id,
+                                                    field.fieldKey,
+                                                    "edit",
+                                                    e.target.checked,
+                                                  )
+                                                }
                                                 disabled={!columnPerms.view}
                                                 className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-50"
                                               />
@@ -1887,19 +2759,25 @@ export default function PermissionsPage() {
                                                   <div className="flex items-center justify-center space-x-1">
                                                     <input
                                                       type="checkbox"
-                                                      checked={compareColumnPerms.view}
+                                                      checked={
+                                                        compareColumnPerms.view
+                                                      }
                                                       readOnly
                                                       className="w-4 h-4 rounded border-gray-300 text-blue-600"
                                                     />
                                                     <input
                                                       type="checkbox"
-                                                      checked={compareColumnPerms.edit}
+                                                      checked={
+                                                        compareColumnPerms.edit
+                                                      }
                                                       readOnly
                                                       className="w-4 h-4 rounded border-gray-300 text-green-600"
                                                     />
                                                   </div>
                                                 ) : (
-                                                  <span className="text-xs text-gray-400">—</span>
+                                                  <span className="text-xs text-gray-400">
+                                                    —
+                                                  </span>
                                                 )}
                                               </td>
                                             )}
@@ -1917,8 +2795,12 @@ export default function PermissionsPage() {
                           {isExpanded && !entityPerms.access && (
                             <div className="p-8 text-center bg-gray-50 rounded-b-2xl">
                               <Lock className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                              <p className="text-gray-500 font-medium">Access is disabled for this entity</p>
-                              <p className="text-sm text-gray-400 mt-1">Enable access to configure permissions</p>
+                              <p className="text-gray-500 font-medium">
+                                Access is disabled for this entity
+                              </p>
+                              <p className="text-sm text-gray-400 mt-1">
+                                Enable access to configure permissions
+                              </p>
                             </div>
                           )}
                         </div>
@@ -1927,61 +2809,106 @@ export default function PermissionsPage() {
                   </div>
                 )}
 
-                {viewMode === 'fields' && (
+                {viewMode === "fields" && (
                   <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Field Permissions Summary</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Field Permissions Summary
+                    </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {filteredEntities.map((entity) => {
                         const fields = getEntityFields(entity._id);
-                        const entityPerms = currentUserPerms[entity._id] || { columns: {} };
-                        const compareEntityPerms = compareUser ? compareUserPerms[entity._id] || null : null;
+                        const entityPerms = currentUserPerms[entity._id] || {
+                          columns: {},
+                        };
+                        const compareEntityPerms = compareUser
+                          ? compareUserPerms[entity._id] || null
+                          : null;
 
                         return (
-                          <div key={entity._id} className="border-2 border-gray-200 rounded-xl p-4 hover:shadow-md transition-all">
+                          <div
+                            key={entity._id}
+                            className="border-2 border-gray-200 rounded-xl p-4 hover:shadow-md transition-all"
+                          >
                             <div className="flex items-center justify-between mb-2">
-                              <h4 className="font-semibold text-gray-900">{entity.name}</h4>
+                              <h4 className="font-semibold text-gray-900">
+                                {entity.name}
+                              </h4>
                               {compareEntityPerms && (
-                                <span className={`px-2 py-1 text-xs rounded-full ${
-                                  JSON.stringify(entityPerms.columns) === JSON.stringify(compareEntityPerms.columns)
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'bg-amber-100 text-amber-700'
-                                }`}>
-                                  {JSON.stringify(entityPerms.columns) === JSON.stringify(compareEntityPerms.columns) ? 'Match' : 'Diff'}
+                                <span
+                                  className={`px-2 py-1 text-xs rounded-full ${
+                                    JSON.stringify(entityPerms.columns) ===
+                                    JSON.stringify(compareEntityPerms.columns)
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-amber-100 text-amber-700"
+                                  }`}
+                                >
+                                  {JSON.stringify(entityPerms.columns) ===
+                                  JSON.stringify(compareEntityPerms.columns)
+                                    ? "Match"
+                                    : "Diff"}
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-500 mb-3">{fields.length} custom fields</p>
+                            <p className="text-sm text-gray-500 mb-3">
+                              {fields.length} custom fields
+                            </p>
                             <div className="space-y-2">
-                              {fields.slice(0, 5).map(field => (
-                                <div key={field._id} className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-600 truncate max-w-[150px]">{field.label}</span>
+                              {fields.slice(0, 5).map((field) => (
+                                <div
+                                  key={field._id}
+                                  className="flex items-center justify-between text-sm"
+                                >
+                                  <span className="text-gray-600 truncate max-w-[150px]">
+                                    {field.label}
+                                  </span>
                                   <div className="flex items-center space-x-2">
-                                    {entityPerms.columns?.[field.fieldKey]?.view ? (
+                                    {entityPerms.columns?.[field.fieldKey]
+                                      ?.view ? (
                                       <Eye className="h-4 w-4 text-green-500" />
                                     ) : (
                                       <EyeOff className="h-4 w-4 text-gray-300" />
                                     )}
-                                    {entityPerms.columns?.[field.fieldKey]?.edit ? (
+                                    {entityPerms.columns?.[field.fieldKey]
+                                      ?.edit ? (
                                       <Edit3 className="h-4 w-4 text-blue-500" />
                                     ) : (
                                       <Edit3 className="h-4 w-4 text-gray-300" />
                                     )}
-                                    {compareEntityPerms && compareEntityPerms.columns?.[field.fieldKey] && (
-                                      <div className="flex items-center space-x-1 ml-1">
-                                        <span className="text-xs text-purple-600">vs</span>
-                                        <Eye className={`h-3 w-3 ${
-                                          compareEntityPerms.columns[field.fieldKey].view ? 'text-green-400' : 'text-gray-300'
-                                        }`} />
-                                        <Edit3 className={`h-3 w-3 ${
-                                          compareEntityPerms.columns[field.fieldKey].edit ? 'text-blue-400' : 'text-gray-300'
-                                        }`} />
-                                      </div>
-                                    )}
+                                    {compareEntityPerms &&
+                                      compareEntityPerms.columns?.[
+                                        field.fieldKey
+                                      ] && (
+                                        <div className="flex items-center space-x-1 ml-1">
+                                          <span className="text-xs text-purple-600">
+                                            vs
+                                          </span>
+                                          <Eye
+                                            className={`h-3 w-3 ${
+                                              compareEntityPerms.columns[
+                                                field.fieldKey
+                                              ].view
+                                                ? "text-green-400"
+                                                : "text-gray-300"
+                                            }`}
+                                          />
+                                          <Edit3
+                                            className={`h-3 w-3 ${
+                                              compareEntityPerms.columns[
+                                                field.fieldKey
+                                              ].edit
+                                                ? "text-blue-400"
+                                                : "text-gray-300"
+                                            }`}
+                                          />
+                                        </div>
+                                      )}
                                   </div>
                                 </div>
                               ))}
                               {fields.length > 5 && (
-                                <p className="text-xs text-gray-400">+{fields.length - 5} more fields</p>
+                                <p className="text-xs text-gray-400">
+                                  +{fields.length - 5} more fields
+                                </p>
                               )}
                             </div>
                           </div>
@@ -1991,7 +2918,7 @@ export default function PermissionsPage() {
                   </div>
                 )}
 
-                {viewMode === 'summary' && (
+                {viewMode === "summary" && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Permission Stats */}
                     <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-6">
@@ -2001,24 +2928,52 @@ export default function PermissionsPage() {
                       </h3>
                       <div className="space-y-4">
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                          <span className="text-gray-700">Total Access Grants</span>
-                          <span className="text-xl font-bold text-blue-600">{permissionStats.totalAccess}</span>
+                          <span className="text-gray-700">
+                            Total Access Grants
+                          </span>
+                          <span className="text-xl font-bold text-blue-600">
+                            {permissionStats.totalAccess}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                          <span className="text-gray-700">Total Create Permissions</span>
-                          <span className="text-xl font-bold text-green-600">{permissionStats.totalCreate}</span>
+                          <span className="text-gray-700">
+                            Total Create Permissions
+                          </span>
+                          <span className="text-xl font-bold text-green-600">
+                            {permissionStats.totalCreate}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                          <span className="text-gray-700">Total Edit Permissions</span>
-                          <span className="text-xl font-bold text-amber-600">{permissionStats.totalEdit}</span>
+                          <span className="text-gray-700">
+                            Total Edit Permissions
+                          </span>
+                          <span className="text-xl font-bold text-amber-600">
+                            {permissionStats.totalEdit}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                          <span className="text-gray-700">Total Delete Permissions</span>
-                          <span className="text-xl font-bold text-red-600">{permissionStats.totalDelete}</span>
+                          <span className="text-gray-700">
+                            Total Delete Permissions
+                          </span>
+                          <span className="text-xl font-bold text-red-600">
+                            {permissionStats.totalDelete}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                          <span className="text-gray-700">Total Column Permissions</span>
-                          <span className="text-xl font-bold text-purple-600">{permissionStats.totalColumns}</span>
+                          <span className="text-gray-700">
+                            Total Column Permissions
+                          </span>
+                          <span className="text-xl font-bold text-purple-600">
+                            {permissionStats.totalColumns}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                          <span className="text-gray-700">
+                            Users with Permissions
+                          </span>
+                          <span className="text-xl font-bold text-indigo-600">
+                            {stats.usersWithPermissions}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -2032,37 +2987,73 @@ export default function PermissionsPage() {
                       <div className="space-y-4">
                         <div>
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm text-gray-600">ERP Users</span>
-                            <span className="text-sm font-medium text-gray-900">{stats.erpUsers}</span>
+                            <span className="text-sm text-gray-600">
+                              ERP Users
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {stats.erpUsers}
+                            </span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-emerald-500 h-2 rounded-full" 
-                              style={{ width: `${(stats.erpUsers / stats.totalUsers) * 100}%` }}
+                            <div
+                              className="bg-emerald-500 h-2 rounded-full"
+                              style={{
+                                width: `${stats.totalUsers > 0 ? (stats.erpUsers / stats.totalUsers) * 100 : 0}%`,
+                              }}
                             ></div>
                           </div>
                         </div>
                         <div>
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm text-gray-600">Module Users</span>
-                            <span className="text-sm font-medium text-gray-900">{stats.moduleUsers}</span>
+                            <span className="text-sm text-gray-600">
+                              Module Users
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {stats.moduleUsers}
+                            </span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-purple-500 h-2 rounded-full" 
-                              style={{ width: `${(stats.moduleUsers / stats.totalUsers) * 100}%` }}
+                            <div
+                              className="bg-purple-500 h-2 rounded-full"
+                              style={{
+                                width: `${stats.totalUsers > 0 ? (stats.moduleUsers / stats.totalUsers) * 100 : 0}%`,
+                              }}
                             ></div>
                           </div>
                         </div>
                         <div>
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm text-gray-600">Active Users</span>
-                            <span className="text-sm font-medium text-gray-900">{stats.activeUsers}</span>
+                            <span className="text-sm text-gray-600">
+                              Active Users
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {stats.activeUsers}
+                            </span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-green-500 h-2 rounded-full" 
-                              style={{ width: `${(stats.activeUsers / stats.totalUsers) * 100}%` }}
+                            <div
+                              className="bg-green-500 h-2 rounded-full"
+                              style={{
+                                width: `${stats.totalUsers > 0 ? (stats.activeUsers / stats.totalUsers) * 100 : 0}%`,
+                              }}
+                            ></div>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-gray-600">
+                              Users with Permissions
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {stats.usersWithPermissions}
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-indigo-500 h-2 rounded-full"
+                              style={{
+                                width: `${stats.totalUsers > 0 ? (stats.usersWithPermissions / stats.totalUsers) * 100 : 0}%`,
+                              }}
                             ></div>
                           </div>
                         </div>
@@ -2079,41 +3070,74 @@ export default function PermissionsPage() {
                         <table className="min-w-full">
                           <thead>
                             <tr className="bg-gray-50">
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">User</th>
-                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">Access</th>
-                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">Create</th>
-                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">Edit</th>
-                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">Delete</th>
-                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">Columns</th>
-                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">Score</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
+                                User
+                              </th>
+                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">
+                                Access
+                              </th>
+                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">
+                                Create
+                              </th>
+                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">
+                                Edit
+                              </th>
+                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">
+                                Delete
+                              </th>
+                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">
+                                Columns
+                              </th>
+                              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">
+                                Score
+                              </th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200">
                             {users
-                              .map(user => {
-                                const userPerms = permissions[user._id]?.[selectedModule] || {};
-                                const access = Object.values(userPerms).filter(p => p.access).length;
-                                const create = Object.values(userPerms).filter(p => p.create).length;
-                                const edit = Object.values(userPerms).filter(p => p.edit).length;
-                                const del = Object.values(userPerms).filter(p => p.delete).length;
-                                const columns = Object.values(userPerms).reduce((acc, p) => acc + Object.keys(p.columns || {}).length, 0);
-                                const score = access * 5 + create * 3 + edit * 2 + del * 2 + columns;
-                                return { ...user, access, create, edit, del, columns, score };
+                              .map((user) => {
+                                const summary = permissionSummaries[user._id];
+                                const score =
+                                  (summary?.totalAccess || 0) * 5 +
+                                  (summary?.totalCreate || 0) * 3 +
+                                  (summary?.totalEdit || 0) * 2 +
+                                  (summary?.totalDelete || 0) * 2 +
+                                  (summary?.totalColumns || 0);
+                                return { ...user, summary, score };
                               })
+                              .filter(
+                                (u) => u.summary && u.summary.totalAccess > 0,
+                              )
                               .sort((a, b) => b.score - a.score)
                               .slice(0, 5)
                               .map((user) => (
                                 <tr key={user._id} className="hover:bg-gray-50">
                                   <td className="px-4 py-2">
-                                    <div className="font-medium text-gray-900">{user.fullName}</div>
-                                    <div className="text-xs text-gray-500">{user.email}</div>
+                                    <div className="font-medium text-gray-900">
+                                      {user.fullName}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {user.email}
+                                    </div>
                                   </td>
-                                  <td className="px-4 py-2 text-center">{user.access}</td>
-                                  <td className="px-4 py-2 text-center">{user.create}</td>
-                                  <td className="px-4 py-2 text-center">{user.edit}</td>
-                                  <td className="px-4 py-2 text-center">{user.del}</td>
-                                  <td className="px-4 py-2 text-center">{user.columns}</td>
-                                  <td className="px-4 py-2 text-center font-bold text-purple-600">{user.score}</td>
+                                  <td className="px-4 py-2 text-center">
+                                    {user.summary?.totalAccess || 0}
+                                  </td>
+                                  <td className="px-4 py-2 text-center">
+                                    {user.summary?.totalCreate || 0}
+                                  </td>
+                                  <td className="px-4 py-2 text-center">
+                                    {user.summary?.totalEdit || 0}
+                                  </td>
+                                  <td className="px-4 py-2 text-center">
+                                    {user.summary?.totalDelete || 0}
+                                  </td>
+                                  <td className="px-4 py-2 text-center">
+                                    {user.summary?.totalColumns || 0}
+                                  </td>
+                                  <td className="px-4 py-2 text-center font-bold text-purple-600">
+                                    {user.score}
+                                  </td>
                                 </tr>
                               ))}
                           </tbody>
@@ -2123,28 +3147,45 @@ export default function PermissionsPage() {
                   </div>
                 )}
 
-                {viewMode === 'timeline' && (
+                {viewMode === "timeline" && (
                   <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                       <History className="h-5 w-5 mr-2 text-blue-600" />
                       Permission Activity Timeline
                     </h3>
-                    <div className="space-y-4">
+                    <div className="space-y-4 max-h-96 overflow-y-auto">
                       {activityLogs.length > 0 ? (
                         activityLogs.map((log) => (
-                          <div key={log.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-xl">
-                            <div className={`p-2 rounded-lg ${
-                              log.action === 'CREATE' ? 'bg-green-100' :
-                              log.action === 'UPDATE' ? 'bg-blue-100' : 'bg-red-100'
-                            }`}>
-                              {log.action === 'CREATE' ? <Plus className="h-4 w-4 text-green-600" /> :
-                               log.action === 'UPDATE' ? <Edit3 className="h-4 w-4 text-blue-600" /> :
-                               <Trash2 className="h-4 w-4 text-red-600" />}
+                          <div
+                            key={log.id}
+                            className="flex items-start space-x-3 p-3 bg-gray-50 rounded-xl"
+                          >
+                            <div
+                              className={`p-2 rounded-lg ${
+                                log.action === "CREATE"
+                                  ? "bg-green-100"
+                                  : log.action === "UPDATE"
+                                    ? "bg-blue-100"
+                                    : "bg-red-100"
+                              }`}
+                            >
+                              {log.action === "CREATE" ? (
+                                <Plus className="h-4 w-4 text-green-600" />
+                              ) : log.action === "UPDATE" ? (
+                                <Edit3 className="h-4 w-4 text-blue-600" />
+                              ) : (
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              )}
                             </div>
                             <div className="flex-1">
                               <p className="text-sm text-gray-900">
-                                <span className="font-medium">{log.userName}</span> {log.action.toLowerCase()}d permissions for{' '}
-                                <span className="font-medium">{log.entity}</span>
+                                <span className="font-medium">
+                                  {log.userName}
+                                </span>{" "}
+                                {log.action.toLowerCase()}d permissions for{" "}
+                                <span className="font-medium">
+                                  {log.entity}
+                                </span>
                               </p>
                               <p className="text-xs text-gray-500">
                                 {new Date(log.timestamp).toLocaleString()}
@@ -2153,7 +3194,9 @@ export default function PermissionsPage() {
                           </div>
                         ))
                       ) : (
-                        <p className="text-center text-gray-500 py-8">No activity logs found</p>
+                        <p className="text-center text-gray-500 py-8">
+                          No activity logs found
+                        </p>
                       )}
                     </div>
                   </div>
@@ -2164,7 +3207,7 @@ export default function PermissionsPage() {
         </div>
       </div>
 
-      {/* Custom CSS for animations */}
+      {/* ✅ Fixed: Added missing closing tag for style jsx */}
       <style jsx>{`
         @keyframes slideDown {
           from {
