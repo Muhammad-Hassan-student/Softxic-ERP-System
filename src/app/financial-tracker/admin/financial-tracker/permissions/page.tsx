@@ -1,7 +1,7 @@
 // src/app/admin/financial-tracker/permissions/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Shield,
   Users,
@@ -149,7 +149,6 @@ import {
   List,
   Grid,
   Table,
-  // Map,
   Compass,
   Target,
   Crosshair,
@@ -214,7 +213,21 @@ import {
   Radio,
   RadioTower,
   Antenna,
-  Wifi as WifiIcon
+  Wifi as WifiIcon,
+   LayoutTemplate     ,
+  CopyCheck,
+  FileStack,
+  FileClock,
+  Activity as ActivityIcon,
+  
+  
+  UsersRound as UsersRoundIcon,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldX,
+  ShieldHalf,
+  ShieldPlus,
+  ShieldMinus
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useSocket } from "@/app/financial-tracker/hooks/useSocket";
@@ -291,10 +304,28 @@ interface ActivityLog {
   id: string;
   userId: string;
   userName: string;
-  action: "CREATE" | "UPDATE" | "DELETE";
+  action: "CREATE" | "UPDATE" | "DELETE" | "BULK_UPDATE";
   entity: string;
   changes: any;
   timestamp: string;
+  user?: {
+    fullName: string;
+    email: string;
+  };
+}
+
+interface PermissionTemplate {
+  _id: string;
+  name: string;
+  description: string;
+  permissions: {
+    re: Record<string, Permission>;
+    expense: Record<string, Permission>;
+  };
+  createdBy: string;
+  updatedBy: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Permission summary for quick view
@@ -309,6 +340,8 @@ interface PermissionSummary {
   totalEdit: number;
   totalDelete: number;
   totalColumns: number;
+  hasPermissions: boolean;
+  permissionScore: number;
   entities: {
     [entityId: string]: {
       name: string;
@@ -322,7 +355,7 @@ interface PermissionSummary {
 }
 
 // View modes
-type ViewMode = "entities" | "fields" | "summary" | "timeline" | "matrix";
+type ViewMode = "entities" | "fields" | "summary" | "timeline" | "matrix" | "templates";
 
 // User source filter
 type UserSource = "all" | "erp" | "module";
@@ -334,7 +367,8 @@ type SortOption =
   | "role"
   | "source"
   | "created"
-  | "permissions";
+  | "permissions"
+  | "score";
 type SortDirection = "asc" | "desc";
 
 export default function PermissionsPage() {
@@ -348,6 +382,14 @@ export default function PermissionsPage() {
     Record<string, PermissionSummary>
   >({});
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [permissionTemplates, setPermissionTemplates] = useState<PermissionTemplate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [templateFormData, setTemplateFormData] = useState({
+    name: "",
+    description: "",
+    permissions: { re: {}, expense: {} }
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<string>("");
   const [compareUser, setCompareUser] = useState<string | null>(null);
@@ -357,12 +399,12 @@ export default function PermissionsPage() {
   );
   const [searchTerm, setSearchTerm] = useState("");
   const [userSource, setUserSource] = useState<UserSource>("all");
-  const [sortBy, setSortBy] = useState<SortOption>("name");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [sortBy, setSortBy] = useState<SortOption>("score");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [isSaving, setIsSaving] = useState(false);
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>("entities");
+  const [viewMode, setViewMode] = useState<ViewMode>("summary");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [showPermissionMatrix, setShowPermissionMatrix] = useState(false);
   const [exportFormat, setExportFormat] = useState<"json" | "csv">("json");
@@ -373,6 +415,7 @@ export default function PermissionsPage() {
   );
   const [liveSyncStatus, setLiveSyncStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
   const [pendingChanges, setPendingChanges] = useState<Map<string, boolean>>(new Map());
+  const [bulkProgress, setBulkProgress] = useState<{ total: number; completed: number; failed: number } | null>(null);
   const [stats, setStats] = useState({
     totalUsers: 0,
     erpUsers: 0,
@@ -383,6 +426,7 @@ export default function PermissionsPage() {
     inactiveUsers: 0,
     totalPermissions: 0,
     usersWithPermissions: 0,
+    usersWithoutPermissions: 0,
   });
 
   // Initialize socket connection
@@ -498,6 +542,7 @@ export default function PermissionsPage() {
         fetchUsers(silent),
         fetchEntities(silent),
         fetchActivityLogs(silent),
+        fetchPermissionTemplates(silent),
       ]);
 
       setLastUpdated(new Date());
@@ -510,6 +555,119 @@ export default function PermissionsPage() {
     } finally {
       if (!silent) setIsLoading(false);
     }
+  };
+
+  // Fetch permission templates
+  const fetchPermissionTemplates = async (silent: boolean = false) => {
+    try {
+      const response = await fetch(
+        "/financial-tracker/api/financial-tracker/admin/permission-templates",
+        {
+          headers: { Authorization: getToken() },
+        },
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setPermissionTemplates(data.templates || []);
+      }
+    } catch (error) {
+      console.error("Error fetching permission templates:", error);
+    }
+  };
+
+  // Create permission template
+  const createPermissionTemplate = async () => {
+    try {
+      setIsSaving(true);
+
+      const response = await fetch(
+        "/financial-tracker/api/financial-tracker/admin/permission-templates",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: getToken(),
+          },
+          body: JSON.stringify(templateFormData),
+        },
+      );
+
+      if (!response.ok) throw new Error("Failed to create template");
+
+      toast.success("Permission template created successfully");
+      setIsTemplateModalOpen(false);
+      setTemplateFormData({ name: "", description: "", permissions: { re: {}, expense: {} } });
+      fetchPermissionTemplates();
+    } catch (error) {
+      toast.error("Failed to create template");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Apply template to user
+  const applyTemplateToUser = async (templateId: string, userId: string) => {
+    const template = permissionTemplates.find(t => t._id === templateId);
+    if (!template) return;
+
+    if (!confirm(`Apply template "${template.name}" to ${users.find(u => u._id === userId)?.fullName}?`)) return;
+
+    setPermissions(prev => ({
+      ...prev,
+      [userId]: template.permissions
+    }));
+
+    // Update summary
+    const user = users.find((u) => u._id === userId);
+    if (user) {
+      setPermissionSummaries(prev => ({
+        ...prev,
+        [userId]: createPermissionSummary(user, template.permissions)
+      }));
+    }
+
+    toast.success(`Template "${template.name}" applied`);
+  };
+
+  // Apply template to selected users (bulk)
+  const applyTemplateToSelected = async () => {
+    if (selectedUsers.length === 0) return;
+    
+    const template = permissionTemplates.find(t => t._id === selectedTemplate);
+    if (!template) {
+      toast.error("Please select a template");
+      return;
+    }
+
+    if (!confirm(`Apply template "${template.name}" to ${selectedUsers.length} users?`)) return;
+
+    setBulkProgress({ total: selectedUsers.length, completed: 0, failed: 0 });
+
+    for (let i = 0; i < selectedUsers.length; i++) {
+      const userId = selectedUsers[i];
+      try {
+        setPermissions(prev => ({
+          ...prev,
+          [userId]: template.permissions
+        }));
+
+        const user = users.find((u) => u._id === userId);
+        if (user) {
+          setPermissionSummaries(prev => ({
+            ...prev,
+            [userId]: createPermissionSummary(user, template.permissions)
+          }));
+        }
+
+        setBulkProgress(prev => ({ ...prev!, completed: prev!.completed + 1 }));
+      } catch (error) {
+        setBulkProgress(prev => ({ ...prev!, failed: prev!.failed + 1 }));
+      }
+    }
+
+    toast.success(`Template applied to ${selectedUsers.length} users`);
+    setBulkProgress(null);
   };
 
   // Fetch users from both ERP and Module
@@ -525,7 +683,7 @@ export default function PermissionsPage() {
 
       // Fetch Module users
       const moduleResponse = await fetch(
-        "/financial-tracker/api/financial-tracker/module-users",
+        "/financial-tracker/api/financial-tracker/admin/module-users",
         {
           headers: { Authorization: getToken() },
         },
@@ -599,6 +757,7 @@ export default function PermissionsPage() {
         inactiveUsers: allUsers.length - activeUsers,
         totalPermissions: totalPerms,
         usersWithPermissions: usersWithPerms,
+        usersWithoutPermissions: allUsers.length - usersWithPerms,
       }));
 
       if (allUsers.length > 0 && !selectedUser) {
@@ -656,6 +815,14 @@ export default function PermissionsPage() {
       };
     });
 
+    // Calculate permission score for ranking
+    const permissionScore = 
+      totalAccess * 5 + 
+      totalCreate * 3 + 
+      totalEdit * 2 + 
+      totalDelete * 2 + 
+      totalColumns;
+
     return {
       userId: user._id,
       userName: user.fullName,
@@ -667,6 +834,8 @@ export default function PermissionsPage() {
       totalEdit,
       totalDelete,
       totalColumns,
+      hasPermissions: totalAccess > 0 || totalCreate > 0 || totalEdit > 0 || totalDelete > 0,
+      permissionScore,
       entities: entitiesSummary,
     };
   };
@@ -800,6 +969,11 @@ export default function PermissionsPage() {
           const bPerms = permissionSummaries[b._id]?.totalAccess || 0;
           comparison = aPerms - bPerms;
           break;
+        case "score":
+          const aScore = permissionSummaries[a._id]?.permissionScore || 0;
+          const bScore = permissionSummaries[b._id]?.permissionScore || 0;
+          comparison = aScore - bScore;
+          break;
       }
       return direction === "asc" ? comparison : -comparison;
     });
@@ -828,7 +1002,11 @@ export default function PermissionsPage() {
       value: any,
     ) => {
       // Mark as pending
-      setPendingChanges(prev => new Map(prev).set(`${userId}-${entity}-${String(field)}`, true));
+      setPendingChanges(prev => {
+        const newMap = new Map(prev);
+        newMap.set(`${userId}-${entity}-${String(field)}`, true);
+        return newMap;
+      });
 
       setPermissions((prev) => {
         const currentUserPerms = prev[userId]?.[module]?.[entity] || {
@@ -887,7 +1065,11 @@ export default function PermissionsPage() {
       value: boolean,
     ) => {
       // Mark as pending
-      setPendingChanges(prev => new Map(prev).set(`${userId}-${entity}-${column}-${type}`, true));
+      setPendingChanges(prev => {
+        const newMap = new Map(prev);
+        newMap.set(`${userId}-${entity}-${column}-${type}`, true);
+        return newMap;
+      });
 
       setPermissions((prev) => {
         const currentUserPerms = prev[userId]?.[module]?.[entity] || {
@@ -1021,39 +1203,33 @@ export default function PermissionsPage() {
     }
   };
 
-  // Bulk save permissions with live sync
+  // Bulk save permissions with live sync (using new bulk API)
   const bulkSavePermissions = async () => {
+    if (selectedUsers.length === 0) return;
+
     try {
       setIsSaving(true);
+      setBulkProgress({ total: selectedUsers.length, completed: 0, failed: 0 });
 
-      let successCount = 0;
-      let failCount = 0;
-      const errors: string[] = [];
+      const response = await fetch(
+        "/financial-tracker/api/financial-tracker/admin/users/bulk-permissions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: getToken(),
+          },
+          body: JSON.stringify({
+            userIds: selectedUsers,
+            permissions: permissions[selectedUsers[0]], // Use first user's permissions as template
+            operation: "replace"
+          }),
+        },
+      );
 
-      for (const userId of selectedUsers) {
-        try {
-          const response = await fetch(
-            `/financial-tracker/api/financial-tracker/admin/users/${userId}/permissions`,
-            {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: getToken(),
-              },
-              body: JSON.stringify({ permissions: permissions[userId] }),
-            },
-          );
+      if (!response.ok) throw new Error("Failed to save permissions");
 
-          if (response.ok) {
-            successCount++;
-          } else {
-            failCount++;
-            errors.push(`Failed for user ${userId}`);
-          }
-        } catch {
-          failCount++;
-        }
-      }
+      const data = await response.json();
 
       // Emit bulk update via socket
       if (socket && isConnected) {
@@ -1063,14 +1239,20 @@ export default function PermissionsPage() {
         });
       }
 
-      if (failCount === 0) {
-        toast.success(`All ${successCount} permissions saved successfully`);
-      } else {
-        toast.error(`Saved: ${successCount}, Failed: ${failCount}`);
-      }
+      setBulkProgress({ 
+        total: selectedUsers.length, 
+        completed: data.results.success.length, 
+        failed: data.results.failed.length 
+      });
 
-      setBulkMode(false);
-      setSelectedUsers([]);
+      toast.success(`Permissions saved: ${data.results.success.length} successful, ${data.results.failed.length} failed`);
+
+      setTimeout(() => {
+        setBulkMode(false);
+        setSelectedUsers([]);
+        setBulkProgress(null);
+      }, 2000);
+
       fetchActivityLogs();
       setLastUpdated(new Date());
     } catch (error) {
@@ -1211,6 +1393,15 @@ export default function PermissionsPage() {
     sortDirection,
     permissionSummaries,
   ]);
+
+  // Get users with permissions (for summary view)
+  const usersWithPermissions = useMemo(() => {
+    return filteredUsers.filter(u => permissionSummaries[u._id]?.hasPermissions);
+  }, [filteredUsers, permissionSummaries]);
+
+  const usersWithoutPermissions = useMemo(() => {
+    return filteredUsers.filter(u => !permissionSummaries[u._id]?.hasPermissions);
+  }, [filteredUsers, permissionSummaries]);
 
   // Toggle entity expansion
   const toggleEntity = (entity: string) => {
@@ -1364,25 +1555,12 @@ export default function PermissionsPage() {
               <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center space-x-2">
                   <div className="p-1.5 bg-emerald-100 rounded-lg">
-                    <Globe className="h-4 w-4 text-emerald-600" />
+                    <ShieldCheck className="h-4 w-4 text-emerald-600" />
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500">ERP</span>
+                    <span className="text-xs text-gray-500">With Permissions</span>
                     <span className="text-xl font-bold text-emerald-600 block leading-5">
-                      {stats.erpUsers}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center space-x-2">
-                  <div className="p-1.5 bg-purple-100 rounded-lg">
-                    <Box className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <div>
-                    <span className="text-xs text-gray-500">Module</span>
-                    <span className="text-xl font-bold text-purple-600 block leading-5">
-                      {stats.moduleUsers}
+                      {stats.usersWithPermissions}
                     </span>
                   </div>
                 </div>
@@ -1390,12 +1568,25 @@ export default function PermissionsPage() {
               <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center space-x-2">
                   <div className="p-1.5 bg-amber-100 rounded-lg">
-                    <Key className="h-4 w-4 text-amber-600" />
+                    <ShieldX className="h-4 w-4 text-amber-600" />
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500">Permissions</span>
+                    <span className="text-xs text-gray-500">Without Permissions</span>
                     <span className="text-xl font-bold text-amber-600 block leading-5">
-                      {stats.totalPermissions}
+                      {stats.usersWithoutPermissions}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center space-x-2">
+                  <div className="p-1.5 bg-purple-100 rounded-lg">
+                    <LayoutTemplate className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500">Templates</span>
+                    <span className="text-xl font-bold text-purple-600 block leading-5">
+                      {permissionTemplates.length}
                     </span>
                   </div>
                 </div>
@@ -1473,6 +1664,7 @@ export default function PermissionsPage() {
                   <option value="source">Source</option>
                   <option value="created">Created</option>
                   <option value="permissions">Permissions Count</option>
+                  <option value="score">Permission Score</option>
                 </select>
                 <button
                   onClick={() =>
@@ -1578,6 +1770,13 @@ export default function PermissionsPage() {
                 >
                   <Users className="h-4 w-4 inline mr-1" />
                   {bulkMode ? "Bulk On" : "Bulk"}
+                </button>
+                <button
+                  onClick={() => setIsTemplateModalOpen(true)}
+                  className="p-3 border-2 border-gray-200 rounded-xl hover:bg-purple-50 bg-white shadow-sm"
+                  title="Permission Templates"
+                >
+                  <LayoutTemplate className="h-5 w-5 text-purple-500" />
                 </button>
                 <button
                   onClick={expandAll}
@@ -1690,7 +1889,7 @@ export default function PermissionsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   View
                 </label>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-5 gap-2">
                   <button
                     onClick={() => setViewMode("entities")}
                     className={`p-2 border-2 rounded-xl text-xs font-medium ${
@@ -1730,6 +1929,16 @@ export default function PermissionsPage() {
                     }`}
                   >
                     Timeline
+                  </button>
+                  <button
+                    onClick={() => setViewMode("templates")}
+                    className={`p-2 border-2 rounded-xl text-xs font-medium ${
+                      viewMode === "templates"
+                        ? "border-purple-500 bg-purple-50 text-purple-700"
+                        : "border-gray-200 text-gray-600"
+                    }`}
+                  >
+                    Templates
                   </button>
                 </div>
               </div>
@@ -1779,6 +1988,105 @@ export default function PermissionsPage() {
         </div>
       </div>
 
+      {/* Permission Templates Modal */}
+      {isTemplateModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-scaleIn border-2 border-gray-200">
+            <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-t-2xl px-6 py-4 sticky top-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-white/20 rounded-xl p-2">
+                    <LayoutTemplate className="h-5 w-5 text-white" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-white">
+                    Permission Templates
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setIsTemplateModalOpen(false)}
+                  className="text-white/80 hover:text-white transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {/* Create Template Form */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-xl border-2 border-gray-200">
+                <h3 className="font-medium text-gray-900 mb-3">Create New Template</h3>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Template Name"
+                    value={templateFormData.name}
+                    onChange={(e) => setTemplateFormData({ ...templateFormData, name: e.target.value })}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg"
+                  />
+                  <textarea
+                    placeholder="Description"
+                    value={templateFormData.description}
+                    onChange={(e) => setTemplateFormData({ ...templateFormData, description: e.target.value })}
+                    rows={2}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg"
+                  />
+                  <button
+                    onClick={createPermissionTemplate}
+                    disabled={isSaving || !templateFormData.name}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all disabled:opacity-50"
+                  >
+                    <Plus className="h-4 w-4 inline mr-2" />
+                    Create Template
+                  </button>
+                </div>
+              </div>
+
+              {/* Templates List */}
+              <h3 className="font-medium text-gray-900 mb-3">Existing Templates</h3>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {permissionTemplates.map((template) => (
+                  <div
+                    key={template._id}
+                    className="p-4 border-2 border-gray-200 rounded-xl hover:border-purple-300 transition-all cursor-pointer"
+                    onClick={() => setSelectedTemplate(template._id)}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <LayoutTemplate className="h-5 w-5 text-purple-600" />
+                        <h4 className="font-medium text-gray-900">{template.name}</h4>
+                      </div>
+                      {selectedTemplate === template._id && (
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                      )}
+                    </div>
+                    {template.description && (
+                      <p className="text-sm text-gray-500 mb-2">{template.description}</p>
+                    )}
+                    <div className="flex items-center space-x-2 text-xs text-gray-400">
+                      <Clock className="h-3 w-3" />
+                      <span>Created {new Date(template.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bulk Apply */}
+              {bulkMode && selectedUsers.length > 0 && selectedTemplate && (
+                <div className="mt-6 pt-4 border-t-2 border-gray-200">
+                  <button
+                    onClick={applyTemplateToSelected}
+                    className="w-full px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all"
+                  >
+                    <CopyCheck className="h-4 w-4 inline mr-2" />
+                    Apply Template to {selectedUsers.length} Selected Users
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Permission Matrix Modal */}
       {showPermissionMatrix && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -1816,14 +2124,21 @@ export default function PermissionsPage() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                         Role
                       </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
+                        Has Permissions
+                      </th>
                       <th
                         className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase"
-                        colSpan={5}
+                        colSpan={4}
                       >
                         Permissions
                       </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
+                        Score
+                      </th>
                     </tr>
                     <tr className="bg-gray-100">
+                      <th></th>
                       <th></th>
                       <th></th>
                       <th></th>
@@ -1842,10 +2157,11 @@ export default function PermissionsPage() {
                       <th className="px-3 py-2 text-center text-xs font-medium text-gray-600">
                         Columns
                       </th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y-2 divide-gray-200">
-                    {filteredUsers.map((user) => {
+                    {filteredUsers.slice(0, 20).map((user) => {
                       const summary = permissionSummaries[user._id];
 
                       return (
@@ -1873,6 +2189,13 @@ export default function PermissionsPage() {
                             {user.role}
                           </td>
                           <td className="px-4 py-3 text-center">
+                            {summary?.hasPermissions ? (
+                              <CheckCircle className="h-5 w-5 text-green-500 mx-auto" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-gray-300 mx-auto" />
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
                             <span className="text-sm font-medium text-blue-600">
                               {summary?.totalAccess || 0}
                             </span>
@@ -1895,6 +2218,11 @@ export default function PermissionsPage() {
                           <td className="px-4 py-3 text-center">
                             <span className="text-sm font-medium text-purple-600">
                               {summary?.totalColumns || 0}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="text-sm font-bold text-indigo-600">
+                              {summary?.permissionScore || 0}
                             </span>
                           </td>
                         </tr>
@@ -2044,25 +2372,40 @@ export default function PermissionsPage() {
                         )}
                       </div>
 
-                      {/* Permission Summary Badges */}
-                      {summary && summary.totalAccess > 0 && (
+                      {/* Permission Summary Badges - Shows who has permissions */}
+                      {summary && (
                         <div className="flex items-center mt-2 space-x-2">
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                            Access: {summary.totalAccess}
-                          </span>
-                          {summary.totalCreate > 0 && (
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                              Create: {summary.totalCreate}
-                            </span>
-                          )}
-                          {summary.totalEdit > 0 && (
-                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
-                              Edit: {summary.totalEdit}
-                            </span>
-                          )}
-                          {summary.totalDelete > 0 && (
-                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
-                              Delete: {summary.totalDelete}
+                          {summary.hasPermissions ? (
+                            <>
+                              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full flex items-center">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Has Permissions
+                              </span>
+                              {summary.totalAccess > 0 && (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                  Access: {summary.totalAccess}
+                                </span>
+                              )}
+                              {summary.totalCreate > 0 && (
+                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                  Create: {summary.totalCreate}
+                                </span>
+                              )}
+                              {summary.totalEdit > 0 && (
+                                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                                  Edit: {summary.totalEdit}
+                                </span>
+                              )}
+                              {summary.totalDelete > 0 && (
+                                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                                  Delete: {summary.totalDelete}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center">
+                              <XCircle className="h-3 w-3 mr-1" />
+                              No Permissions
                             </span>
                           )}
                         </div>
@@ -2118,52 +2461,54 @@ export default function PermissionsPage() {
                   {selectedUsers.length} user
                   {selectedUsers.length !== 1 ? "s" : ""} selected
                 </p>
-                {selectedUsers.length > 0 && (
+                {bulkProgress ? (
+                  <div className="space-y-3">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all"
+                        style={{ width: `${(bulkProgress.completed / bulkProgress.total) * 100}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Completed: {bulkProgress.completed} / {bulkProgress.total}
+                      {bulkProgress.failed > 0 && ` (${bulkProgress.failed} failed)`}
+                    </p>
+                  </div>
+                ) : (
                   <div className="space-y-3">
                     <div className="bg-gray-50 p-4 rounded-xl text-left">
                       <h4 className="font-medium text-gray-700 mb-2">
                         Bulk Actions
                       </h4>
-                      <div className="space-y-2">
-                        <label className="flex items-center justify-between p-2 hover:bg-white rounded-lg">
-                          <span className="text-sm text-gray-600">
-                            Enable Access for all entities
-                          </span>
-                          <input
-                            type="checkbox"
-                            className="rounded border-gray-300 text-blue-600"
-                          />
-                        </label>
-                        <label className="flex items-center justify-between p-2 hover:bg-white rounded-lg">
-                          <span className="text-sm text-gray-600">
-                            Set scope to All Records
-                          </span>
-                          <input
-                            type="checkbox"
-                            className="rounded border-gray-300 text-blue-600"
-                          />
-                        </label>
-                        <label className="flex items-center justify-between p-2 hover:bg-white rounded-lg">
-                          <span className="text-sm text-gray-600">
-                            Enable all Create permissions
-                          </span>
-                          <input
-                            type="checkbox"
-                            className="rounded border-gray-300 text-blue-600"
-                          />
-                        </label>
+                      <div className="space-y-3">
+                        <select
+                          value={selectedTemplate}
+                          onChange={(e) => setSelectedTemplate(e.target.value)}
+                          className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg"
+                        >
+                          <option value="">Select a template</option>
+                          {permissionTemplates.map(t => (
+                            <option key={t._id} value={t._id}>{t.name}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={applyTemplateToSelected}
+                          disabled={!selectedTemplate}
+                          className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                        >
+                          <LayoutTemplate className="h-4 w-4 inline mr-2" />
+                          Apply Template
+                        </button>
+                        <button
+                          onClick={bulkSavePermissions}
+                          disabled={isSaving}
+                          className="w-full px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all shadow-lg shadow-green-500/25 font-medium"
+                        >
+                          <Save className="h-4 w-4 inline mr-2" />
+                          Save All Changes ({selectedUsers.length})
+                        </button>
                       </div>
                     </div>
-                    <button
-                      onClick={bulkSavePermissions}
-                      disabled={isSaving}
-                      className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all shadow-lg shadow-green-500/25 font-medium w-full"
-                    >
-                      <Save className="h-5 w-5 inline mr-2" />
-                      {isSaving
-                        ? "Saving..."
-                        : `Save All Changes (${selectedUsers.length})`}
-                    </button>
                   </div>
                 )}
               </div>
@@ -2192,6 +2537,17 @@ export default function PermissionsPage() {
                               ? "ERP User"
                               : "Module User"}
                           </span>
+                          {selectedUserSummary?.hasPermissions ? (
+                            <span className="px-3 py-1 text-xs bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200 flex items-center">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Has Permissions
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-full border border-gray-200 flex items-center">
+                              <XCircle className="h-3 w-3 mr-1" />
+                              No Permissions
+                            </span>
+                          )}
                         </div>
                         <p className="text-gray-500">
                           {selectedUserObj?.email}
@@ -2263,9 +2619,9 @@ export default function PermissionsPage() {
                       </p>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-3">
-                      <p className="text-xs text-gray-500">Columns</p>
+                      <p className="text-xs text-gray-500">Score</p>
                       <p className="text-lg font-bold text-purple-600">
-                        {selectedUserSummary?.totalColumns || 0}
+                        {selectedUserSummary?.permissionScore || 0}
                       </p>
                     </div>
                   </div>
@@ -3060,7 +3416,7 @@ export default function PermissionsPage() {
                       </div>
                     </div>
 
-                    {/* Top Permissions */}
+                    {/* Top Permission Holders */}
                     <div className="lg:col-span-2 bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-6">
                       <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                         <Award className="h-5 w-5 mr-2 text-amber-600" />
@@ -3097,16 +3453,10 @@ export default function PermissionsPage() {
                             {users
                               .map((user) => {
                                 const summary = permissionSummaries[user._id];
-                                const score =
-                                  (summary?.totalAccess || 0) * 5 +
-                                  (summary?.totalCreate || 0) * 3 +
-                                  (summary?.totalEdit || 0) * 2 +
-                                  (summary?.totalDelete || 0) * 2 +
-                                  (summary?.totalColumns || 0);
-                                return { ...user, summary, score };
+                                return { ...user, summary, score: summary?.permissionScore || 0 };
                               })
                               .filter(
-                                (u) => u.summary && u.summary.totalAccess > 0,
+                                (u) => u.summary && u.summary.hasPermissions,
                               )
                               .sort((a, b) => b.score - a.score)
                               .slice(0, 5)
@@ -3166,13 +3516,17 @@ export default function PermissionsPage() {
                                   ? "bg-green-100"
                                   : log.action === "UPDATE"
                                     ? "bg-blue-100"
-                                    : "bg-red-100"
+                                    : log.action === "BULK_UPDATE"
+                                      ? "bg-purple-100"
+                                      : "bg-red-100"
                               }`}
                             >
                               {log.action === "CREATE" ? (
                                 <Plus className="h-4 w-4 text-green-600" />
                               ) : log.action === "UPDATE" ? (
                                 <Edit3 className="h-4 w-4 text-blue-600" />
+                              ) : log.action === "BULK_UPDATE" ? (
+                                <Users className="h-4 w-4 text-purple-600" />
                               ) : (
                                 <Trash2 className="h-4 w-4 text-red-600" />
                               )}
@@ -3197,6 +3551,40 @@ export default function PermissionsPage() {
                         <p className="text-center text-gray-500 py-8">
                           No activity logs found
                         </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {viewMode === "templates" && (
+                  <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <LayoutTemplate className="h-5 w-5 mr-2 text-purple-600" />
+                      Apply Template to User
+                    </h3>
+                    <div className="space-y-4">
+                      <select
+                        value={selectedTemplate}
+                        onChange={(e) => setSelectedTemplate(e.target.value)}
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl"
+                      >
+                        <option value="">Select a template</option>
+                        {permissionTemplates.map(t => (
+                          <option key={t._id} value={t._id}>{t.name} - {t.description}</option>
+                        ))}
+                      </select>
+                      {selectedTemplate && (
+                        <button
+                          onClick={() => {
+                            if (selectedTemplate && selectedUser) {
+                              applyTemplateToUser(selectedTemplate, selectedUser);
+                            }
+                          }}
+                          className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all"
+                        >
+                          <CopyCheck className="h-4 w-4 inline mr-2" />
+                          Apply Template to Current User
+                        </button>
                       )}
                     </div>
                   </div>
