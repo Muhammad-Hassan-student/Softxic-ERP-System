@@ -1,7 +1,6 @@
-// src/app/admin/financial-tracker/permissions/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Shield,
   Users,
@@ -247,39 +246,12 @@ import {
   GaugeCircle,
   Receipt,
   ReceiptEuro,
-
   ReceiptSwissFranc,
   ReceiptRussianRuble,
   ReceiptText,
   ReceiptIndianRupee,
   ReceiptCent,
-  Receipt as ReceiptNaira,
-  Receipt as ReceiptBangladeshiTaka,
-  Receipt as ReceiptThaiBaht,
-  Receipt as ReceiptMalaysianRinggit,
-  Receipt as ReceiptIndonesianRupiah,
-  Receipt as ReceiptPhilippinePeso,
-  Receipt as ReceiptSingaporeDollar,
-  Receipt as ReceiptHongKongDollar,
-  Receipt as ReceiptKoreanWon,
-  Receipt as ReceiptTaiwanDollar,
-  Receipt as ReceiptVietnameseDong,
-  Receipt as ReceiptPakistaniRupee,
-  Receipt as ReceiptSriLankanRupee,
-  Receipt as ReceiptNepaleseRupee,
-  Receipt as ReceiptMauritianRupee,
-  Receipt as ReceiptSeychelloisRupee,
-  Receipt as ReceiptMaldivianRufiyaa,
-  Receipt as ReceiptAfghanAfghani,
-  Receipt as ReceiptIranianRial,
-  Receipt as ReceiptIraqiDinar,
-  Receipt as ReceiptJordanianDinar,
-  Receipt as ReceiptKuwaitiDinar,
-  Receipt as ReceiptLibyanDinar,
-  Receipt as ReceiptSyrianPound,
-  Receipt as ReceiptYemeniRial,
-  Receipt as ReceiptEgyptianPound,
-  Receipt as ReceiptSudanesePound
+ 
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useSocket } from "@/app/financial-tracker/hooks/useSocket";
@@ -356,7 +328,7 @@ interface ActivityLog {
   id: string;
   userId: string;
   userName: string;
-  action: "CREATE" | "UPDATE" | "DELETE" | "BULK_UPDATE";
+  action: "CREATE" | "UPDATE" | "DELETE" | "BULK_UPDATE" | "TEMPLATE_APPLY";
   entity: string;
   changes: any;
   timestamp: string;
@@ -375,6 +347,7 @@ interface PermissionTemplate {
   updatedBy: string;
   createdAt: string;
   updatedAt: string;
+  usageCount?: number;
 }
 
 // Permission summary for quick view
@@ -391,6 +364,8 @@ interface PermissionSummary {
   totalColumns: number;
   hasPermissions: boolean;
   permissionScore: number;
+  lastSaved?: Date;
+  hasUnsavedChanges: boolean;
   entities: {
     [entityId: string]: {
       name: string;
@@ -427,6 +402,7 @@ export default function PermissionsPage() {
     Record<string, CustomField[]>
   >({});
   const [permissions, setPermissions] = useState<UserPermissions>({});
+  const [savedPermissions, setSavedPermissions] = useState<UserPermissions>({});
   const [permissionSummaries, setPermissionSummaries] = useState<
     Record<string, PermissionSummary>
   >({});
@@ -464,7 +440,6 @@ export default function PermissionsPage() {
   const [liveSyncStatus, setLiveSyncStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
   const [pendingChanges, setPendingChanges] = useState<Map<string, boolean>>(new Map());
   const [bulkProgress, setBulkProgress] = useState<{ total: number; completed: number; failed: number } | null>(null);
-  const [lastSavedPermissions, setLastSavedPermissions] = useState<UserPermissions>({});
   const [stats, setStats] = useState({
     totalUsers: 0,
     erpUsers: 0,
@@ -496,30 +471,21 @@ export default function PermissionsPage() {
   useEffect(() => {
     if (!socket) return;
 
-    // Join admin room for permission updates
     joinRoom('admin', 'permissions');
 
-    // Listen for permission updates
     socket.on('permission:updated', (data: { userId: string, permissions: UserPermissions[string], timestamp: string }) => {
       console.log('🔔 Permission update received:', data);
       
-      // Update permissions state
-      setPermissions(prev => {
-        const newPermissions = {
-          ...prev,
-          [data.userId]: data.permissions
-        };
-        
-        // Update last saved permissions for this user
-        setLastSavedPermissions(prevSaved => ({
-          ...prevSaved,
-          [data.userId]: data.permissions
-        }));
-        
-        return newPermissions;
-      });
+      setPermissions(prev => ({
+        ...prev,
+        [data.userId]: data.permissions
+      }));
+      
+      setSavedPermissions(prev => ({
+        ...prev,
+        [data.userId]: data.permissions
+      }));
 
-      // Update summary for this user
       const user = users.find((u) => u._id === data.userId);
       if (user) {
         setPermissionSummaries(prev => ({
@@ -528,32 +494,27 @@ export default function PermissionsPage() {
         }));
       }
 
-      // Show notification
       toast.success(`Permissions updated for ${users.find(u => u._id === data.userId)?.fullName || 'user'}`, {
         icon: '🔄',
-        duration: 3000
+        duration: 2000
       });
 
-      // Update last synced time
       setLastUpdated(new Date());
     });
 
-    // Listen for bulk updates
     socket.on('permission:bulk-updated', (data: { userIds: string[], timestamp: string }) => {
       console.log('🔔 Bulk permission update received:', data);
       
-      // Refresh all affected users
       data.userIds.forEach(userId => {
         fetchUserPermissions(userId, true);
       });
 
       toast.success(`Bulk permissions updated for ${data.userIds.length} users`, {
         icon: '🔄',
-        duration: 3000
+        duration: 2000
       });
     });
 
-    // Listen for permission matrix updates
     socket.on('permission:matrix-updated', () => {
       console.log('🔔 Permission matrix update received');
       fetchAllData(true);
@@ -571,11 +532,10 @@ export default function PermissionsPage() {
   useEffect(() => {
     fetchAllData();
 
-    // Auto refresh if enabled
     if (autoRefresh) {
       const interval = setInterval(() => {
         fetchAllData(true);
-      }, 30000); // Refresh every 30 seconds
+      }, 30000);
       setRefreshInterval(interval);
     }
 
@@ -586,7 +546,6 @@ export default function PermissionsPage() {
     };
   }, [autoRefresh]);
 
-  // Auto refresh when dependencies change
   useEffect(() => {
     if (selectedUser && autoRefresh) {
       fetchUserPermissions(selectedUser);
@@ -635,7 +594,7 @@ export default function PermissionsPage() {
     }
   };
 
-  // Create permission template from current user's permissions
+  // ✅ FIXED: Create permission template from current user's permissions
   const createPermissionTemplate = async () => {
     if (!selectedUser) {
       toast.error("Please select a user first");
@@ -674,6 +633,13 @@ export default function PermissionsPage() {
       setIsTemplateModalOpen(false);
       setTemplateFormData({ name: "", description: "" });
       fetchPermissionTemplates();
+
+      // Log activity
+      await logActivity('TEMPLATE_CREATE', 'permission-templates', {
+        name: templateFormData.name,
+        description: templateFormData.description
+      });
+
     } catch (error) {
       toast.error("Failed to create template");
     } finally {
@@ -681,7 +647,7 @@ export default function PermissionsPage() {
     }
   };
 
-  // Apply template to user
+  // ✅ FIXED: Apply template to user with save
   const applyTemplateToUser = async (templateId: string, userId: string) => {
     const template = permissionTemplates.find(t => t._id === templateId);
     if (!template) return;
@@ -703,13 +669,19 @@ export default function PermissionsPage() {
       }));
     }
 
-    toast.success(`Template "${template.name}" applied`);
-
     // Auto-save to database
     await savePermissions(userId);
+
+    // Log activity
+    await logActivity('TEMPLATE_APPLY', 'users', {
+      templateName: template.name,
+      targetUser: user?.fullName
+    });
+
+    toast.success(`Template "${template.name}" applied and saved`);
   };
 
-  // Apply template to selected users (bulk)
+  // ✅ FIXED: Apply template to selected users with bulk save
   const applyTemplateToSelected = async () => {
     if (selectedUsers.length === 0) return;
     
@@ -722,6 +694,9 @@ export default function PermissionsPage() {
     if (!confirm(`Apply template "${template.name}" to ${selectedUsers.length} users?`)) return;
 
     setBulkProgress({ total: selectedUsers.length, completed: 0, failed: 0 });
+
+    let successCount = 0;
+    let failCount = 0;
 
     for (let i = 0; i < selectedUsers.length; i++) {
       const userId = selectedUsers[i];
@@ -740,25 +715,52 @@ export default function PermissionsPage() {
           }));
         }
 
-        // Auto-save to database
+        // Save to database
         await savePermissions(userId);
+        successCount++;
 
-        setBulkProgress(prev => ({ ...prev!, completed: prev!.completed + 1 }));
       } catch (error) {
-        setBulkProgress(prev => ({ ...prev!, failed: prev!.failed + 1 }));
+        failCount++;
       }
+      setBulkProgress(prev => ({ ...prev!, completed: prev!.completed + 1 }));
     }
 
-    toast.success(`Template applied to ${selectedUsers.length} users`);
+    toast.success(`Template applied: ${successCount} successful, ${failCount} failed`);
     setBulkProgress(null);
     setBulkMode(false);
     setSelectedUsers([]);
+    
+    // Log activity
+    await logActivity('BULK_TEMPLATE_APPLY', 'users', {
+      templateName: template.name,
+      successCount,
+      failCount
+    });
+  };
+
+  // Log activity helper
+  const logActivity = async (action: string, entity: string, data: any) => {
+    try {
+      await fetch("/financial-tracker/api/financial-tracker/admin/activity-logs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: getToken(),
+        },
+        body: JSON.stringify({
+          action,
+          entity,
+          changes: data,
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to log activity:", error);
+    }
   };
 
   // Fetch users from both ERP and Module
   const fetchUsers = async (silent: boolean = false) => {
     try {
-      // Fetch ERP users
       const erpResponse = await fetch(
         "/financial-tracker/api/financial-tracker/admin/users",
         {
@@ -766,7 +768,6 @@ export default function PermissionsPage() {
         },
       );
 
-      // Fetch Module users
       const moduleResponse = await fetch(
         "/financial-tracker/api/financial-tracker/module-users",
         {
@@ -781,20 +782,18 @@ export default function PermissionsPage() {
         ? (await moduleResponse.json()).users || []
         : [];
 
-      // Combine users with source identifier
       const allUsers: User[] = [
         ...erpUsers.map((u: any) => ({ ...u, source: "erp" as const })),
         ...moduleUsers.map((u: any) => ({ ...u, source: "module" as const })),
       ];
 
-      // Sort users
       const sortedUsers = sortUsers(allUsers, sortBy, sortDirection);
       setUsers(sortedUsers);
 
       const activeUsers = allUsers.filter((u) => u.isActive !== false).length;
 
-      // Fetch permissions for each user
       const perms: UserPermissions = {};
+      const saved: UserPermissions = {};
       const summaries: Record<string, PermissionSummary> = {};
 
       let usersWithPerms = 0;
@@ -808,27 +807,27 @@ export default function PermissionsPage() {
         );
         if (permResponse.ok) {
           const permData = await permResponse.json();
-          perms[user._id] = permData.permissions || { re: {}, expense: {} };
+          const userPerms = permData.permissions || { re: {}, expense: {} };
+          
+          perms[user._id] = userPerms;
+          saved[user._id] = JSON.parse(JSON.stringify(userPerms));
 
-          // Create permission summary
           summaries[user._id] = createPermissionSummary(
             user,
-            perms[user._id],
+            userPerms,
           );
 
-          // Count users with any permissions
-          const userPerms = perms[user._id]?.[selectedModule] || {};
-          if (Object.keys(userPerms).length > 0) {
+          const modulePerms = userPerms[selectedModule] || {};
+          if (Object.keys(modulePerms).length > 0) {
             usersWithPerms++;
           }
         }
       }
 
       setPermissions(perms);
-      setLastSavedPermissions(perms); // Store last saved state
+      setSavedPermissions(saved);
       setPermissionSummaries(summaries);
 
-      // Calculate total permissions
       const totalPerms = Object.values(perms).reduce((acc, userPerms) => {
         const modulePerms = userPerms[selectedModule] || {};
         return acc + Object.keys(modulePerms).length;
@@ -855,7 +854,7 @@ export default function PermissionsPage() {
     }
   };
 
-  // ✅ FIXED: Create permission summary for a user with proper typing
+  // Create permission summary
   const createPermissionSummary = (
     user: User,
     userPerms: UserPermissions[string],
@@ -900,13 +899,14 @@ export default function PermissionsPage() {
       };
     });
 
-    // Calculate permission score for ranking
     const permissionScore = 
       totalAccess * 5 + 
       totalCreate * 3 + 
       totalEdit * 2 + 
       totalDelete * 2 + 
       totalColumns;
+
+    const hasUnsaved = JSON.stringify(userPerms) !== JSON.stringify(savedPermissions[user._id]);
 
     return {
       userId: user._id,
@@ -921,11 +921,12 @@ export default function PermissionsPage() {
       totalColumns,
       hasPermissions: totalAccess > 0 || totalCreate > 0 || totalEdit > 0 || totalDelete > 0,
       permissionScore,
+      hasUnsavedChanges: hasUnsaved,
       entities: entitiesSummary,
     };
   };
 
-  // Fetch entities from database
+  // Fetch entities
   const fetchEntities = async (silent: boolean = false) => {
     try {
       const response = await fetch(
@@ -944,7 +945,6 @@ export default function PermissionsPage() {
         totalEntities: data.entities?.length || 0,
       }));
 
-      // Fetch custom fields for each entity
       const fields: Record<string, CustomField[]> = {};
       for (const entity of data.entities || []) {
         const fieldResponse = await fetch(
@@ -1003,17 +1003,23 @@ export default function PermissionsPage() {
 
       if (response.ok) {
         const data = await response.json();
+        const userPerms = data.permissions || { re: {}, expense: {} };
+        
         setPermissions((prev) => ({
           ...prev,
-          [userId]: data.permissions || { re: {}, expense: {} },
+          [userId]: userPerms,
         }));
 
-        // Update summary
+        setSavedPermissions((prev) => ({
+          ...prev,
+          [userId]: JSON.parse(JSON.stringify(userPerms)),
+        }));
+
         const user = users.find((u) => u._id === userId);
         if (user) {
           setPermissionSummaries((prev) => ({
             ...prev,
-            [userId]: createPermissionSummary(user, data.permissions),
+            [userId]: createPermissionSummary(user, userPerms),
           }));
         }
       }
@@ -1085,7 +1091,6 @@ export default function PermissionsPage() {
       field: keyof Permission,
       value: any,
     ) => {
-      // Mark as pending
       setPendingChanges(prev => {
         const newMap = new Map(prev);
         newMap.set(`${userId}-${entity}-${String(field)}`, true);
@@ -1117,7 +1122,6 @@ export default function PermissionsPage() {
         };
       });
 
-      // Update summary
       const user = users.find((u) => u._id === userId);
       if (user) {
         setPermissionSummaries((prev) => ({
@@ -1126,7 +1130,6 @@ export default function PermissionsPage() {
         }));
       }
 
-      // Clear pending after update
       setTimeout(() => {
         setPendingChanges(prev => {
           const newMap = new Map(prev);
@@ -1148,7 +1151,6 @@ export default function PermissionsPage() {
       type: "view" | "edit",
       value: boolean,
     ) => {
-      // Mark as pending
       setPendingChanges(prev => {
         const newMap = new Map(prev);
         newMap.set(`${userId}-${entity}-${column}-${type}`, true);
@@ -1191,7 +1193,6 @@ export default function PermissionsPage() {
         };
       });
 
-      // Update summary
       const user = users.find((u) => u._id === userId);
       if (user) {
         setPermissionSummaries((prev) => ({
@@ -1200,7 +1201,6 @@ export default function PermissionsPage() {
         }));
       }
 
-      // Clear pending after update
       setTimeout(() => {
         setPendingChanges(prev => {
           const newMap = new Map(prev);
@@ -1226,13 +1226,11 @@ export default function PermissionsPage() {
 
       const fields = getEntityFields(entity);
 
-      // System columns (basic fields)
       const systemColumns = ["name", "createdAt", "updatedAt", "createdBy"];
       systemColumns.forEach((col) => {
         updateColumnPermission(userId, module, entity, col, type, value);
       });
 
-      // Custom fields
       fields.forEach((field) => {
         updateColumnPermission(
           userId,
@@ -1266,13 +1264,19 @@ export default function PermissionsPage() {
 
       if (!response.ok) throw new Error("Failed to save permissions");
 
-      // Update last saved permissions
-      setLastSavedPermissions(prev => ({
+      setSavedPermissions(prev => ({
         ...prev,
-        [userId]: permissions[userId]
+        [userId]: JSON.parse(JSON.stringify(permissions[userId]))
       }));
 
-      // Emit live update via socket
+      const user = users.find(u => u._id === userId);
+      if (user) {
+        setPermissionSummaries(prev => ({
+          ...prev,
+          [userId]: createPermissionSummary(user, permissions[userId])
+        }));
+      }
+
       if (socket && isConnected) {
         emit('permission:updated', {
           userId,
@@ -1282,9 +1286,7 @@ export default function PermissionsPage() {
       }
 
       toast.success("Permissions saved successfully");
-      fetchActivityLogs(); // Refresh activity logs
-
-      // Update last saved timestamp
+      fetchActivityLogs();
       setLastUpdated(new Date());
 
       return true;
@@ -1296,7 +1298,7 @@ export default function PermissionsPage() {
     }
   };
 
-  // ✅ FIXED: Bulk save permissions with proper persistence
+  // ✅ FIXED: Bulk save permissions with proper API
   const bulkSavePermissions = async () => {
     if (selectedUsers.length === 0) return;
 
@@ -1323,9 +1325,9 @@ export default function PermissionsPage() {
 
           if (response.ok) {
             successCount++;
-            setLastSavedPermissions(prev => ({
+            setSavedPermissions(prev => ({
               ...prev,
-              [userId]: permissions[userId]
+              [userId]: JSON.parse(JSON.stringify(permissions[userId]))
             }));
           } else {
             failCount++;
@@ -1336,7 +1338,6 @@ export default function PermissionsPage() {
         setBulkProgress(prev => ({ ...prev!, completed: prev!.completed + 1 }));
       }
 
-      // Emit bulk update via socket
       if (socket && isConnected) {
         emit('permission:bulk-updated', {
           userIds: selectedUsers,
@@ -1373,7 +1374,6 @@ export default function PermissionsPage() {
       [targetUserId]: JSON.parse(JSON.stringify(prev[sourceUserId])),
     }));
 
-    // Update summary
     const user = users.find((u) => u._id === targetUserId);
     if (user) {
       setPermissionSummaries((prev) => ({
@@ -1428,7 +1428,6 @@ export default function PermissionsPage() {
             const content = event.target?.result as string;
             const imported = JSON.parse(content);
 
-            // Validate imported data
             if (typeof imported === "object") {
               setPermissions((prev) => ({
                 ...prev,
@@ -1493,7 +1492,7 @@ export default function PermissionsPage() {
     permissionSummaries,
   ]);
 
-  // Get users with permissions (for summary view)
+  // Get users with permissions
   const usersWithPermissions = useMemo(() => {
     return filteredUsers.filter(u => permissionSummaries[u._id]?.hasPermissions);
   }, [filteredUsers, permissionSummaries]);
@@ -1527,7 +1526,7 @@ export default function PermissionsPage() {
 
   // Check if user has unsaved changes
   const hasUnsavedChanges = (userId: string): boolean => {
-    return JSON.stringify(permissions[userId]) !== JSON.stringify(lastSavedPermissions[userId]);
+    return JSON.stringify(permissions[userId]) !== JSON.stringify(savedPermissions[userId]);
   };
 
   // Get current user permissions
@@ -1569,15 +1568,15 @@ export default function PermissionsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur-xl opacity-20 animate-pulse"></div>
-            <div className="relative bg-white p-6 rounded-2xl shadow-xl border border-slate-200">
-              <div className="animate-spin rounded-full h-12 w-12 border-3 border-blue-600 border-t-transparent"></div>
+            <div className="relative bg-white p-6 rounded-2xl shadow-xl border-2 border-gray-200">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent"></div>
             </div>
           </div>
-          <p className="mt-3 text-sm font-medium text-slate-600">
+          <p className="mt-4 text-lg font-medium text-gray-600">
             Loading permissions...
           </p>
         </div>
@@ -1586,406 +1585,255 @@ export default function PermissionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-purple-50/20">
-      {/* Enterprise Header - Compact Design */}
-      <div className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40 shadow-sm">
-        <div className="px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl blur-md opacity-30"></div>
-                <div className="relative p-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-md">
-                  <Shield className="h-5 w-5 text-white" />
-                </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30">
+      {/* COMPACT HEADER - Enterprise Design */}
+      <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+        <div className="px-3 sm:px-4 lg:px-6 py-2">
+          {/* Top Row - Title and Live Sync */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center space-x-2">
+              <div className="p-1.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow-sm">
+                <Shield className="h-4 w-4 text-white" />
               </div>
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-slate-800 via-blue-800 to-purple-800 bg-clip-text text-transparent">
-                  Permission Management
-                </h1>
-                <p className="text-xs text-slate-500 flex items-center">
-                  <span className="w-1 h-1 rounded-full bg-blue-500 mr-1.5 animate-pulse"></span>
-                  ERP & Module users
-                </p>
-              </div>
+              <h1 className="text-sm sm:text-base font-semibold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                Permission Management
+              </h1>
             </div>
 
             {/* Live Sync Status - Compact */}
-            <div className="hidden lg:flex items-center space-x-1.5 bg-slate-100 px-2 py-1 rounded-full">
-              {liveSyncStatus === 'connected' ? (
-                <>
-                  <WifiIcon className="h-3 w-3 text-green-500" />
-                  <span className="text-[10px] text-green-600 font-medium">Live</span>
-                </>
-              ) : liveSyncStatus === 'connecting' ? (
-                <>
-                  <RadioTower className="h-3 w-3 text-yellow-500 animate-pulse" />
-                  <span className="text-[10px] text-yellow-600 font-medium">Connecting</span>
-                </>
-              ) : (
-                <>
-                  <WifiOffIcon className="h-3 w-3 text-red-500" />
-                  <span className="text-[10px] text-red-600 font-medium">Offline</span>
-                </>
-              )}
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1 bg-gray-100 px-2 py-0.5 rounded-full">
+                {liveSyncStatus === 'connected' ? (
+                  <>
+                    <WifiIcon className="h-3 w-3 text-green-500" />
+                    <span className="text-[10px] text-green-600 font-medium">Live</span>
+                  </>
+                ) : liveSyncStatus === 'connecting' ? (
+                  <>
+                    <RadioTower className="h-3 w-3 text-yellow-500 animate-pulse" />
+                    <span className="text-[10px] text-yellow-600 font-medium">Connecting</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOffIcon className="h-3 w-3 text-red-500" />
+                    <span className="text-[10px] text-red-600 font-medium">Offline</span>
+                  </>
+                )}
+              </div>
+              <span className="text-[10px] text-gray-400">
+                <Clock className="h-2.5 w-2.5 inline mr-0.5" />
+                {lastUpdated.toLocaleTimeString()}
+              </span>
+            </div>
+          </div>
+
+          {/* Compact Stats Row */}
+          <div className="grid grid-cols-6 gap-1 mb-2">
+            <div className="bg-white px-2 py-1 rounded border border-gray-200 text-center">
+              <div className="text-[8px] text-gray-500">Total</div>
+              <div className="text-xs font-bold text-blue-600">{stats.totalUsers}</div>
+            </div>
+            <div className="bg-white px-2 py-1 rounded border border-gray-200 text-center">
+              <div className="text-[8px] text-gray-500">Active</div>
+              <div className="text-xs font-bold text-green-600">{stats.activeUsers}</div>
+            </div>
+            <div className="bg-white px-2 py-1 rounded border border-gray-200 text-center">
+              <div className="text-[8px] text-gray-500">With Perm</div>
+              <div className="text-xs font-bold text-emerald-600">{stats.usersWithPermissions}</div>
+            </div>
+            <div className="bg-white px-2 py-1 rounded border border-gray-200 text-center">
+              <div className="text-[8px] text-gray-500">Without</div>
+              <div className="text-xs font-bold text-amber-600">{stats.usersWithoutPermissions}</div>
+            </div>
+            <div className="bg-white px-2 py-1 rounded border border-gray-200 text-center">
+              <div className="text-[8px] text-gray-500">Templates</div>
+              <div className="text-xs font-bold text-purple-600">{permissionTemplates.length}</div>
+            </div>
+            <div className="bg-white px-2 py-1 rounded border border-gray-200 text-center">
+              <div className="text-[8px] text-gray-500">Entities</div>
+              <div className="text-xs font-bold text-indigo-600">{stats.totalEntities}</div>
+            </div>
+          </div>
+
+          {/* Compact Filters Row */}
+          <div className="flex flex-wrap items-center gap-1">
+            {/* Search - Compact */}
+            <div className="relative flex-1 min-w-[150px]">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-7 pr-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 bg-white"
+              />
             </div>
 
-            {/* Desktop Stats - Compact */}
-            <div className="hidden lg:flex items-center space-x-2">
-              <div className="bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm">
-                <div className="flex items-center space-x-1.5">
-                  <div className="p-0.5 bg-blue-100 rounded">
-                    <Users className="h-3 w-3 text-blue-600" />
-                  </div>
-                  <div className="flex items-baseline space-x-0.5">
-                    <span className="text-[10px] text-slate-500">Total</span>
-                    <span className="text-xs font-bold text-blue-600">{stats.totalUsers}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm">
-                <div className="flex items-center space-x-1.5">
-                  <div className="p-0.5 bg-emerald-100 rounded">
-                    <ShieldCheck className="h-3 w-3 text-emerald-600" />
-                  </div>
-                  <div className="flex items-baseline space-x-0.5">
-                    <span className="text-[10px] text-slate-500">With</span>
-                    <span className="text-xs font-bold text-emerald-600">{stats.usersWithPermissions}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm">
-                <div className="flex items-center space-x-1.5">
-                  <div className="p-0.5 bg-amber-100 rounded">
-                    <ShieldX className="h-3 w-3 text-amber-600" />
-                  </div>
-                  <div className="flex items-baseline space-x-0.5">
-                    <span className="text-[10px] text-slate-500">Without</span>
-                    <span className="text-xs font-bold text-amber-600">{stats.usersWithoutPermissions}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm">
-                <div className="flex items-center space-x-1.5">
-                  <div className="p-0.5 bg-purple-100 rounded">
-                    <LayoutTemplate className="h-3 w-3 text-purple-600" />
-                  </div>
-                  <div className="flex items-baseline space-x-0.5">
-                    <span className="text-[10px] text-slate-500">Templates</span>
-                    <span className="text-xs font-bold text-purple-600">{permissionTemplates.length}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
-              className="lg:hidden p-1.5 bg-white rounded-lg border border-slate-200 shadow-sm"
+            {/* Source Filter - Compact */}
+            <select
+              value={userSource}
+              onChange={(e) => setUserSource(e.target.value as UserSource)}
+              className="px-2 py-1 text-xs border border-gray-200 rounded bg-white min-w-[70px]"
             >
-              <Menu className="h-4 w-4 text-slate-600" />
-            </button>
-          </div>
+              <option value="all">All</option>
+              <option value="erp">ERP</option>
+              <option value="module">Module</option>
+            </select>
 
-          {/* Search and Filters - Compact Grid */}
-          <div className="mt-3 grid grid-cols-1 lg:grid-cols-12 gap-2">
-            <div className="lg:col-span-3">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm text-slate-700 placeholder-slate-400"
-                />
-              </div>
-            </div>
-
-            <div className="lg:col-span-2">
+            {/* Sort - Compact */}
+            <div className="flex border border-gray-200 rounded overflow-hidden bg-white">
               <select
-                value={userSource}
-                onChange={(e) => setUserSource(e.target.value as UserSource)}
-                className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 bg-white text-slate-700"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="px-2 py-1 text-xs border-r border-gray-200 focus:outline-none bg-white"
               >
-                <option value="all">All Users</option>
-                <option value="erp">ERP Users</option>
-                <option value="module">Module Users</option>
+                <option value="name">Name</option>
+                <option value="role">Role</option>
+                <option value="permissions">Perms</option>
+                <option value="score">Score</option>
               </select>
+              <button
+                onClick={() => setSortDirection(prev => prev === "asc" ? "desc" : "asc")}
+                className="px-1.5 py-1 hover:bg-gray-50"
+              >
+                <ArrowUpDown className={`h-3 w-3 text-gray-500 transition-transform ${
+                  sortDirection === "desc" ? "rotate-180" : ""
+                }`} />
+              </button>
             </div>
 
-            <div className="lg:col-span-2">
-              <div className="flex border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className="flex-1 px-2 py-1.5 text-xs border-r border-slate-200 focus:outline-none bg-white text-slate-700"
-                >
-                  <option value="name">Name</option>
-                  <option value="email">Email</option>
-                  <option value="role">Role</option>
-                  <option value="source">Source</option>
-                  <option value="permissions">Permissions</option>
-                  <option value="score">Score</option>
-                </select>
-                <button
-                  onClick={() => setSortDirection(prev => prev === "asc" ? "desc" : "asc")}
-                  className="px-1.5 py-1.5 hover:bg-slate-50"
-                >
-                  <ArrowUpDown className={`h-3 w-3 text-slate-500 transition-transform ${
-                    sortDirection === "desc" ? "rotate-180" : ""
-                  }`} />
-                </button>
-              </div>
+            {/* Module Toggle - Compact */}
+            <div className="flex border border-gray-200 rounded overflow-hidden bg-white">
+              <button
+                onClick={() => setSelectedModule("re")}
+                className={`px-2 py-1 text-xs font-medium ${
+                  selectedModule === "re"
+                    ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                RE
+              </button>
+              <button
+                onClick={() => setSelectedModule("expense")}
+                className={`px-2 py-1 text-xs font-medium border-l border-gray-200 ${
+                  selectedModule === "expense"
+                    ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                EXP
+              </button>
             </div>
 
-            <div className="lg:col-span-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
-                  <button
-                    onClick={() => setSelectedModule("re")}
-                    className={`flex-1 px-2 py-1.5 text-xs font-medium transition-all ${
-                      selectedModule === "re"
-                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
-                        : "bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    RE
-                  </button>
-                  <button
-                    onClick={() => setSelectedModule("expense")}
-                    className={`flex-1 px-2 py-1.5 text-xs font-medium transition-all ${
-                      selectedModule === "expense"
-                        ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white"
-                        : "bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    EXP
-                  </button>
-                </div>
-                <div className="flex border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
-                  <button
-                    onClick={() => setViewMode("summary")}
-                    className={`flex-1 px-1.5 py-1.5 text-[10px] font-medium transition-all ${
-                      viewMode === "summary"
-                        ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white"
-                        : "bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    Summary
-                  </button>
-                  <button
-                    onClick={() => setViewMode("entities")}
-                    className={`flex-1 px-1.5 py-1.5 text-[10px] font-medium transition-all ${
-                      viewMode === "entities"
-                        ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white"
-                        : "bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    Entities
-                  </button>
-                </div>
-              </div>
+            {/* View Mode - Compact */}
+            <div className="flex border border-gray-200 rounded overflow-hidden bg-white">
+              <button
+                onClick={() => setViewMode("summary")}
+                className={`px-1.5 py-1 text-[10px] font-medium ${
+                  viewMode === "summary"
+                    ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+                title="Summary"
+              >
+                Sum
+              </button>
+              <button
+                onClick={() => setViewMode("entities")}
+                className={`px-1.5 py-1 text-[10px] font-medium border-l border-gray-200 ${
+                  viewMode === "entities"
+                    ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+                title="Entities"
+              >
+                Ent
+              </button>
+              <button
+                onClick={() => setViewMode("timeline")}
+                className={`px-1.5 py-1 text-[10px] font-medium border-l border-gray-200 ${
+                  viewMode === "timeline"
+                    ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+                title="Timeline"
+              >
+                Time
+              </button>
             </div>
 
-            <div className="lg:col-span-2">
-              <div className="flex items-center space-x-1.5">
-                <button
-                  onClick={() => setBulkMode(!bulkMode)}
-                  className={`flex-1 px-2 py-1.5 border rounded-lg transition-all text-xs ${
-                    bulkMode
-                      ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-400 shadow-sm"
-                      : "bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:shadow-sm"
-                  }`}
-                >
-                  <Users className="h-3 w-3 inline mr-1" />
-                  {bulkMode ? "Bulk On" : "Bulk"}
-                </button>
-                <button
-                  onClick={() => setIsTemplateModalOpen(true)}
-                  className="p-1.5 border border-slate-200 rounded-lg hover:bg-purple-50 bg-white shadow-sm"
-                  title="Templates"
-                >
-                  <LayoutTemplate className="h-3.5 w-3.5 text-purple-500" />
-                </button>
-                <button
-                  onClick={expandAll}
-                  className="p-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 bg-white shadow-sm"
-                  title="Expand All"
-                >
-                  <Maximize2 className="h-3.5 w-3.5 text-slate-500" />
-                </button>
-                <button
-                  onClick={() => setShowPermissionMatrix(true)}
-                  className="p-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 bg-white shadow-sm"
-                  title="Matrix"
-                >
-                  <Grid3x3 className="h-3.5 w-3.5 text-slate-500" />
-                </button>
-                <button
-                  onClick={() => fetchAllData()}
-                  className="p-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 bg-white shadow-sm"
-                  title="Refresh"
-                >
-                  <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
-                </button>
-              </div>
-            </div>
-          </div>
+            {/* Action Buttons - Compact */}
+            <button
+              onClick={() => setBulkMode(!bulkMode)}
+              className={`px-2 py-1 text-xs border rounded transition-all ${
+                bulkMode
+                  ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-400"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-blue-300"
+              }`}
+            >
+              <Users className="h-3 w-3 inline mr-0.5" />
+              {bulkMode ? "On" : "Bulk"}
+            </button>
 
-          {/* Last Updated Indicator - Compact */}
-          <div className="mt-2 flex items-center justify-end text-[10px] text-slate-400">
-            <Clock className="h-2.5 w-2.5 mr-1" />
-            Last updated: {lastUpdated.toLocaleTimeString()}
+            <button
+              onClick={() => setIsTemplateModalOpen(true)}
+              className="p-1 border border-gray-200 rounded hover:bg-purple-50 bg-white"
+              title="Templates"
+            >
+              <LayoutTemplate className="h-3.5 w-3.5 text-purple-500" />
+            </button>
+
+            <button
+              onClick={expandAll}
+              className="p-1 border border-gray-200 rounded hover:bg-gray-50 bg-white"
+              title="Expand All"
+            >
+              <Maximize2 className="h-3.5 w-3.5 text-gray-500" />
+            </button>
+
+            <button
+              onClick={() => setShowPermissionMatrix(true)}
+              className="p-1 border border-gray-200 rounded hover:bg-gray-50 bg-white"
+              title="Matrix"
+            >
+              <Grid3x3 className="h-3.5 w-3.5 text-gray-500" />
+            </button>
+
+            <button
+              onClick={() => fetchAllData()}
+              className="p-1 border border-gray-200 rounded hover:bg-gray-50 bg-white"
+              title="Refresh"
+            >
+              <RefreshCw className="h-3.5 w-3.5 text-gray-500" />
+            </button>
+
+            {/* Auto-refresh Toggle */}
             <button
               onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`ml-2 px-1.5 py-0.5 rounded text-[8px] font-medium ${
+              className={`px-2 py-1 text-[10px] border rounded ${
                 autoRefresh
-                  ? "bg-green-100 text-green-700 border border-green-200"
-                  : "bg-slate-100 text-slate-600 border border-slate-200"
+                  ? "bg-green-100 text-green-700 border-green-200"
+                  : "bg-white text-gray-600 border-gray-200"
               }`}
             >
               {autoRefresh ? "Auto ON" : "Auto OFF"}
             </button>
           </div>
-
-          {/* Mobile Filters Panel */}
-          {isMobileFiltersOpen && (
-            <div className="lg:hidden mt-3 space-y-3 p-3 bg-white rounded-lg border border-slate-200 shadow-lg animate-slideDown">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold text-slate-900 flex items-center">
-                  <Filter className="h-3 w-3 mr-1 text-blue-600" />
-                  Quick Filters
-                </h3>
-                <button
-                  onClick={() => setIsMobileFiltersOpen(false)}
-                  className="p-1 hover:bg-slate-100 rounded"
-                >
-                  <X className="h-3.5 w-3.5 text-slate-400" />
-                </button>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-medium text-slate-600 mb-1">User Source</label>
-                <select
-                  value={userSource}
-                  onChange={(e) => setUserSource(e.target.value as UserSource)}
-                  className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white"
-                >
-                  <option value="all">All Users</option>
-                  <option value="erp">ERP Users</option>
-                  <option value="module">Module Users</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-medium text-slate-600 mb-1">Module</label>
-                <div className="flex border border-slate-200 rounded-lg overflow-hidden bg-white">
-                  <button
-                    onClick={() => setSelectedModule("re")}
-                    className={`flex-1 px-3 py-1.5 text-xs font-medium ${
-                      selectedModule === "re"
-                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
-                        : "bg-white text-slate-600"
-                    }`}
-                  >
-                    RE
-                  </button>
-                  <button
-                    onClick={() => setSelectedModule("expense")}
-                    className={`flex-1 px-3 py-1.5 text-xs font-medium ${
-                      selectedModule === "expense"
-                        ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white"
-                        : "bg-white text-slate-600"
-                    }`}
-                  >
-                    Expense
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-medium text-slate-600 mb-1">View</label>
-                <div className="grid grid-cols-5 gap-1">
-                  <button
-                    onClick={() => setViewMode("summary")}
-                    className={`p-1.5 border rounded text-[10px] font-medium ${
-                      viewMode === "summary"
-                        ? "border-purple-500 bg-purple-50 text-purple-700"
-                        : "border-slate-200 text-slate-600"
-                    }`}
-                  >
-                    Sum
-                  </button>
-                  <button
-                    onClick={() => setViewMode("entities")}
-                    className={`p-1.5 border rounded text-[10px] font-medium ${
-                      viewMode === "entities"
-                        ? "border-purple-500 bg-purple-50 text-purple-700"
-                        : "border-slate-200 text-slate-600"
-                    }`}
-                  >
-                    Ent
-                  </button>
-                  <button
-                    onClick={() => setViewMode("fields")}
-                    className={`p-1.5 border rounded text-[10px] font-medium ${
-                      viewMode === "fields"
-                        ? "border-purple-500 bg-purple-50 text-purple-700"
-                        : "border-slate-200 text-slate-600"
-                    }`}
-                  >
-                    Fld
-                  </button>
-                  <button
-                    onClick={() => setViewMode("timeline")}
-                    className={`p-1.5 border rounded text-[10px] font-medium ${
-                      viewMode === "timeline"
-                        ? "border-purple-500 bg-purple-50 text-purple-700"
-                        : "border-slate-200 text-slate-600"
-                    }`}
-                  >
-                    Time
-                  </button>
-                  <button
-                    onClick={() => setViewMode("templates")}
-                    className={`p-1.5 border rounded text-[10px] font-medium ${
-                      viewMode === "templates"
-                        ? "border-purple-500 bg-purple-50 text-purple-700"
-                        : "border-slate-200 text-slate-600"
-                    }`}
-                  >
-                    Temp
-                  </button>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setBulkMode(!bulkMode)}
-                className={`w-full p-2 border rounded-lg text-xs font-medium ${
-                  bulkMode
-                    ? "bg-blue-600 text-white border-blue-400"
-                    : "bg-white text-slate-600 border-slate-200"
-                }`}
-              >
-                <Users className="h-3 w-3 inline mr-1" />
-                {bulkMode ? "Disable Bulk" : "Enable Bulk"}
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
       {/* Permission Templates Modal */}
       {isTemplateModalOpen && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto animate-scaleIn border border-slate-200">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto animate-scaleIn border border-gray-200">
             <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-t-xl px-4 py-3 sticky top-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <div className="bg-white/20 rounded-lg p-1.5">
                     <LayoutTemplate className="h-4 w-4 text-white" />
                   </div>
-                  <h2 className="text-base font-semibold text-white">
+                  <h2 className="text-sm font-semibold text-white">
                     Permission Templates
                   </h2>
                 </div>
@@ -2000,27 +1848,27 @@ export default function PermissionsPage() {
 
             <div className="p-4">
               {/* Create Template Form */}
-              <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <h3 className="text-xs font-medium text-slate-900 mb-2">Create from Current User</h3>
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <h3 className="text-xs font-medium text-gray-900 mb-2">Create from Current User</h3>
                 <div className="space-y-2">
                   <input
                     type="text"
                     placeholder="Template Name"
                     value={templateFormData.name}
                     onChange={(e) => setTemplateFormData({ ...templateFormData, name: e.target.value })}
-                    className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-purple-500"
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-purple-500"
                   />
                   <textarea
                     placeholder="Description"
                     value={templateFormData.description}
                     onChange={(e) => setTemplateFormData({ ...templateFormData, description: e.target.value })}
                     rows={2}
-                    className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-purple-500"
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-purple-500"
                   />
                   <button
                     onClick={createPermissionTemplate}
                     disabled={isSaving || !templateFormData.name || !selectedUser}
-                    className="w-full px-3 py-1.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg text-xs font-medium hover:from-purple-700 hover:to-purple-800 disabled:opacity-50"
+                    className="w-full px-3 py-1.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded text-xs font-medium hover:from-purple-700 hover:to-purple-800 disabled:opacity-50"
                   >
                     <Plus className="h-3 w-3 inline mr-1" />
                     Create Template
@@ -2029,12 +1877,12 @@ export default function PermissionsPage() {
               </div>
 
               {/* Templates List */}
-              <h3 className="text-xs font-medium text-slate-900 mb-2">Existing Templates</h3>
+              <h3 className="text-xs font-medium text-gray-900 mb-2">Existing Templates</h3>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {permissionTemplates.map((template) => (
                   <div
                     key={template._id}
-                    className="p-2 border border-slate-200 rounded-lg hover:border-purple-300 transition-all cursor-pointer"
+                    className="p-2 border border-gray-200 rounded-lg hover:border-purple-300 transition-all cursor-pointer"
                     onClick={() => {
                       setSelectedTemplate(template._id);
                       if (selectedUser) {
@@ -2046,22 +1894,35 @@ export default function PermissionsPage() {
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center space-x-1.5">
                         <LayoutTemplate className="h-3.5 w-3.5 text-purple-600" />
-                        <h4 className="text-xs font-medium text-slate-900">{template.name}</h4>
+                        <h4 className="text-xs font-medium text-gray-900">{template.name}</h4>
                       </div>
                       {selectedTemplate === template._id && (
                         <CheckCircle className="h-3.5 w-3.5 text-green-500" />
                       )}
                     </div>
                     {template.description && (
-                      <p className="text-[10px] text-slate-500 mb-1">{template.description}</p>
+                      <p className="text-[10px] text-gray-500 mb-1">{template.description}</p>
                     )}
-                    <div className="flex items-center space-x-1 text-[8px] text-slate-400">
+                    <div className="flex items-center space-x-2 text-[8px] text-gray-400">
                       <Clock className="h-2.5 w-2.5" />
                       <span>{new Date(template.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
                 ))}
               </div>
+
+              {/* Bulk Apply */}
+              {bulkMode && selectedUsers.length > 0 && selectedTemplate && (
+                <div className="mt-4 pt-3 border-t border-gray-200">
+                  <button
+                    onClick={applyTemplateToSelected}
+                    className="w-full px-3 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded text-xs font-medium hover:from-green-700 hover:to-green-800"
+                  >
+                    <CopyCheck className="h-3 w-3 inline mr-1" />
+                    Apply to {selectedUsers.length} Selected Users
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -2070,14 +1931,14 @@ export default function PermissionsPage() {
       {/* Permission Matrix Modal */}
       {showPermissionMatrix && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[85vh] overflow-y-auto animate-scaleIn border border-slate-200">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[85vh] overflow-y-auto animate-scaleIn border border-gray-200">
             <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-t-xl px-4 py-3 sticky top-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <div className="bg-white/20 rounded-lg p-1.5">
                     <Grid3x3 className="h-4 w-4 text-white" />
                   </div>
-                  <h2 className="text-base font-semibold text-white">
+                  <h2 className="text-sm font-semibold text-white">
                     Permission Matrix
                   </h2>
                 </div>
@@ -2092,30 +1953,30 @@ export default function PermissionsPage() {
 
             <div className="p-4">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200 text-xs">
-                  <thead className="bg-slate-50">
+                <table className="min-w-full divide-y divide-gray-200 text-xs">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-3 py-2 text-left text-[10px] font-semibold text-slate-600 uppercase">User</th>
-                      <th className="px-3 py-2 text-left text-[10px] font-semibold text-slate-600 uppercase">Source</th>
-                      <th className="px-3 py-2 text-center text-[10px] font-semibold text-slate-600 uppercase">Status</th>
-                      <th className="px-3 py-2 text-center text-[10px] font-semibold text-slate-600 uppercase">Access</th>
-                      <th className="px-3 py-2 text-center text-[10px] font-semibold text-slate-600 uppercase">Create</th>
-                      <th className="px-3 py-2 text-center text-[10px] font-semibold text-slate-600 uppercase">Edit</th>
-                      <th className="px-3 py-2 text-center text-[10px] font-semibold text-slate-600 uppercase">Delete</th>
-                      <th className="px-3 py-2 text-center text-[10px] font-semibold text-slate-600 uppercase">Score</th>
+                      <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500">User</th>
+                      <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500">Source</th>
+                      <th className="px-2 py-1.5 text-center text-[10px] font-medium text-gray-500">Status</th>
+                      <th className="px-2 py-1.5 text-center text-[10px] font-medium text-gray-500">Access</th>
+                      <th className="px-2 py-1.5 text-center text-[10px] font-medium text-gray-500">Create</th>
+                      <th className="px-2 py-1.5 text-center text-[10px] font-medium text-gray-500">Edit</th>
+                      <th className="px-2 py-1.5 text-center text-[10px] font-medium text-gray-500">Delete</th>
+                      <th className="px-2 py-1.5 text-center text-[10px] font-medium text-gray-500">Score</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200">
+                  <tbody className="divide-y divide-gray-200">
                     {filteredUsers.slice(0, 15).map((user) => {
                       const summary = permissionSummaries[user._id];
                       return (
-                        <tr key={user._id} className="hover:bg-slate-50">
-                          <td className="px-3 py-2">
-                            <div className="font-medium text-slate-900 text-xs">{user.fullName}</div>
-                            <div className="text-[8px] text-slate-500">{user.email}</div>
+                        <tr key={user._id} className="hover:bg-gray-50">
+                          <td className="px-2 py-1.5">
+                            <div className="text-xs font-medium text-gray-900">{user.fullName}</div>
+                            <div className="text-[8px] text-gray-500">{user.email}</div>
                           </td>
-                          <td className="px-3 py-2">
-                            <span className={`px-1.5 py-0.5 text-[8px] rounded-full ${
+                          <td className="px-2 py-1.5">
+                            <span className={`px-1 py-0.5 text-[8px] rounded-full ${
                               user.source === "erp" 
                                 ? "bg-emerald-100 text-emerald-700" 
                                 : "bg-purple-100 text-purple-700"
@@ -2123,26 +1984,26 @@ export default function PermissionsPage() {
                               {user.source}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-center">
+                          <td className="px-2 py-1.5 text-center">
                             {summary?.hasPermissions ? (
                               <CheckCircle className="h-3.5 w-3.5 text-green-500 mx-auto" />
                             ) : (
-                              <XCircle className="h-3.5 w-3.5 text-slate-300 mx-auto" />
+                              <XCircle className="h-3.5 w-3.5 text-gray-300 mx-auto" />
                             )}
                           </td>
-                          <td className="px-3 py-2 text-center text-xs font-medium text-blue-600">
+                          <td className="px-2 py-1.5 text-center text-xs font-medium text-blue-600">
                             {summary?.totalAccess || 0}
                           </td>
-                          <td className="px-3 py-2 text-center text-xs font-medium text-green-600">
+                          <td className="px-2 py-1.5 text-center text-xs font-medium text-green-600">
                             {summary?.totalCreate || 0}
                           </td>
-                          <td className="px-3 py-2 text-center text-xs font-medium text-amber-600">
+                          <td className="px-2 py-1.5 text-center text-xs font-medium text-amber-600">
                             {summary?.totalEdit || 0}
                           </td>
-                          <td className="px-3 py-2 text-center text-xs font-medium text-red-600">
+                          <td className="px-2 py-1.5 text-center text-xs font-medium text-red-600">
                             {summary?.totalDelete || 0}
                           </td>
-                          <td className="px-3 py-2 text-center text-xs font-bold text-purple-600">
+                          <td className="px-2 py-1.5 text-center text-xs font-bold text-purple-600">
                             {summary?.permissionScore || 0}
                           </td>
                         </tr>
@@ -2152,20 +2013,20 @@ export default function PermissionsPage() {
                 </table>
               </div>
 
-              <div className="mt-4 flex justify-end space-x-2">
+              <div className="mt-3 flex justify-end space-x-2">
                 <select
                   value={exportFormat}
                   onChange={(e) => setExportFormat(e.target.value as "json" | "csv")}
-                  className="px-2 py-1 text-xs border border-slate-200 rounded-lg bg-white"
+                  className="px-2 py-1 text-xs border border-gray-200 rounded bg-white"
                 >
                   <option value="json">JSON</option>
                   <option value="csv">CSV</option>
                 </select>
                 <button
                   onClick={exportPermissions}
-                  className="px-3 py-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg text-xs hover:from-blue-700 hover:to-blue-800 shadow-sm flex items-center"
+                  className="px-3 py-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded text-xs hover:from-blue-700 hover:to-blue-800"
                 >
-                  <Download className="h-3 w-3 mr-1" />
+                  <Download className="h-3 w-3 inline mr-1" />
                   Export
                 </button>
               </div>
@@ -2175,20 +2036,20 @@ export default function PermissionsPage() {
       )}
 
       {/* Main Content */}
-      <div className="p-4 sm:p-6 lg:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* User List */}
-          <div className="lg:col-span-3 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-3 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+      <div className="p-3 sm:p-4 lg:p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+          {/* User List - Compact */}
+          <div className="lg:col-span-3 bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-2 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold text-slate-900 flex items-center">
-                  <Users className="h-3.5 w-3.5 mr-1.5 text-blue-600" />
+                <h3 className="text-xs font-semibold text-gray-900 flex items-center">
+                  <Users className="h-3.5 w-3.5 mr-1 text-blue-600" />
                   Users ({filteredUsers.length})
                 </h3>
                 {compareUser && (
                   <button
                     onClick={() => setCompareUser(null)}
-                    className="text-[10px] text-red-600 hover:text-red-800"
+                    className="text-[9px] text-red-600 hover:text-red-800"
                   >
                     Clear
                   </button>
@@ -2196,7 +2057,7 @@ export default function PermissionsPage() {
               </div>
             </div>
 
-            <div className="divide-y divide-slate-100 max-h-[calc(100vh-280px)] overflow-y-auto">
+            <div className="divide-y divide-gray-100 max-h-[calc(100vh-250px)] overflow-y-auto">
               {filteredUsers.map((user) => {
                 const isSelected = selectedUser === user._id;
                 const isCompared = compareUser === user._id;
@@ -2206,7 +2067,7 @@ export default function PermissionsPage() {
                 return (
                   <div
                     key={user._id}
-                    className={`p-3 cursor-pointer hover:bg-slate-50 transition-all ${
+                    className={`p-2 cursor-pointer hover:bg-gray-50 transition-all ${
                       isSelected ? "bg-blue-50 border-l-2 border-blue-600" : ""
                     } ${isCompared ? "bg-purple-50 border-l-2 border-purple-600" : ""} ${
                       bulkMode ? "flex items-start space-x-2" : ""
@@ -2232,17 +2093,17 @@ export default function PermissionsPage() {
                             setSelectedUsers(selectedUsers.filter(id => id !== user._id));
                           }
                         }}
-                        className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-3 w-3"
+                        className="mt-0.5 rounded border-gray-300 text-blue-600 h-3 w-3"
                       />
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="flex items-center gap-1 flex-wrap">
-                            <h3 className="text-xs font-semibold text-slate-900 truncate">
+                            <h3 className="text-xs font-medium text-gray-900 truncate">
                               {user.fullName}
                             </h3>
-                            <span className={`px-1 py-0.5 text-[8px] rounded-full ${
+                            <span className={`px-1 py-0.5 text-[7px] rounded-full ${
                               user.source === "erp" 
                                 ? "bg-emerald-100 text-emerald-700" 
                                 : "bg-purple-100 text-purple-700"
@@ -2250,7 +2111,7 @@ export default function PermissionsPage() {
                               {user.source === "erp" ? "ERP" : "MOD"}
                             </span>
                           </div>
-                          <p className="text-[9px] text-slate-500 truncate">{user.email}</p>
+                          <p className="text-[8px] text-gray-500 truncate">{user.email}</p>
                         </div>
                         {!bulkMode && (isSelected || isCompared) && (
                           <button
@@ -2262,7 +2123,7 @@ export default function PermissionsPage() {
                             className={`p-1 rounded transition-colors ${
                               hasUnsaved
                                 ? "text-amber-600 hover:bg-amber-50"
-                                : "text-slate-300"
+                                : "text-gray-300"
                             }`}
                             title={hasUnsaved ? "Save changes" : "No unsaved changes"}
                           >
@@ -2271,45 +2132,51 @@ export default function PermissionsPage() {
                         )}
                       </div>
 
-                      {/* Permission Badges */}
+                      {/* Permission Badges - Shows who has permissions */}
                       {summary && (
-                        <div className="flex items-center mt-1 space-x-1 flex-wrap gap-y-1">
+                        <div className="flex items-center mt-1 space-x-1 flex-wrap gap-y-0.5">
                           {summary.hasPermissions ? (
                             <>
-                              <span className="px-1 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] rounded-full flex items-center">
+                              <span className="px-1 py-0.5 bg-emerald-100 text-emerald-700 text-[7px] rounded-full flex items-center">
                                 <CheckCircle className="h-2 w-2 mr-0.5" />
                                 Has
                               </span>
-                              {summary.totalAccess > 0 && (
-                                <span className="px-1 py-0.5 bg-blue-100 text-blue-700 text-[8px] rounded-full">
+                                                        {summary.totalAccess > 0 && (
+                                <span className="px-1 py-0.5 bg-blue-100 text-blue-700 text-[7px] rounded-full">
                                   A:{summary.totalAccess}
                                 </span>
                               )}
                               {summary.totalCreate > 0 && (
-                                <span className="px-1 py-0.5 bg-green-100 text-green-700 text-[8px] rounded-full">
+                                <span className="px-1 py-0.5 bg-green-100 text-green-700 text-[7px] rounded-full">
                                   C:{summary.totalCreate}
+                                </span>
+                              )}
+                              {summary.totalEdit > 0 && (
+                                <span className="px-1 py-0.5 bg-amber-100 text-amber-700 text-[7px] rounded-full">
+                                  E:{summary.totalEdit}
+                                </span>
+                              )}
+                              {summary.totalDelete > 0 && (
+                                <span className="px-1 py-0.5 bg-red-100 text-red-700 text-[7px] rounded-full">
+                                  D:{summary.totalDelete}
                                 </span>
                               )}
                             </>
                           ) : (
-                            <span className="px-1 py-0.5 bg-slate-100 text-slate-600 text-[8px] rounded-full flex items-center">
-                              <XCircle className="h-2 w-2 mr-0.5" />
-                              No Permissions
-                            </span>
-                          )}
-                          {hasUnsaved && (
-                            <span className="px-1 py-0.5 bg-amber-100 text-amber-700 text-[8px] rounded-full">
-                              Unsaved
+                            <span className="px-1 py-0.5 bg-gray-100 text-gray-500 text-[7px] rounded-full">
+                              No permissions
                             </span>
                           )}
                         </div>
                       )}
 
-                      <div className="flex items-center mt-1 space-x-1">
-                        <span className="text-[8px] bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-1.5 py-0.5 rounded-full capitalize border border-slate-200">
-                          {user.role}
-                        </span>
-                      </div>
+                      {/* Last Active */}
+                      {user.lastActive && (
+                        <p className="text-[7px] text-gray-400 mt-1">
+                          <Clock className="h-2 w-2 inline mr-0.5" />
+                          {new Date(user.lastActive).toLocaleDateString()}
+                        </p>
+                      )}
                     </div>
                   </div>
                 );
@@ -2317,530 +2184,747 @@ export default function PermissionsPage() {
             </div>
           </div>
 
-          {/* Permissions Panel */}
-          <div className="lg:col-span-9">
-            {!bulkMode && !selectedUser ? (
-              <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-8 text-center">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur-xl opacity-20"></div>
-                  <div className="relative w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-md ring-2 ring-white">
-                    <Shield className="h-8 w-8 text-white" />
-                  </div>
-                </div>
-                <h3 className="text-base font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-1">
-                  Select a User
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Choose a user from the list to manage their permissions
-                </p>
-              </div>
-            ) : bulkMode ? (
-              <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-8 text-center">
-                <Users className="h-10 w-10 mx-auto text-blue-500 mb-3" />
-                <h3 className="text-base font-bold text-slate-900 mb-1">Bulk Mode</h3>
-                <p className="text-xs text-slate-500 mb-3">
-                  {selectedUsers.length} user{selectedUsers.length !== 1 ? "s" : ""} selected
-                </p>
-                {bulkProgress ? (
-                  <div className="space-y-2 max-w-xs mx-auto">
-                    <div className="w-full bg-slate-200 rounded-full h-1.5">
-                      <div
-                        className="bg-blue-600 h-1.5 rounded-full transition-all"
-                        style={{ width: `${(bulkProgress.completed / bulkProgress.total) * 100}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-[10px] text-slate-600">
-                      {bulkProgress.completed}/{bulkProgress.total}
-                      {bulkProgress.failed > 0 && ` (${bulkProgress.failed} failed)`}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3 max-w-xs mx-auto">
-                    <div className="bg-slate-50 p-3 rounded-lg text-left">
-                      <h4 className="text-xs font-medium text-slate-700 mb-2">Bulk Actions</h4>
-                      <div className="space-y-2">
-                        <select
-                          value={selectedTemplate}
-                          onChange={(e) => setSelectedTemplate(e.target.value)}
-                          className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg"
-                        >
-                          <option value="">Select template</option>
-                          {permissionTemplates.map(t => (
-                            <option key={t._id} value={t._id}>{t.name}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={applyTemplateToSelected}
-                          disabled={!selectedTemplate}
-                          className="w-full px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs hover:bg-purple-700 disabled:opacity-50"
-                        >
-                          <LayoutTemplate className="h-3 w-3 inline mr-1" />
-                          Apply Template
-                        </button>
-                        <button
-                          onClick={bulkSavePermissions}
-                          disabled={isSaving}
-                          className="w-full px-3 py-1.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg text-xs hover:from-green-700 hover:to-green-800 shadow-sm font-medium"
-                        >
-                          <Save className="h-3 w-3 inline mr-1" />
-                          Save All ({selectedUsers.length})
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <>
-                {/* User Info Header */}
-                <div className="mb-4 bg-white rounded-lg border border-slate-200 shadow-sm p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-md">
-                        {selectedUserObj?.fullName.charAt(0)}
+          {/* Permission Editor */}
+          <div className="lg:col-span-9 space-y-3">
+            {/* User Selection Header */}
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center space-x-2">
+                  {selectedUserObj && (
+                    <>
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white text-xs font-semibold">
+                        {selectedUserObj.fullName.charAt(0)}
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-base font-bold text-slate-900">
-                            {selectedUserObj?.fullName}
-                          </h2>
-                          <span className={`px-2 py-0.5 text-[9px] rounded-full ${
-                            selectedUserObj?.source === "erp" 
-                              ? "bg-emerald-100 text-emerald-700" 
-                              : "bg-purple-100 text-purple-700"
-                          }`}>
-                            {selectedUserObj?.source === "erp" ? "ERP" : "Module"}
-                          </span>
-                          {selectedUserSummary?.hasPermissions ? (
-                            <span className="px-2 py-0.5 text-[9px] bg-emerald-100 text-emerald-700 rounded-full flex items-center">
-                              <CheckCircle className="h-2 w-2 mr-0.5" />
-                              Has Permissions
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 text-[9px] bg-slate-100 text-slate-600 rounded-full flex items-center">
-                              <XCircle className="h-2 w-2 mr-0.5" />
-                              No Permissions
-                            </span>
-                          )}
-                          {selectedUserHasUnsaved && (
-                            <span className="px-2 py-0.5 text-[9px] bg-amber-100 text-amber-700 rounded-full">
-                              Unsaved Changes
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          {selectedUserObj?.email}
-                        </p>
+                        <h2 className="text-xs font-semibold text-gray-900">
+                          {selectedUserObj.fullName}
+                        </h2>
+                        <p className="text-[9px] text-gray-500">{selectedUserObj.email}</p>
                       </div>
+                      {selectedUserHasUnsaved && (
+                        <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[8px] rounded-full">
+                          Unsaved changes
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {compareUserObj && (
+                  <>
+                    <div className="h-4 w-px bg-gray-200"></div>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center text-white text-xs font-semibold">
+                        {compareUserObj.fullName.charAt(0)}
+                      </div>
+                      <div>
+                        <h2 className="text-xs font-semibold text-gray-900">
+                          {compareUserObj.fullName}
+                        </h2>
+                        <p className="text-[9px] text-gray-500">{compareUserObj.email}</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex items-center space-x-1 ml-auto">
+                  {selectedUser && compareUser && (
+                    <button
+                      onClick={() => copyPermissions(selectedUser, compareUser)}
+                      className="px-2 py-1 bg-purple-50 text-purple-600 rounded text-[9px] hover:bg-purple-100 flex items-center"
+                    >
+                      <Copy className="h-2.5 w-2.5 mr-1" />
+                      Copy to compare
+                    </button>
+                  )}
+                  
+                  {selectedUser && (
+                    <button
+                      onClick={() => savePermissions(selectedUser)}
+                      disabled={isSaving || !selectedUserHasUnsaved}
+                      className={`px-2 py-1 rounded text-[9px] flex items-center ${
+                        selectedUserHasUnsaved
+                          ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700"
+                          : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      }`}
+                    >
+                      <Save className="h-2.5 w-2.5 mr-1" />
+                      Save
+                    </button>
+                  )}
+
+                  {bulkMode && selectedUsers.length > 0 && (
+                    <button
+                      onClick={bulkSavePermissions}
+                      disabled={isSaving}
+                      className="px-2 py-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded text-[9px] flex items-center hover:from-blue-700 hover:to-blue-800"
+                    >
+                      <SaveAll className="h-2.5 w-2.5 mr-1" />
+                      Bulk Save ({selectedUsers.length})
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Bulk Progress Bar */}
+              {bulkProgress && (
+                <div className="mt-2">
+                  <div className="flex items-center justify-between text-[8px] text-gray-600 mb-1">
+                    <span>Progress: {bulkProgress.completed}/{bulkProgress.total}</span>
+                    <span className={bulkProgress.failed > 0 ? "text-red-600" : "text-green-600"}>
+                      {bulkProgress.failed} failed
+                    </span>
+                  </div>
+                  <div className="w-full h-1 bg-gray-200 rounded overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
+                      style={{ width: `${(bulkProgress.completed / bulkProgress.total) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Permission Summary Card - Compact */}
+            {selectedUserSummary && (
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-2">
+                <div className="grid grid-cols-7 gap-1 text-center">
+                  <div className="bg-blue-50 rounded p-1">
+                    <div className="text-[8px] text-blue-600">Access</div>
+                    <div className="text-xs font-bold text-blue-700">{selectedUserSummary.totalAccess}</div>
+                  </div>
+                  <div className="bg-green-50 rounded p-1">
+                    <div className="text-[8px] text-green-600">Create</div>
+                    <div className="text-xs font-bold text-green-700">{selectedUserSummary.totalCreate}</div>
+                  </div>
+                  <div className="bg-amber-50 rounded p-1">
+                    <div className="text-[8px] text-amber-600">Edit</div>
+                    <div className="text-xs font-bold text-amber-700">{selectedUserSummary.totalEdit}</div>
+                  </div>
+                  <div className="bg-red-50 rounded p-1">
+                    <div className="text-[8px] text-red-600">Delete</div>
+                    <div className="text-xs font-bold text-red-700">{selectedUserSummary.totalDelete}</div>
+                  </div>
+                  <div className="bg-purple-50 rounded p-1">
+                    <div className="text-[8px] text-purple-600">Columns</div>
+                    <div className="text-xs font-bold text-purple-700">{selectedUserSummary.totalColumns}</div>
+                  </div>
+                  <div className="bg-indigo-50 rounded p-1">
+                    <div className="text-[8px] text-indigo-600">Score</div>
+                    <div className="text-xs font-bold text-indigo-700">{selectedUserSummary.permissionScore}</div>
+                  </div>
+                  <div className="bg-gray-50 rounded p-1">
+                    <div className="text-[8px] text-gray-600">Role</div>
+                    <div className="text-xs font-bold text-gray-700 truncate">{selectedUserObj?.role || '-'}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Main Content based on View Mode */}
+            {viewMode === "summary" && (
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                <div className="p-2 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+                  <h3 className="text-xs font-semibold text-gray-900">Permission Summary</h3>
+                </div>
+                <div className="p-2">
+                  <table className="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-2 py-1 text-left text-[9px] font-medium text-gray-500">Entity</th>
+                        <th className="px-2 py-1 text-center text-[9px] font-medium text-gray-500">Access</th>
+                        <th className="px-2 py-1 text-center text-[9px] font-medium text-gray-500">Create</th>
+                        <th className="px-2 py-1 text-center text-[9px] font-medium text-gray-500">Edit</th>
+                        <th className="px-2 py-1 text-center text-[9px] font-medium text-gray-500">Delete</th>
+                        <th className="px-2 py-1 text-center text-[9px] font-medium text-gray-500">Scope</th>
+                        <th className="px-2 py-1 text-right text-[9px] font-medium text-gray-500">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {filteredEntities.map((entity) => {
+                        const perm = currentUserPerms[entity._id] || {
+                          access: false,
+                          create: false,
+                          edit: false,
+                          delete: false,
+                          scope: "own",
+                          columns: {},
+                        };
+                        const comparePerm = compareUserPerms[entity._id];
+                        const isDifferent = comparePerm && JSON.stringify(perm) !== JSON.stringify(comparePerm);
+
+                        return (
+                          <tr key={entity._id} className={`hover:bg-gray-50 ${isDifferent ? "bg-yellow-50/30" : ""}`}>
+                            <td className="px-2 py-1">
+                              <div className="flex items-center space-x-1">
+                                <button
+                                  onClick={() => toggleEntity(entity._id)}
+                                  className="p-0.5 hover:bg-gray-100 rounded"
+                                >
+                                  {expandedEntities.has(entity._id) ? (
+                                    <ChevronDown className="h-3 w-3 text-gray-400" />
+                                  ) : (
+                                    <ChevronRight className="h-3 w-3 text-gray-400" />
+                                  )}
+                                </button>
+                                <span className="text-[10px] font-medium text-gray-900">{entity.name}</span>
+                                {isDifferent && (
+                                  <AlertCircle className="h-2.5 w-2.5 text-yellow-500" />
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-2 py-1 text-center">
+                              <input
+                                type="checkbox"
+                                checked={perm.access}
+                                onChange={(e) =>
+                                  selectedUser &&
+                                  updatePermission(
+                                    selectedUser,
+                                    selectedModule,
+                                    entity._id,
+                                    "access",
+                                    e.target.checked,
+                                  )
+                                }
+                                className="rounded border-gray-300 text-blue-600 h-3 w-3"
+                                disabled={!selectedUser}
+                              />
+                            </td>
+                            <td className="px-2 py-1 text-center">
+                              <input
+                                type="checkbox"
+                                checked={perm.create}
+                                onChange={(e) =>
+                                  selectedUser &&
+                                  updatePermission(
+                                    selectedUser,
+                                    selectedModule,
+                                    entity._id,
+                                    "create",
+                                    e.target.checked,
+                                  )
+                                }
+                                className="rounded border-gray-300 text-green-600 h-3 w-3"
+                                disabled={!selectedUser}
+                              />
+                            </td>
+                            <td className="px-2 py-1 text-center">
+                              <input
+                                type="checkbox"
+                                checked={perm.edit}
+                                onChange={(e) =>
+                                  selectedUser &&
+                                  updatePermission(
+                                    selectedUser,
+                                    selectedModule,
+                                    entity._id,
+                                    "edit",
+                                    e.target.checked,
+                                  )
+                                }
+                                className="rounded border-gray-300 text-amber-600 h-3 w-3"
+                                disabled={!selectedUser}
+                              />
+                            </td>
+                            <td className="px-2 py-1 text-center">
+                              <input
+                                type="checkbox"
+                                checked={perm.delete}
+                                onChange={(e) =>
+                                  selectedUser &&
+                                  updatePermission(
+                                    selectedUser,
+                                    selectedModule,
+                                    entity._id,
+                                    "delete",
+                                    e.target.checked,
+                                  )
+                                }
+                                className="rounded border-gray-300 text-red-600 h-3 w-3"
+                                disabled={!selectedUser}
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <select
+                                value={perm.scope || "own"}
+                                onChange={(e) =>
+                                  selectedUser &&
+                                  updatePermission(
+                                    selectedUser,
+                                    selectedModule,
+                                    entity._id,
+                                    "scope",
+                                    e.target.value,
+                                  )
+                                }
+                                className="w-20 px-1 py-0.5 text-[9px] border border-gray-200 rounded bg-white"
+                                disabled={!selectedUser}
+                              >
+                                <option value="own">Own</option>
+                                <option value="department">Dept</option>
+                                <option value="all">All</option>
+                              </select>
+                            </td>
+                            <td className="px-2 py-1 text-right">
+                              <button
+                                onClick={() => toggleEntity(entity._id)}
+                                className="text-[9px] text-blue-600 hover:text-blue-800"
+                              >
+                                {expandedEntities.has(entity._id) ? "Hide" : "Columns"}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Expanded Column Permissions */}
+            {viewMode === "entities" && filteredEntities.map((entity) => {
+              const perm = currentUserPerms[entity._id] || {
+                access: false,
+                create: false,
+                edit: false,
+                delete: false,
+                scope: "own",
+                columns: {},
+              };
+              const fields = getEntityFields(entity._id);
+              const systemColumns = ["name", "createdAt", "updatedAt", "createdBy"];
+
+              return (
+                <div key={entity._id} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="p-2 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => toggleEntity(entity._id)}
+                        className="p-0.5 hover:bg-gray-100 rounded"
+                      >
+                        {expandedEntities.has(entity._id) ? (
+                          <ChevronDown className="h-3 w-3 text-gray-400" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3 text-gray-400" />
+                        )}
+                      </button>
+                      <h3 className="text-xs font-semibold text-gray-900">{entity.name}</h3>
+                      {entity.description && (
+                        <span className="text-[8px] text-gray-500">({entity.description})</span>
+                      )}
                     </div>
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => savePermissions(selectedUser)}
-                        disabled={isSaving || !selectedUserHasUnsaved}
-                        className={`px-3 py-1.5 text-xs rounded-lg flex items-center transition-all ${
-                          selectedUserHasUnsaved
-                            ? "bg-gradient-to-r from-green-600 to-green-700 text-white shadow-sm hover:from-green-700 hover:to-green-800"
-                            : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                        }`}
+                        onClick={() =>
+                          selectedUser &&
+                          toggleAllColumns(selectedUser, selectedModule, entity._id, "view", true)
+                        }
+                        className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] hover:bg-blue-100"
+                        disabled={!selectedUser}
                       >
-                        <Save className="h-3 w-3 mr-1" />
-                        Save
+                        View all
                       </button>
                       <button
-                        onClick={exportPermissions}
-                        className="p-1.5 border border-slate-200 rounded-lg hover:bg-slate-50"
-                        title="Export"
+                        onClick={() =>
+                          selectedUser &&
+                          toggleAllColumns(selectedUser, selectedModule, entity._id, "edit", true)
+                        }
+                        className="px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[8px] hover:bg-amber-100"
+                        disabled={!selectedUser}
                       >
-                        <Download className="h-3.5 w-3.5 text-slate-500" />
+                        Edit all
                       </button>
                     </div>
                   </div>
 
-                  {/* Summary Cards */}
-                  <div className="mt-3 grid grid-cols-5 gap-2">
-                    <div className="bg-slate-50 rounded-lg p-2">
-                      <p className="text-[8px] text-slate-500">Access</p>
-                      <p className="text-xs font-bold text-blue-600">
-                        {selectedUserSummary?.totalAccess || 0}
-                      </p>
-                    </div>
-                    <div className="bg-slate-50 rounded-lg p-2">
-                      <p className="text-[8px] text-slate-500">Create</p>
-                      <p className="text-xs font-bold text-green-600">
-                        {selectedUserSummary?.totalCreate || 0}
-                      </p>
-                    </div>
-                    <div className="bg-slate-50 rounded-lg p-2">
-                      <p className="text-[8px] text-slate-500">Edit</p>
-                      <p className="text-xs font-bold text-amber-600">
-                        {selectedUserSummary?.totalEdit || 0}
-                      </p>
-                    </div>
-                    <div className="bg-slate-50 rounded-lg p-2">
-                      <p className="text-[8px] text-slate-500">Delete</p>
-                      <p className="text-xs font-bold text-red-600">
-                        {selectedUserSummary?.totalDelete || 0}
-                      </p>
-                    </div>
-                    <div className="bg-slate-50 rounded-lg p-2">
-                      <p className="text-[8px] text-slate-500">Score</p>
-                      <p className="text-xs font-bold text-purple-600">
-                        {selectedUserSummary?.permissionScore || 0}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* View Mode Content */}
-                {viewMode === "summary" && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Permission Stats */}
-                    <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
-                      <h3 className="text-xs font-semibold text-slate-900 mb-3 flex items-center">
-                        <BarChart3 className="h-3.5 w-3.5 mr-1.5 text-blue-600" />
-                        Permission Statistics
-                      </h3>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                          <span className="text-xs text-slate-600">Access Grants</span>
-                          <span className="text-sm font-bold text-blue-600">{permissionStats.totalAccess}</span>
+                  {expandedEntities.has(entity._id) && (
+                    <div className="p-2">
+                      {/* Basic Permissions Row */}
+                      <div className="grid grid-cols-5 gap-2 mb-2 p-2 bg-gray-50 rounded">
+                        <div className="flex items-center space-x-1">
+                          <span className="text-[8px] text-gray-600 w-12">Access:</span>
+                          <input
+                            type="checkbox"
+                            checked={perm.access}
+                            onChange={(e) =>
+                              selectedUser &&
+                              updatePermission(
+                                selectedUser,
+                                selectedModule,
+                                entity._id,
+                                "access",
+                                e.target.checked,
+                              )
+                            }
+                            className="rounded border-gray-300 text-blue-600 h-3 w-3"
+                            disabled={!selectedUser}
+                          />
                         </div>
-                        <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                          <span className="text-xs text-slate-600">Create Permissions</span>
-                          <span className="text-sm font-bold text-green-600">{permissionStats.totalCreate}</span>
+                        <div className="flex items-center space-x-1">
+                          <span className="text-[8px] text-gray-600 w-12">Create:</span>
+                          <input
+                            type="checkbox"
+                            checked={perm.create}
+                            onChange={(e) =>
+                              selectedUser &&
+                              updatePermission(
+                                selectedUser,
+                                selectedModule,
+                                entity._id,
+                                "create",
+                                e.target.checked,
+                              )
+                            }
+                            className="rounded border-gray-300 text-green-600 h-3 w-3"
+                            disabled={!selectedUser}
+                          />
                         </div>
-                        <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                          <span className="text-xs text-slate-600">Edit Permissions</span>
-                          <span className="text-sm font-bold text-amber-600">{permissionStats.totalEdit}</span>
+                        <div className="flex items-center space-x-1">
+                          <span className="text-[8px] text-gray-600 w-12">Edit:</span>
+                          <input
+                            type="checkbox"
+                            checked={perm.edit}
+                            onChange={(e) =>
+                              selectedUser &&
+                              updatePermission(
+                                selectedUser,
+                                selectedModule,
+                                entity._id,
+                                "edit",
+                                e.target.checked,
+                              )
+                            }
+                            className="rounded border-gray-300 text-amber-600 h-3 w-3"
+                            disabled={!selectedUser}
+                          />
                         </div>
-                        <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                          <span className="text-xs text-slate-600">Delete Permissions</span>
-                          <span className="text-sm font-bold text-red-600">{permissionStats.totalDelete}</span>
+                        <div className="flex items-center space-x-1">
+                          <span className="text-[8px] text-gray-600 w-12">Delete:</span>
+                          <input
+                            type="checkbox"
+                            checked={perm.delete}
+                            onChange={(e) =>
+                              selectedUser &&
+                              updatePermission(
+                                selectedUser,
+                                selectedModule,
+                                entity._id,
+                                "delete",
+                                e.target.checked,
+                              )
+                            }
+                            className="rounded border-gray-300 text-red-600 h-3 w-3"
+                            disabled={!selectedUser}
+                          />
                         </div>
-                      </div>
-                    </div>
-
-                    {/* User Distribution */}
-                    <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
-                      <h3 className="text-xs font-semibold text-slate-900 mb-3 flex items-center">
-                        <PieChart className="h-3.5 w-3.5 mr-1.5 text-purple-600" />
-                        User Distribution
-                      </h3>
-                      <div className="space-y-2">
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-slate-600">ERP Users</span>
-                            <span className="text-xs font-medium text-slate-900">{stats.erpUsers}</span>
-                          </div>
-                          <div className="w-full bg-slate-200 rounded-full h-1.5">
-                            <div 
-                              className="bg-emerald-500 h-1.5 rounded-full" 
-                              style={{ width: `${(stats.erpUsers / stats.totalUsers) * 100}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-slate-600">Module Users</span>
-                            <span className="text-xs font-medium text-slate-900">{stats.moduleUsers}</span>
-                          </div>
-                          <div className="w-full bg-slate-200 rounded-full h-1.5">
-                            <div 
-                              className="bg-purple-500 h-1.5 rounded-full" 
-                              style={{ width: `${(stats.moduleUsers / stats.totalUsers) * 100}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-slate-600">With Permissions</span>
-                            <span className="text-xs font-medium text-slate-900">{stats.usersWithPermissions}</span>
-                          </div>
-                          <div className="w-full bg-slate-200 rounded-full h-1.5">
-                            <div 
-                              className="bg-indigo-500 h-1.5 rounded-full" 
-                              style={{ width: `${(stats.usersWithPermissions / stats.totalUsers) * 100}%` }}
-                            ></div>
-                          </div>
+                        <div className="flex items-center space-x-1">
+                          <span className="text-[8px] text-gray-600 w-12">Scope:</span>
+                          <select
+                            value={perm.scope || "own"}
+                            onChange={(e) =>
+                              selectedUser &&
+                              updatePermission(
+                                selectedUser,
+                                selectedModule,
+                                entity._id,
+                                "scope",
+                                e.target.value,
+                              )
+                            }
+                            className="w-16 px-1 py-0.5 text-[8px] border border-gray-200 rounded bg-white"
+                            disabled={!selectedUser}
+                          >
+                            <option value="own">Own</option>
+                            <option value="department">Dept</option>
+                            <option value="all">All</option>
+                          </select>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Top Permission Holders */}
-                    <div className="lg:col-span-2 bg-white rounded-lg border border-slate-200 shadow-sm p-4">
-                      <h3 className="text-xs font-semibold text-slate-900 mb-3 flex items-center">
-                        <Award className="h-3.5 w-3.5 mr-1.5 text-amber-600" />
-                        Top Permission Holders
-                      </h3>
+                      {/* Column Permissions */}
                       <div className="overflow-x-auto">
-                        <table className="min-w-full text-xs">
-                          <thead>
-                            <tr className="bg-slate-50">
-                              <th className="px-3 py-2 text-left text-[10px] font-medium text-slate-500">User</th>
-                              <th className="px-3 py-2 text-center text-[10px] font-medium text-slate-500">Access</th>
-                              <th className="px-3 py-2 text-center text-[10px] font-medium text-slate-500">Create</th>
-                              <th className="px-3 py-2 text-center text-[10px] font-medium text-slate-500">Edit</th>
-                              <th className="px-3 py-2 text-center text-[10px] font-medium text-slate-500">Delete</th>
-                              <th className="px-3 py-2 text-center text-[10px] font-medium text-slate-500">Score</th>
+                        <table className="min-w-full divide-y divide-gray-200 text-xs">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-2 py-1 text-left text-[8px] font-medium text-gray-500">Column</th>
+                              <th className="px-2 py-1 text-center text-[8px] font-medium text-gray-500">View</th>
+                              <th className="px-2 py-1 text-center text-[8px] font-medium text-gray-500">Edit</th>
+                              <th className="px-2 py-1 text-right text-[8px] font-medium text-gray-500">Type</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-200">
-                            {users
-                              .filter(u => permissionSummaries[u._id]?.hasPermissions)
-                              .sort((a, b) => (permissionSummaries[b._id]?.permissionScore || 0) - (permissionSummaries[a._id]?.permissionScore || 0))
-                              .slice(0, 5)
-                              .map((user) => (
-                                <tr key={user._id} className="hover:bg-slate-50">
-                                  <td className="px-3 py-2">
-                                    <div className="font-medium text-slate-900 text-xs">{user.fullName}</div>
-                                    <div className="text-[8px] text-slate-500">{user.email}</div>
-                                  </td>
-                                  <td className="px-3 py-2 text-center text-xs text-blue-600">
-                                    {permissionSummaries[user._id]?.totalAccess || 0}
-                                  </td>
-                                  <td className="px-3 py-2 text-center text-xs text-green-600">
-                                    {permissionSummaries[user._id]?.totalCreate || 0}
-                                  </td>
-                                  <td className="px-3 py-2 text-center text-xs text-amber-600">
-                                    {permissionSummaries[user._id]?.totalEdit || 0}
-                                  </td>
-                                  <td className="px-3 py-2 text-center text-xs text-red-600">
-                                    {permissionSummaries[user._id]?.totalDelete || 0}
-                                  </td>
-                                  <td className="px-3 py-2 text-center text-xs font-bold text-purple-600">
-                                    {permissionSummaries[user._id]?.permissionScore || 0}
-                                  </td>
-                                </tr>
-                              ))}
+                          <tbody className="divide-y divide-gray-200">
+                            {/* System Columns */}
+                            {systemColumns.map((col) => (
+                              <tr key={col} className="hover:bg-gray-50">
+                                <td className="px-2 py-1">
+                                  <span className="text-[9px] text-gray-600">{col}</span>
+                                  <span className="ml-1 text-[6px] bg-gray-100 px-1 py-0.5 rounded">system</span>
+                                </td>
+                                <td className="px-2 py-1 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={perm.columns[col]?.view !== false}
+                                    onChange={(e) =>
+                                      selectedUser &&
+                                      updateColumnPermission(
+                                        selectedUser,
+                                        selectedModule,
+                                        entity._id,
+                                        col,
+                                        "view",
+                                        e.target.checked,
+                                      )
+                                    }
+                                    className="rounded border-gray-300 text-blue-600 h-3 w-3"
+                                    disabled={!selectedUser}
+                                  />
+                                </td>
+                                <td className="px-2 py-1 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={perm.columns[col]?.edit || false}
+                                    onChange={(e) =>
+                                      selectedUser &&
+                                      updateColumnPermission(
+                                        selectedUser,
+                                        selectedModule,
+                                        entity._id,
+                                        col,
+                                        "edit",
+                                        e.target.checked,
+                                      )
+                                    }
+                                    className="rounded border-gray-300 text-amber-600 h-3 w-3"
+                                    disabled={!selectedUser}
+                                  />
+                                </td>
+                                <td className="px-2 py-1 text-right text-[7px] text-gray-400">
+                                  system
+                                </td>
+                              </tr>
+                            ))}
+
+                            {/* Custom Fields */}
+                            {fields.map((field) => (
+                              <tr key={field._id} className="hover:bg-gray-50">
+                                <td className="px-2 py-1">
+                                  <span className="text-[9px] text-gray-900">{field.label}</span>
+                                  <span className="ml-1 text-[6px] bg-purple-100 px-1 py-0.5 rounded text-purple-700">
+                                    {field.type}
+                                  </span>
+                                </td>
+                                <td className="px-2 py-1 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={perm.columns[field.fieldKey]?.view !== false}
+                                    onChange={(e) =>
+                                      selectedUser &&
+                                      updateColumnPermission(
+                                        selectedUser,
+                                        selectedModule,
+                                        entity._id,
+                                        field.fieldKey,
+                                        "view",
+                                        e.target.checked,
+                                      )
+                                    }
+                                    className="rounded border-gray-300 text-blue-600 h-3 w-3"
+                                    disabled={!selectedUser}
+                                  />
+                                </td>
+                                <td className="px-2 py-1 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={perm.columns[field.fieldKey]?.edit || false}
+                                    onChange={(e) =>
+                                      selectedUser &&
+                                      updateColumnPermission(
+                                        selectedUser,
+                                        selectedModule,
+                                        entity._id,
+                                        field.fieldKey,
+                                        "edit",
+                                        e.target.checked,
+                                      )
+                                    }
+                                    className="rounded border-gray-300 text-amber-600 h-3 w-3"
+                                    disabled={!selectedUser}
+                                  />
+                                </td>
+                                <td className="px-2 py-1 text-right text-[7px] text-gray-400">
+                                  {field.required ? "required" : "optional"}
+                                </td>
+                              </tr>
+                            ))}
                           </tbody>
                         </table>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              );
+            })}
 
-                {viewMode === "entities" && (
-                  <div className="space-y-3">
-                    {filteredEntities.map((entity) => {
-                      const entityPerms = currentUserPerms[entity._id] || {
-                        access: false,
-                        create: false,
-                        edit: false,
-                        delete: false,
-                        scope: "own",
-                        columns: {},
-                      };
-                      const isExpanded = expandedEntities.has(entity._id);
-                      const fields = getEntityFields(entity._id);
-                      const hasUnsavedEntity = hasUnsavedChanges(selectedUser);
-
-                      return (
-                        <div
-                          key={entity._id}
-                          className={`bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all ${
-                            hasUnsavedEntity ? 'border-amber-300' : ''
-                          }`}
-                        >
-                          {/* Entity Header */}
-                          <div
-                            className="bg-gradient-to-r from-slate-50 to-white px-4 py-2.5 flex items-center justify-between cursor-pointer hover:from-slate-100"
-                            onClick={() => toggleEntity(entity._id)}
-                          >
-                            <div className="flex items-center space-x-3">
-                              {isExpanded ? (
-                                <ChevronDown className="h-3.5 w-3.5 text-slate-600" />
-                              ) : (
-                                <ChevronRight className="h-3.5 w-3.5 text-slate-600" />
-                              )}
-                              <div className="p-1.5 bg-blue-100 rounded-lg border border-blue-200">
-                                <LayoutDashboard className="h-3.5 w-3.5 text-blue-600" />
-                              </div>
-                              <div>
-                                <h3 className="text-xs font-semibold text-slate-900">
-                                  {entity.name}
-                                </h3>
-                                <p className="text-[9px] text-slate-500">{entity.entityKey}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-3">
-                              <label className="flex items-center space-x-1.5 bg-white px-2 py-1 rounded-lg border border-slate-200 cursor-pointer hover:border-blue-300 text-xs">
-                                <input
-                                  type="checkbox"
-                                  checked={entityPerms.access}
-                                  onChange={(e) => {
-                                    updatePermission(
-                                      selectedUser,
-                                      selectedModule,
-                                      entity._id,
-                                      "access",
-                                      e.target.checked,
-                                    );
-                                  }}
-                                  className="h-3 w-3 rounded border-slate-300 text-blue-600"
-                                />
-                                <span className="text-[9px] font-medium text-slate-700">Access</span>
-                              </label>
-                            </div>
-                          </div>
-
-                          {/* Permission Details */}
-                          {isExpanded && entityPerms.access && (
-                            <div className="p-4 border-t border-slate-200">
-                              {/* CRUD Permissions */}
-                              <div className="mb-4">
-                                <h4 className="text-[9px] font-semibold text-slate-700 mb-2">Record Permissions</h4>
-                                <div className="grid grid-cols-4 gap-2">
-                                  {[
-                                    { key: "create", label: "Create", color: "green" },
-                                    { key: "edit", label: "Edit", color: "blue" },
-                                    { key: "delete", label: "Delete", color: "red" },
-                                  ].map(({ key, label, color }) => (
-                                    <label key={key} className="flex items-center space-x-1.5 p-1.5 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer hover:border-${color}-300">
-                                      <input
-                                        type="checkbox"
-                                        checked={entityPerms[key as keyof Permission] as boolean}
-                                        onChange={(e) => updatePermission(
-                                          selectedUser,
-                                          selectedModule,
-                                          entity._id,
-                                          key as keyof Permission,
-                                          e.target.checked,
-                                        )}
-                                        className="h-3 w-3 rounded border-slate-300 text-${color}-600"
-                                      />
-                                      <span className="text-[8px] font-medium text-slate-700">{label}</span>
-                                    </label>
-                                  ))}
-                                  <select
-                                    value={entityPerms.scope}
-                                    onChange={(e) => updatePermission(
-                                      selectedUser,
-                                      selectedModule,
-                                      entity._id,
-                                      "scope",
-                                      e.target.value as "own" | "all" | "department",
-                                    )}
-                                    className="col-span-1 px-1.5 py-1 text-[8px] border border-slate-200 rounded-lg bg-white"
-                                  >
-                                    <option value="own">Own</option>
-                                    <option value="all">All</option>
-                                  </select>
-                                </div>
-                              </div>
-
-                              {/* Column Permissions */}
-                              <div>
-                                <h4 className="text-[9px] font-semibold text-slate-700 mb-2">Column Permissions</h4>
-                                <div className="border border-slate-200 rounded-lg overflow-hidden">
-                                  <table className="min-w-full text-xs">
-                                    <thead className="bg-slate-50">
-                                      <tr>
-                                        <th className="px-3 py-1.5 text-left text-[8px] font-medium text-slate-600">Column</th>
-                                        <th className="px-3 py-1.5 text-center text-[8px] font-medium text-slate-600">View</th>
-                                        <th className="px-3 py-1.5 text-center text-[8px] font-medium text-slate-600">Edit</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-200">
-                                      {["name", "createdAt", "updatedAt"].map((col) => {
-                                        const columnPerms = entityPerms.columns?.[col] || { view: true, edit: false };
-                                        return (
-                                          <tr key={col} className="hover:bg-slate-50">
-                                            <td className="px-3 py-1.5 text-[9px] text-slate-900 capitalize">
-                                              {col.replace(/([A-Z])/g, " $1").trim()}
-                                            </td>
-                                            <td className="px-3 py-1.5 text-center">
-                                              <input
-                                                type="checkbox"
-                                                checked={columnPerms.view}
-                                                onChange={(e) => updateColumnPermission(
-                                                  selectedUser,
-                                                  selectedModule,
-                                                  entity._id,
-                                                  col,
-                                                  "view",
-                                                  e.target.checked,
-                                                )}
-                                                className="h-3 w-3 rounded border-slate-300 text-blue-600"
-                                              />
-                                            </td>
-                                            <td className="px-3 py-1.5 text-center">
-                                              <input
-                                                type="checkbox"
-                                                checked={columnPerms.edit}
-                                                onChange={(e) => updateColumnPermission(
-                                                  selectedUser,
-                                                  selectedModule,
-                                                  entity._id,
-                                                  col,
-                                                  "edit",
-                                                  e.target.checked,
-                                                )}
-                                                disabled={!columnPerms.view}
-                                                className="h-3 w-3 rounded border-slate-300 text-green-600 disabled:opacity-50"
-                                              />
-                                            </td>
-                                          </tr>
-                                        );
-                                      })}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {viewMode === "templates" && (
-                  <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
-                    <h3 className="text-xs font-semibold text-slate-900 mb-3 flex items-center">
-                      <LayoutTemplate className="h-3.5 w-3.5 mr-1.5 text-purple-600" />
-                      Apply Template
-                    </h3>
-                    <div className="space-y-3">
-                      <select
-                        value={selectedTemplate}
-                        onChange={(e) => setSelectedTemplate(e.target.value)}
-                        className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg"
-                      >
-                        <option value="">Select a template</option>
-                        {permissionTemplates.map(t => (
-                          <option key={t._id} value={t._id}>{t.name}</option>
-                        ))}
-                      </select>
-                      {selectedTemplate && (
-                        <button
-                          onClick={() => applyTemplateToUser(selectedTemplate, selectedUser)}
-                          className="w-full px-3 py-1.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg text-xs hover:from-purple-700 hover:to-purple-800"
-                        >
-                          <CopyCheck className="h-3 w-3 inline mr-1" />
-                          Apply Template
-                        </button>
-                      )}
+            {/* Timeline View */}
+            {viewMode === "timeline" && (
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                <div className="p-2 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+                  <h3 className="text-xs font-semibold text-gray-900">Activity Timeline</h3>
+                </div>
+                <div className="p-2 max-h-96 overflow-y-auto">
+                  {activityLogs.length === 0 ? (
+                    <div className="text-center py-4">
+                      <History className="h-6 w-6 text-gray-300 mx-auto mb-2" />
+                      <p className="text-[10px] text-gray-500">No activity logs yet</p>
                     </div>
-                  </div>
-                )}
-              </>
+                  ) : (
+                    <div className="space-y-2">
+                      {activityLogs.map((log) => (
+                        <div key={log.id} className="flex items-start space-x-2 p-2 hover:bg-gray-50 rounded">
+                          <div className="flex-shrink-0">
+                            {log.action === "CREATE" && <Plus className="h-3 w-3 text-green-500" />}
+                            {log.action === "UPDATE" && <Pencil className="h-3 w-3 text-amber-500" />}
+                            {log.action === "DELETE" && <Trash2 className="h-3 w-3 text-red-500" />}
+                            {log.action === "BULK_UPDATE" && <SaveAll className="h-3 w-3 text-blue-500" />}
+                            {log.action === "TEMPLATE_APPLY" && <LayoutTemplate className="h-3 w-3 text-purple-500" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[9px] font-medium text-gray-900">
+                                {log.userName} {log.action.toLowerCase()}d {log.entity}
+                              </p>
+                              <span className="text-[7px] text-gray-400">
+                                {new Date(log.timestamp).toLocaleString()}
+                              </span>
+                            </div>
+                            {log.changes && (
+                              <pre className="mt-1 text-[7px] bg-gray-50 p-1 rounded overflow-x-auto">
+                                {JSON.stringify(log.changes, null, 2)}
+                              </pre>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      <style jsx>{`
-        @keyframes slideDown {
-          from { opacity: 0; transform: translateY(-5px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.98); }
-          to { opacity: 1; transform: scale(1); }
-        }
-        .animate-slideDown { animation: slideDown 0.15s ease-out; }
-        .animate-scaleIn { animation: scaleIn 0.15s ease-out; }
-      `}</style>
+      {/* Floating Action Buttons - Mobile Only */}
+      <div className="lg:hidden fixed bottom-4 right-4 flex flex-col space-y-2">
+        <button
+          onClick={expandAll}
+          className="p-2 bg-white rounded-full shadow-lg border border-gray-200 hover:bg-gray-50"
+        >
+          <Maximize2 className="h-4 w-4 text-gray-600" />
+        </button>
+        <button
+          onClick={() => fetchAllData()}
+          className="p-2 bg-white rounded-full shadow-lg border border-gray-200 hover:bg-gray-50"
+        >
+          <RefreshCw className="h-4 w-4 text-gray-600" />
+        </button>
+        <button
+          onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
+          className="p-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full shadow-lg text-white"
+        >
+          <Filter className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Mobile Filters Panel */}
+      {isMobileFiltersOpen && (
+        <div className="lg:hidden fixed inset-0 bg-black/50 z-50" onClick={() => setIsMobileFiltersOpen(false)}>
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-900">Filters</h3>
+              <button onClick={() => setIsMobileFiltersOpen(false)}>
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-medium text-gray-700 block mb-1">User Source</label>
+                <select
+                  value={userSource}
+                  onChange={(e) => setUserSource(e.target.value as UserSource)}
+                  className="w-full px-2 py-2 text-xs border border-gray-200 rounded bg-white"
+                >
+                  <option value="all">All Users</option>
+                  <option value="erp">ERP Users</option>
+                  <option value="module">Module Users</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-medium text-gray-700 block mb-1">Sort By</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  className="w-full px-2 py-2 text-xs border border-gray-200 rounded bg-white"
+                >
+                  <option value="name">Name</option>
+                  <option value="email">Email</option>
+                  <option value="role">Role</option>
+                  <option value="source">Source</option>
+                  <option value="permissions">Permissions Count</option>
+                  <option value="score">Permission Score</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-medium text-gray-700 block mb-1">View Mode</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => setViewMode("summary")}
+                    className={`px-2 py-2 text-[9px] rounded ${
+                      viewMode === "summary"
+                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    Summary
+                  </button>
+                  <button
+                    onClick={() => setViewMode("entities")}
+                    className={`px-2 py-2 text-[9px] rounded ${
+                      viewMode === "entities"
+                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    Entities
+                  </button>
+                  <button
+                    onClick={() => setViewMode("timeline")}
+                    className={`px-2 py-2 text-[9px] rounded ${
+                      viewMode === "timeline"
+                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    Timeline
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsMobileFiltersOpen(false)}
+                className="w-full px-3 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded text-xs font-medium"
+              >
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
