@@ -40,6 +40,8 @@
     "ioredis": "^5.9.3",
     "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.3",
+    "jspdf": "^4.2.0",
+    "jspdf-autotable": "^5.0.7",
     "lodash": "^4.17.21",
     "lucide-react": "^0.563.0",
     "mongodb": "4.1",
