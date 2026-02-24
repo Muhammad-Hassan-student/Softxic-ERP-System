@@ -683,7 +683,7 @@ export default function PermissionsPage() {
 
       // Fetch Module users
       const moduleResponse = await fetch(
-        "/financial-tracker/api/financial-tracker/admin/module-users",
+        "/financial-tracker/api/financial-tracker/module-users",
         {
           headers: { Authorization: getToken() },
         },
