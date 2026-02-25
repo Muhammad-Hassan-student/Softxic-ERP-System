@@ -179,7 +179,7 @@ export default function AdminEntityPage() {
   useEffect(() => {
     const token = document.cookie.match(/token=([^;]+)/)?.[1];
     if (!token) {
-      router.push('/login');
+      router.push('/');
       return;
     }
 
@@ -192,7 +192,7 @@ export default function AdminEntityPage() {
         if (data.user) setUser(data.user);
       })
       .catch(() => {
-        router.push('/login');
+        router.push('/');
       });
   }, [router]);
   
@@ -302,7 +302,7 @@ export default function AdminEntityPage() {
   
   const handleLogout = () => {
     document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    router.push('/login');
+    router.push('/');
   };
   
   const handleSearch = async (term: string) => {
