@@ -134,8 +134,10 @@ export default function AdminEntityPage() {
       alert(token)
 
       const entityRes = await fetch(`/financial-tracker/api/financial-tracker/entities?module=${module}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+  headers: { Authorization: token }
+});
+
+
       
       if (!entityRes.ok) throw new Error('Failed to fetch entity');
       const entityData = await entityRes.json();
@@ -160,7 +162,7 @@ export default function AdminEntityPage() {
       }
 
       const userRes = await fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: token }
       });
       
       if (!userRes.ok) throw new Error('Failed to fetch user');
