@@ -3,36 +3,33 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
-  // Core Icons
-  Plus, Save, Trash2, Copy, ArrowUp, ArrowDown,
+  // Core Icons - Only keep the ones actually used
+  Plus, Save, Trash2, Copy, 
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Eye, EyeOff, Lock, Unlock, Filter, Search, X,
-  Download, Upload, Printer, RefreshCw, Maximize2,
+  Download, Upload, RefreshCw, Maximize2,
   Minimize2, Columns, Grid3x3, Table as TableIcon,
   Zap, AlertCircle, CheckCircle, Clock, History,
-  GitCompare, FileSpreadsheet, FileText, FileJson,
-  Settings2, Sliders, ToggleLeft, ToggleRight,
+  Settings2, Sliders, 
   Pin, PinOff, Star, Award, TrendingUp, TrendingDown,
   Activity, BarChart3, PieChart, Calendar,
   User, Users, Shield, Key, CopyCheck,
-  GripVertical, GripHorizontal, Grip,
-  Move, MoveHorizontal, MoveVertical,
-  ArrowLeft, ArrowRight, ArrowUpIcon, ArrowDownIcon,
+  GripVertical,
+  Move,
+  ArrowLeft, ArrowRight, ArrowUp as ArrowUpIcon, ArrowDown as ArrowDownIcon,
   ChevronUp, ChevronDown, ChevronsUpDown,
   Menu, MoreVertical, MoreHorizontal,
-  PanelLeft, PanelRight, PanelTop, PanelBottom,
-  Split, Combine, Share2, Bookmark,
+  PanelLeft, PanelRight,
   FilterX, SlidersHorizontal,
   ZoomIn, ZoomOut, Fullscreen,
   Moon, Sun, Monitor, Smartphone,
-  Wifi, WifiOff, Battery, BatteryCharging,
+  Wifi, WifiOff, 
   Cloud, CloudOff, Database, Server,
-  HardDrive, Cpu, Network, RadioTower,
+  HardDrive, Cpu, Network,
   Command, Terminal, Braces, Code,
   Globe, Lock as LockIcon, Unlock as UnlockIcon,
   ToggleLeft as ToggleLeftIcon, ToggleRight as ToggleRightIcon,
   Square, SquareStack, Layers, LayoutGrid,
-  TableProperties, TableRowsSplit, TableColumnsSplit,
   FileCheck, FileClock, FileStack,
   CopyPlus, CopyX, CopyCheck as CopyCheckIcon,
   Pencil, PencilOff, Eraser, Scissors,
@@ -42,7 +39,7 @@ import {
   AlertTriangle, Info, HelpCircle,
   Award as AwardIcon, Crown, Medal,
   Rocket, Zap as ZapIcon, Sparkles,
-  Flame, FlameKindling, FireExtinguisher,
+  Flame, 
   Droplets, Wind, Snowflake, SunSnow,
   CloudSun, CloudMoon, CloudRain, CloudLightning,
   Umbrella, Thermometer, Gauge,
@@ -57,24 +54,22 @@ import {
   PoundSterling, Bitcoin,
   CreditCard, Landmark, Wallet,
   Banknote, Coins, PiggyBank,
-  Receipt, ReceiptEuro, ReceiptPoundSterling,
-  ReceiptRussianRuble, ReceiptCent,
+  Receipt, 
   ShoppingBag, ShoppingCart, Package,
   PackageOpen, PackagePlus, PackageMinus,
   PackageSearch, PackageX,
   Box, Boxes, Warehouse,
-  Truck, Plane, PlaneLanding, PlaneTakeoff,
-  Ship, ShipWheel, Anchor,
-  Bike, Bus, Car, CarTaxiFront,
-  Train, TrainFront, TrainTrack,
+  Truck, Plane, 
+  Ship, 
+  Bike, Bus, Car, 
+  Train, 
   MapPin, MapPinned,
   Navigation, NavigationOff,
   Locate, LocateFixed, LocateOff,
   Compass as CompassIcon, Radar,
   Satellite, SatelliteDish,
   Radio, RadioReceiver, RadioTower as RadioTowerIcon,
-  Antenna, WifiHigh, WifiLow, WifiZero,
-  Signal, SignalHigh, SignalLow, SignalZero,
+  Antenna, 
   Bluetooth, BluetoothConnected, BluetoothOff,
   Monitor as MonitorIcon, MonitorOff,
   Tv, Tv2, Tablet, Smartphone as SmartphoneIcon,
@@ -95,13 +90,10 @@ import {
   Highlighter, Type, CaseSensitive,
   TextCursor, TextCursorInput,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
-  AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   Bold, Italic, Underline, Strikethrough,
   List, ListOrdered, ListChecks,
   ListTodo, ListPlus, ListMinus,
   ListX, ListCheck, ListCollapse,
-  ListEnd, ListStart,
   Indent, IndentDecrease, IndentIncrease,
   Outdent, Quote,
   File, FilePlus, FileMinus,
@@ -121,21 +113,17 @@ import {
   FolderX, FolderCheck,
   FolderSearch, FolderOpen, FolderClosed,
   FolderTree as FolderTreeIcon,
-  FolderGit, FolderGit2,
-  FolderKanban, FolderCog, FolderCog2,
-  FolderHeart, RotateCcw, RotateCw,
+  RotateCcw, RotateCw,
   Sun as SunIcon, Moon as MoonIcon, Cloud as CloudIcon,
   Sunrise as SunriseIcon, Sunset as SunsetIcon,
   Wind as WindIcon, Thermometer as ThermometerIcon,
   Droplet, Waves, Anchor as AnchorIcon,
   Ship as ShipIcon, Sailboat,
-  Fish, Shell,
   TreePine, Mountain, CloudSnow,
   CloudRain as CloudRainIcon, CloudLightning as CloudLightningIcon,
-  CloudFog, CloudDrizzle, CloudHail,
-  SunSnow as SunSnowIcon, MoonStar, Sparkle,
   Leaf, Flower2, Sprout,
-  TreeDeciduous
+  TreeDeciduous,
+  FileText
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useSocket } from '../../hooks/useSocket';
@@ -604,6 +592,7 @@ interface DataRecord {
   webhooks?: Record<string, any>;
   integrations?: Record<string, any>;
   extensions?: Record<string, any>;
+  opacity?: number; // For cut operation visual indicator
 }
 
 interface Column {
@@ -1964,26 +1953,7 @@ interface ExcelTableMasterProps {
   enableMap?: boolean;
   enableGallery?: boolean;
   enableAI?: boolean;
-  enablePredictions?: boolean;
-  enableWorkflow?: boolean;
-  enableAutomation?: boolean;
-  enableNotifications?: boolean;
-  enableWebhooks?: boolean;
-  enableAPI?: boolean;
-  enableSDK?: boolean;
-  enablePlugins?: boolean;
-  enableThemes?: boolean;
   enableShortcuts?: boolean;
-  enableTutorials?: boolean;
-  enableHelp?: boolean;
-  enableSupport?: boolean;
-  enableFeedback?: boolean;
-  enableAnalytics?: boolean;
-  enableReports?: boolean;
-  enableDashboards?: boolean;
-  enableWidgets?: boolean;
-  enableExtensions?: boolean;
-  enableMarketplace?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -2024,26 +1994,7 @@ export const ExcelTableMaster: React.FC<ExcelTableMasterProps> = ({
   enableMap = true,
   enableGallery = true,
   enableAI = true,
-  enablePredictions = true,
-  enableWorkflow = true,
-  enableAutomation = true,
-  enableNotifications = true,
-  enableWebhooks = true,
-  enableAPI = true,
-  enableSDK = true,
-  enablePlugins = true,
-  enableThemes = true,
   enableShortcuts = true,
-  enableTutorials = true,
-  enableHelp = true,
-  enableSupport = true,
-  enableFeedback = true,
-  enableAnalytics = true,
-  enableReports = true,
-  enableDashboards = true,
-  enableWidgets = true,
-  enableExtensions = true,
-  enableMarketplace = true,
   className = '',
   style
 }) => {
