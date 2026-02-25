@@ -4,9 +4,10 @@ import { verifyToken } from '@/lib/auth/jwt';
 import UserPermissionModel from '@/app/financial-tracker/models/user-permission.model'; // ✅ Fixed import
 import ActivityService from '@/app/financial-tracker/services/activity-service'; // ✅ Fixed import
 
+// ✅ GET /api/financial-tracker/permissions/[userId] - Specific user ki permissions
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ userId: string }> } // ✅ Fixed: Promise wrap
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     await connectDB();
@@ -21,11 +22,9 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { userId } = await params; // ✅ Fixed: await params
+    const { userId } = await params;
 
-    let permissions = await UserPermissionModel.findOne({ 
-      userId 
-    }).lean();
+    let permissions = await UserPermissionModel.findOne({ userId }).lean();
 
     if (!permissions) {
       permissions = await UserPermissionModel.create({
@@ -42,6 +41,7 @@ export async function GET(
     return NextResponse.json({ permissions });
 
   } catch (error: any) {
+    console.error('Error fetching user permissions:', error);
     return NextResponse.json(
       { error: 'Failed to fetch permissions', details: error.message },
       { status: 500 }
@@ -49,9 +49,10 @@ export async function GET(
   }
 }
 
+// ✅ PUT /api/financial-tracker/permissions/[userId] - Specific user ki permissions update
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ userId: string }> } // ✅ Fixed: Promise wrap
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     await connectDB();
@@ -66,7 +67,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { userId } = await params; // ✅ Fixed: await params
+    const { userId } = await params;
     const body = await request.json();
 
     const oldPermissions = await UserPermissionModel.findOne({ userId });
@@ -102,6 +103,7 @@ export async function PUT(
     });
 
   } catch (error: any) {
+    console.error('Error updating permissions:', error);
     return NextResponse.json(
       { error: 'Failed to update permissions', details: error.message },
       { status: 500 }

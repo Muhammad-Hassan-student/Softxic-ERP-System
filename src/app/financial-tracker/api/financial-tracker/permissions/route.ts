@@ -41,9 +41,16 @@ export async function GET(request: NextRequest) {
       columns: {}
     };
 
-    return NextResponse.json({ permissions: entityPerms });
+    return NextResponse.json({ 
+      permissions: {
+        [module]: {
+          [entity]: entityPerms
+        }
+      }
+    });
 
   } catch (error: any) {
+    console.error('Error fetching permissions:', error);
     return NextResponse.json(
       { error: 'Failed to fetch permissions', details: error.message },
       { status: 500 }

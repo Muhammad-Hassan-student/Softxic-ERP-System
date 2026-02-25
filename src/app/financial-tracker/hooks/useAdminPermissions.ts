@@ -1,5 +1,5 @@
 // src/app/financial-tracker/hooks/useAdminPermissions.ts
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 
 interface Permission {
@@ -31,7 +31,7 @@ export const useAdminPermissions = (module: 're' | 'expense', entity: string) =>
     'Content-Type': 'application/json',
   });
 
-  // ✅ FETCH PERMISSIONS
+  // ✅ FETCH CURRENT USER PERMISSIONS
   const fetchPermissions = useCallback(async (): Promise<Permissions | null> => {
     setIsLoading(true);
     try {
@@ -40,7 +40,14 @@ export const useAdminPermissions = (module: 're' | 'expense', entity: string) =>
         headers: getAuthHeader(),
       });
 
-      if (!response.ok) throw new Error('Failed to fetch permissions');
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Token invalid - redirect to login
+          window.location.href = '/';
+          return null;
+        }
+        throw new Error('Failed to fetch permissions');
+      }
 
       const data = await response.json();
       setPermissions(data.permissions);
@@ -53,8 +60,28 @@ export const useAdminPermissions = (module: 're' | 'expense', entity: string) =>
     }
   }, [module, entity]);
 
-  // ✅ UPDATE PERMISSIONS
-  const updatePermissions = useCallback(async (userId: string, newPermissions: Permissions): Promise<void> => {
+  // ✅ FETCH SPECIFIC USER PERMISSIONS (Admin only)
+  const fetchUserPermissions = useCallback(async (userId: string): Promise<any> => {
+    try {
+      const response = await fetch(`/financial-tracker/api/financial-tracker/permissions/${userId}`, {
+        headers: getAuthHeader(),
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch user permissions');
+
+      const data = await response.json();
+      return data.permissions;
+    } catch (error: any) {
+      toast.error(error.message);
+      return null;
+    }
+  }, []);
+
+  // ✅ UPDATE SPECIFIC USER PERMISSIONS (Admin only)
+  const updateUserPermissions = useCallback(async (
+    userId: string, 
+    newPermissions: Permissions
+  ): Promise<void> => {
     try {
       const response = await fetch(`/financial-tracker/api/financial-tracker/permissions/${userId}`, {
         method: 'PUT',
@@ -68,17 +95,11 @@ export const useAdminPermissions = (module: 're' | 'expense', entity: string) =>
       }
 
       toast.success('Permissions updated successfully');
-      await fetchPermissions();
     } catch (error: any) {
       toast.error(error.message);
       throw error;
     }
-  }, [fetchPermissions]);
-
-  // ✅ REFRESH PERMISSIONS
-  const refreshPermissions = useCallback(async (): Promise<void> => {
-    await fetchPermissions();
-  }, [fetchPermissions]);
+  }, []);
 
   // ✅ CHECK PERMISSIONS
   const canCreate = permissions?.[module]?.[entity]?.create || false;
@@ -100,12 +121,17 @@ export const useAdminPermissions = (module: 're' | 'expense', entity: string) =>
     return entityPerms.access && (entityPerms.columns?.[column]?.view ?? true);
   }, [permissions, module, entity]);
 
+  // Fetch permissions on mount
+  useEffect(() => {
+    fetchPermissions();
+  }, [fetchPermissions]);
+
   return {
     permissions,
     isLoading,
     fetchPermissions,
-    updatePermissions,
-    refreshPermissions,
+    fetchUserPermissions,
+    updateUserPermissions,
     canCreate,
     canEdit,
     canDelete,

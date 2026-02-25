@@ -171,15 +171,14 @@ export default function AdminEntityPage() {
     canDelete,
     canEditColumn,
     canViewColumn,
-    updatePermissions,
-    refreshPermissions,
+   
   } = useAdminPermissions(module, entity);
   
   // Load user data
   useEffect(() => {
     const token = document.cookie.match(/token=([^;]+)/)?.[1];
     if (!token) {
-      router.push('/');
+      router.push('/login');
       return;
     }
 
@@ -302,7 +301,7 @@ export default function AdminEntityPage() {
   
   const handleLogout = () => {
     document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    router.push('/');
+    router.push('/login');
   };
   
   const handleSearch = async (term: string) => {
