@@ -154,26 +154,38 @@ export default function AdminEntityPage() {
 
   // ==================== USER DATA ====================
   const fetchUserData = useCallback(async () => {
-    try {
-      const token = document.cookie.match(/token=([^;]+)/)?.[1];
-      if (!token) {
-        router.push('/login');
+  try {
+    const token = document.cookie.match(/token=([^;]+)/)?.[1];
+    if (!token) {
+      // ❌ Yahan bhi redirect mat karo
+      console.log('No token found');
+      return;
+    }
+
+    const userRes = await fetch('/api/auth/me', {
+      headers: { Authorization: token }
+    });
+    
+    if (!userRes.ok) {
+      if (userRes.status === 401) {
+        console.log('❌ Session expired');
+        // ✅ Sirf toast, redirect nahi
+        toast.error('Your session has expired. Please login again.');
         return;
       }
-
-      const userRes = await fetch('/api/auth/me', {
-        headers: { Authorization: token }
-      });
-      
-      if (!userRes.ok) throw new Error('Failed to fetch user');
-      const userData = await userRes.json();
-      setUser(userData.user);
-    } catch (error) {
-      console.error('Error loading user:', error);
-      router.push('/login');
+      throw new Error(`Failed to fetch user: ${userRes.status}`);
     }
-  }, [router]);
-
+    
+    const userData = await userRes.json();
+    if (userData.success && userData.data) {
+      setUser(userData.data);
+    }
+  } catch (error) {
+    console.error('❌ Error loading user:', error);
+    // ❌ YAHAN SE HATA DO router.push('/login')
+    toast.error('Failed to load user data');
+  }
+}, [router]); // router dependency hata bhi sakte ho
   // ==================== INITIAL LOAD ====================
   useEffect(() => {
     const loadInitialData = async () => {
