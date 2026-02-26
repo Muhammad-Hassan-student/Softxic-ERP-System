@@ -128,7 +128,7 @@ export default function AdminEntityPage() {
     try {
       const token = document.cookie.match(/token=([^;]+)/)?.[1];
       if (!token) {
-        router.push('/login');
+        router.push('/fetchEntity/login');
         return;
       }
       alert(token)
