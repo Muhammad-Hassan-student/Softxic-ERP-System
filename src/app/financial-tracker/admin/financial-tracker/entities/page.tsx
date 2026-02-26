@@ -82,7 +82,6 @@ export default function EntitiesPage() {
       if (selectedModule !== 'all') params.append('module', selectedModule);
       
       const token = getToken();
-      console.log(token);
       
       // ✅ FIXED: Correct API path
       const response = await fetch(`/financial-tracker/api/financial-tracker/entities?${params.toString()}`, {
@@ -95,10 +94,11 @@ export default function EntitiesPage() {
       
       const data = await response.json();
       
-      // Filter inactive if needed
-      let filtered = data.entities;
+      // ✅ FIXED: Safe filtering with null checks
+      let filtered = (data.entities || []).filter((e: any) => e != null);
+      
       if (!showInactive) {
-        filtered = filtered.filter((e: Entity) => e.isEnabled);
+        filtered = filtered.filter((e: Entity) => e.isEnabled === true);
       }
       
       setEntities(filtered);
@@ -135,7 +135,6 @@ export default function EntitiesPage() {
   const handleToggleStatus = async (entityId: string, currentStatus: boolean) => {
     try {
       const token = getToken();
-      // ✅ FIXED: Correct API path
       const response = await fetch(`/financial-tracker/api/financial-tracker/entities/${entityId}/toggle`, {
         method: 'PATCH',
         headers: {
@@ -158,7 +157,6 @@ export default function EntitiesPage() {
 
     try {
       const token = getToken();
-      // ✅ FIXED: Correct API path
       const response = await fetch(`/financial-tracker/api/financial-tracker/entities/${entityId}`, {
         method: 'DELETE',
         headers: {
@@ -182,7 +180,6 @@ export default function EntitiesPage() {
       if (selectedModule !== 'all') params.append('module', selectedModule);
       
       const token = getToken();
-      // ✅ FIXED: Correct API path
       const response = await fetch(`/financial-tracker/api/financial-tracker/entities/export?${params.toString()}`, {
         headers: {
           'Authorization': token
@@ -207,20 +204,27 @@ export default function EntitiesPage() {
     }
   };
 
-  // Filter entities by search
-  const filteredEntities = entities.filter(entity => 
-    entity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    entity.entityKey.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    entity.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ✅ FIXED: Safe filtering with null checks
+  const filteredEntities = (entities || []).filter(entity => {
+    if (!entity) return false;
+    
+    const searchLower = (searchTerm || '').toLowerCase();
+    const name = (entity.name || '').toLowerCase();
+    const entityKey = (entity.entityKey || '').toLowerCase();
+    const description = (entity.description || '').toLowerCase();
+    
+    return name.includes(searchLower) ||
+           entityKey.includes(searchLower) ||
+           description.includes(searchLower);
+  });
 
-  // Calculate stats
+  // ✅ FIXED: Safe stats calculation
   const stats = {
     total: entities.length,
-    re: entities.filter(e => e.module === 're').length,
-    expense: entities.filter(e => e.module === 'expense').length,
-    approval: entities.filter(e => e.enableApproval).length,
-    disabled: entities.filter(e => !e.isEnabled).length
+    re: entities.filter(e => e?.module === 're').length,
+    expense: entities.filter(e => e?.module === 'expense').length,
+    approval: entities.filter(e => e?.enableApproval).length,
+    disabled: entities.filter(e => !e?.isEnabled).length
   };
 
   return (
@@ -327,9 +331,11 @@ export default function EntitiesPage() {
             onDelete={handleDelete}
           />
         ) : (
-          // Card View
+          // Card View with safe rendering
           <div className="grid grid-cols-3 gap-4">
             {filteredEntities.map((entity) => {
+              if (!entity) return null;
+              
               const Icon = entity.module === 're' ? DollarSign : CreditCard;
               const color = entity.module === 're' ? 'blue' : 'green';
 
@@ -347,8 +353,8 @@ export default function EntitiesPage() {
                           <Icon className="h-5 w-5" />
                         </div>
                         <div>
-                          <h3 className="font-medium text-gray-900">{entity.name}</h3>
-                          <p className="text-xs text-gray-500 font-mono">{entity.entityKey}</p>
+                          <h3 className="font-medium text-gray-900">{entity.name || 'Untitled'}</h3>
+                          <p className="text-xs text-gray-500 font-mono">{entity.entityKey || 'N/A'}</p>
                         </div>
                       </div>
                       <div className="flex space-x-1">
@@ -385,7 +391,7 @@ export default function EntitiesPage() {
                     </div>
 
                     <div className="mt-3 text-xs text-gray-400">
-                      Updated {new Date(entity.updatedAt).toLocaleDateString()}
+                      Updated {entity.updatedAt ? new Date(entity.updatedAt).toLocaleDateString() : 'N/A'}
                     </div>
                   </div>
                 </div>
