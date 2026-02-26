@@ -11,7 +11,7 @@ export default function DashboardRedirect() {
   useEffect(() => {
     if (!isLoading) {
       if (!user) {
-        router.push('/login');
+        router.push('/redirect-login');
       } else {
         // Redirect based on role
         const role = user.role;

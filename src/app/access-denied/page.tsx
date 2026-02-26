@@ -17,7 +17,7 @@ function AccessDeniedContent() {
     document.cookie = 'userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     document.cookie = 'userType=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     document.cookie = 'module=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    window.location.href = '/login';
+    window.location.href = '/access-denied/login';
   };
 
   return (

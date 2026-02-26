@@ -72,7 +72,7 @@ export async function simpleFetch<T = any>(
 
         // Redirect to login
         if (typeof window !== "undefined") {
-          window.location.href = "/login";
+          window.location.href = "/fetch-utils/login";
         }
 
         throw new Error("Authentication required");
