@@ -7,7 +7,7 @@ import { verifyToken } from "@/lib/auth/jwt";
 
 // 1. PUBLIC ROUTES (No auth required)
 const PUBLIC_ROUTES = [
-  "/login",
+  "/public-path/login",
   "/module-login",
   "/",
   "/forgot-password",
@@ -135,7 +135,7 @@ export async function middleware(request: NextRequest) {
     console.log("❌ No token, redirecting to login");
     
     // ✅ SMART REDIRECT - user-system routes go to module-login, others to login
-    const loginPath = pathname.startsWith("/user-system") ? "/module-login" : "/login";
+    const loginPath = pathname.startsWith("/user-system") ? "/module-login" : "/smart-redirect/login";
     const loginUrl = new URL(loginPath, request.url);
     loginUrl.searchParams.set("redirect", pathname);
     
@@ -148,7 +148,7 @@ export async function middleware(request: NextRequest) {
 
     if (!decoded) {
       console.log("❌ Invalid token");
-      const loginPath = pathname.startsWith("/user-system") ? "/module-login" : "/login";
+      const loginPath = pathname.startsWith("/user-system") ? "/module-login" : "/verify-token/login";
       const response = NextResponse.redirect(new URL(loginPath, request.url));
       response.cookies.delete("token");
       response.cookies.delete("userRole");
@@ -195,7 +195,7 @@ export async function middleware(request: NextRequest) {
   } catch (error: any) {
     console.error("❌ Middleware error:", error.message);
 
-    const loginPath = pathname.startsWith("/user-system") ? "/module-login" : "/login";
+    const loginPath = pathname.startsWith("/user-system") ? "/module-login" : "/login-path/login";
     const response = NextResponse.redirect(new URL(loginPath, request.url));
     response.cookies.delete("token");
     response.cookies.delete("userRole");
