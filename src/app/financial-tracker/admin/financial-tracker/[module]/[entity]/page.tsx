@@ -123,35 +123,50 @@ export default function AdminEntityPage() {
     canViewColumn,
   } = useAdminPermissions(module, entityKey);
   
-  // ==================== ENTITY FETCHING ====================
-  const fetchEntityData = useCallback(async () => {
-    try {
-      const token = document.cookie.match(/token=([^;]+)/)?.[1];
-      if (!token) {
-        router.push('/fetchEntity/login');
-        return;
+const fetchEntityData = useCallback(async () => {
+  try {
+    // ✅ Token check karne ki zaroorat nahi - cookie automatically jayegi
+    console.log('📡 Fetching entities for module:', module);
+    
+    const entityRes = await fetch(`/financial-tracker/api/financial-tracker/entities?module=${module}`, {
+      credentials: 'include', // 👈 YEH COOKIES BHEJTA HAI
+      headers: {
+        'Content-Type': 'application/json'
+        // Authorization header ki zaroorat nahi!
       }
-      alert(token)
+    });
 
-      const entityRes = await fetch(`/financial-tracker/api/financial-tracker/entities?module=${module}`, {
-  headers: { Authorization: token }
-});
+    console.log('📊 Response status:', entityRes.status);
 
-
-      
-      if (!entityRes.ok) throw new Error('Failed to fetch entity');
-      const entityData = await entityRes.json();
-      
-      const entity = entityData.entities?.find((e: any) => e.entityKey === entityKey);
-      if (!entity) throw new Error('Entity not found');
-      
-      setEntityData(entity);
-    } catch (error) {
-      console.error('Error fetching entity:', error);
-      toast.error('Failed to load entity data');
+    if (entityRes.status === 401) {
+      console.log('❌ Unauthorized - redirecting to login');
+      router.push('/login?reason=session-expired');
+      return;
     }
-  }, [module, entityKey, router]);
 
+    if (!entityRes.ok) {
+      const errorText = await entityRes.text();
+      console.error('❌ API Error:', errorText);
+      toast.error('Failed to fetch entities');
+      return;
+    }
+
+    const data = await entityRes.json();
+    console.log('✅ Entities fetched:', data);
+    
+    const entity = data.entities?.find((e: any) => e.entityKey === entityKey);
+    if (entity) {
+      setEntityData(entity);
+    } else {
+      console.log(`❌ Entity "${entityKey}" not found`);
+      toast.error(`Entity "${entityKey}" not found`);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error in fetchEntityData:', error);
+    toast.error('Failed to load entity data');
+  }
+}, [module, entityKey, router]);
   // ==================== USER DATA ====================
   const fetchUserData = useCallback(async () => {
   try {

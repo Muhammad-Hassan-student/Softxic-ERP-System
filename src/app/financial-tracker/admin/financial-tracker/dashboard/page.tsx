@@ -78,7 +78,7 @@ const handleLogout = () => {
   document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   document.cookie = 'userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   document.cookie = 'userId=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-  window.location.href = '/finance-dashboard/login';
+  window.location.href = '/login';
 };
 
 // ✅ Notification interface
@@ -167,7 +167,7 @@ export default function AdminDashboardPage() {
       const token = getToken();
       
       if (!token) {
-        router.push('/finance-dashboard-stats/login');
+        router.push('/login');
         return;
       }
 

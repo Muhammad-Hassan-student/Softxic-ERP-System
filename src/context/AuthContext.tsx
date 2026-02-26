@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // If we're on a protected page, redirect to login
         if (!pathname?.includes('/login') && pathname !== '/') {
           console.log('Redirecting to login from:', pathname);
-          router.push('/AuthContext/check-auth/login');
+          router.push('/login');
         }
         
         return false;

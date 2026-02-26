@@ -113,7 +113,7 @@ export default function AdminRecordsPage() {
       const token = getToken();
       
       if (!token) {
-        router.push('/admin-record-page/login');
+        router.push('/login');
         return;
       }
 
