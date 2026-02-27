@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 // ============================================
 
 interface DebounceOptions {
-  delay: number;
+  delay?: number;
   leading?: boolean;
   trailing?: boolean;
   maxWait?: number;
@@ -45,20 +45,46 @@ const DEFAULT_OPTIONS: DebounceOptions = {
 };
 
 // ============================================
-// MAIN HOOK
+// MAIN HOOK WITH OVERLOADS
 // ============================================
 
 export function useDebounce<T>(
+  initialValue: T | (() => T)
+): [T, DebouncedControls<T>];
+
+export function useDebounce<T>(
   initialValue: T | (() => T),
-  options: DebounceOptions = DEFAULT_OPTIONS
+  delay: number
+): [T, DebouncedControls<T>];
+
+export function useDebounce<T>(
+  initialValue: T | (() => T),
+  options: DebounceOptions
+): [T, DebouncedControls<T>];
+
+export function useDebounce<T>(
+  initialValue: T | (() => T),
+  delayOrOptions?: number | DebounceOptions
 ): [T, DebouncedControls<T>] {
+  
+  // Normalize arguments
+  let options: DebounceOptions;
+  
+  if (typeof delayOrOptions === 'number') {
+    options = { delay: delayOrOptions };
+  } else if (delayOrOptions) {
+    options = delayOrOptions;
+  } else {
+    options = {};
+  }
+
   const {
-    delay = DEFAULT_OPTIONS.delay,
-    leading = DEFAULT_OPTIONS.leading,
-    trailing = DEFAULT_OPTIONS.trailing,
+    delay = DEFAULT_OPTIONS.delay!,
+    leading = DEFAULT_OPTIONS.leading!,
+    trailing = DEFAULT_OPTIONS.trailing!,
     maxWait,
-    cancelOnUnmount = DEFAULT_OPTIONS.cancelOnUnmount,
-    type = DEFAULT_OPTIONS.type,
+    cancelOnUnmount = DEFAULT_OPTIONS.cancelOnUnmount!,
+    type = DEFAULT_OPTIONS.type!,
   } = options;
 
   const [state, setState] = useState<DebouncedState<T>>(() => ({

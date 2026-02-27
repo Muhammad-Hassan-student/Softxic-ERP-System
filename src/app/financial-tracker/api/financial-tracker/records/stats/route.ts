@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
     try {
       // Try to import models if they exist
       const CommentModel = (await import('@/app/financial-tracker/models/comment.model')).default;
-      const AttachmentModel = (await import('@/app/financial-tracker/models/attachement.model')).default;
+      const AttachmentModel = (await import('@/app/financial-tracker/models/attachment.model')).default;
 
       const [comments, attachments] = await Promise.all([
         CommentModel.countDocuments({ 

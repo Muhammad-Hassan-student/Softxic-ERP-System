@@ -7,11 +7,13 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 export interface JwtPayload {
   userId: string;
   role: string;
+  fullName?: string;  // Added for comments
+  avatar?: string;    // Added for comments
   iat?: number;
   exp?: number;
 }
 
-export function generateToken(userId: string, role: string): string {
+export function generateToken(userId: string, role: string, fullName?: string, avatar?: string): string {
   try {
     if (!JWT_SECRET || JWT_SECRET.length < 32) {
       throw new Error('JWT_SECRET must be at least 32 characters');
@@ -19,7 +21,9 @@ export function generateToken(userId: string, role: string): string {
 
     const payload: JwtPayload = { 
       userId, 
-      role 
+      role,
+      fullName,
+      avatar
     };
     
     const token = jwt.sign(payload, JWT_SECRET, {
@@ -27,7 +31,7 @@ export function generateToken(userId: string, role: string): string {
       algorithm: 'HS256'
     } as any);
 
-    console.log('✅ Token generated for:', { userId, role });
+    console.log('✅ Token generated for:', { userId, role, fullName });
     return token;
 
   } catch (error: any) {
@@ -94,7 +98,7 @@ export function refreshToken(oldToken: string): string | null {
     const decoded = verifyToken(oldToken);
     if (!decoded) return null;
     
-    return generateToken(decoded.userId, decoded.role);
+    return generateToken(decoded.userId, decoded.role, decoded.fullName, decoded.avatar);
   } catch (error) {
     console.error('Token refresh failed:', error);
     return null;

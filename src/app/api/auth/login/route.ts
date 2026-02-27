@@ -6,47 +6,47 @@ import { generateToken } from '@/lib/auth/jwt';
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
-    
+
     const body = await request.json();
     const { identifier, password, loginType } = body;
 
     let query = {};
     let userRole = '';
-    
+
     if (loginType === 'employee') {
       const { rollNo, fullName, cnic } = body;
-      
+
       if (!rollNo || !fullName || !cnic || !password) {
         return NextResponse.json(
           { success: false, message: 'All fields are required' },
           { status: 400 }
         );
       }
-      
+
       query = { rollNo, fullName, cnic };
       userRole = 'employee';
     } else if (loginType === 'hr') {
       const { email } = body;
-      
+
       if (!email || !password) {
         return NextResponse.json(
           { success: false, message: 'Email and password required' },
           { status: 400 }
         );
       }
-      
+
       query = { email };
       userRole = 'hr';
     } else if (loginType === 'admin') {
       const { email } = body;
-      
+
       if (!email || !password) {
         return NextResponse.json(
           { success: false, message: 'Email and password required' },
           { status: 400 }
         );
       }
-      
+
       query = { email };
       userRole = 'admin';
     } else {
@@ -95,8 +95,12 @@ export async function POST(request: NextRequest) {
     await user.save();
 
     // Generate token
-    const token = generateToken(user._id.toString(), user.role);
-
+    const token = generateToken(
+      user._id.toString(),
+      user.role,
+      user.fullName,
+      user.profilePhoto
+    );
     // Prepare response data
     const userResponse = {
       id: user._id.toString(),

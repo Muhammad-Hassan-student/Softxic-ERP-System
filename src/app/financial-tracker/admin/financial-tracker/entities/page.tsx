@@ -62,18 +62,6 @@ import {
   Mail,
   Phone,
   MapPin,
-  Link,
-  ExternalLink,
-  FileText,
-  Image,
-  Paperclip,
-  Mic,
-  Camera,
-  VideoIcon,
-  Headphones,
-  Speaker,
-  Volume2,
-  VolumeX,
   Maximize2,
   Minimize2,
   Move,
@@ -81,9 +69,6 @@ import {
   ZoomIn,
   ZoomOut,
   Command,
-  Option,
-  Shift,
-  Ctrl,
   Delete,
   Save,
   Upload,
@@ -154,49 +139,7 @@ import {
   CloudFog,
   Umbrella,
   Tornado,
-  Hurricane,
-  Earthquake,
-  Volcano,
-  Mountain,
-  Tree,
-  Flower,
-  Leaf,
-  Seedling,
-  Bug,
-  Bird,
-  Fish,
-  Cat,
-  Dog,
-  Rabbit,
-  Turtle,
-  Snake,
-  Dragon,
-  Unicorn,
-  Ghost,
-  Skull,
-  Alien,
-  Robot,
-  Android,
-  Apple,
-  Windows,
-  Linux,
-  Chrome,
-  Firefox,
-  Safari,
-  Edge,
-  Opera,
-  InternetExplorer,
-  Code,
-  Terminal,
-  Brackets,
-  Braces,
-  Parentheses,
-  Hash,
-  AtSign,
   DollarSign as DollarIcon,
-  Euro,
-  PoundSterling,
-  Yen,
   Bitcoin,
   CreditCard as CreditCardIcon,
   Wallet,
@@ -205,7 +148,6 @@ import {
   PiggyBank,
   Gem,
   Diamond,
-  Ring,
   Heart,
   HeartPulse,
   HeartOff,
@@ -213,11 +155,6 @@ import {
   Eye as EyeIcon,
   EyeOff,
   Ear,
-  Nose,
-  Mouth,
-  Tooth,
-  Bone,
-  Muscle,
   Activity as ActivityIcon,
   Thermometer as ThermometerIcon,
   Droplet as DropletIcon,
@@ -229,28 +166,9 @@ import {
   Cloud as CloudIcon,
   Cloudy,
   Cloudy as CloudyIcon,
-  Rainy,
-  Snowy,
-  Stormy,
-  Foggy,
-  Windy,
-  Hail,
-  Sleet,
-  Mist,
-  Smoke,
-  Dust,
-  Sand,
-  Ash,
-  Fog,
   Tornado as TornadoIcon,
-  Hurricane as HurricaneIcon,
-  Earthquake as EarthquakeIcon,
-  Volcano as VolcanoIcon,
-  Mountain as MountainIcon,
-  Tree as TreeIcon,
   Flower as FlowerIcon,
   Leaf as LeafIcon,
-  Seedling as SeedlingIcon,
   Bug as BugIcon,
   Bird as BirdIcon,
   Fish as FishIcon,
@@ -258,55 +176,49 @@ import {
   Dog as DogIcon,
   Rabbit as RabbitIcon,
   Turtle as TurtleIcon,
-  Snake as SnakeIcon,
-  Dragon as DragonIcon,
-  Unicorn as UnicornIcon,
   Ghost as GhostIcon,
   Skull as SkullIcon,
-  Alien as AlienIcon,
-  Robot as RobotIcon,
-  Android as AndroidIcon,
-  Apple as AppleIcon,
-  Windows as WindowsIcon,
-  Linux as LinuxIcon,
-  Chrome as ChromeIcon,
-  Firefox as FirefoxIcon,
-  Safari as SafariIcon,
-  Edge as EdgeIcon,
-  Opera as OperaIcon,
-  InternetExplorer as InternetExplorerIcon,
   Code as CodeIcon,
   Terminal as TerminalIcon,
   Brackets as BracketsIcon,
   Braces as BracesIcon,
   Parentheses as ParenthesesIcon,
-  Hash as HashIcon,
-  AtSign as AtSignIcon,
-  Euro as EuroIcon,
-  PoundSterling as PoundSterlingIcon,
-  Yen as YenIcon,
-  Bitcoin as BitcoinIcon,
-  Wallet as WalletIcon,
-  Banknote as BanknoteIcon,
-  Coins as CoinsIcon,
-  PiggyBank as PiggyBankIcon,
-  Gem as GemIcon,
-  Diamond as DiamondIcon,
-  Ring as RingIcon,
-  Heart as HeartIcon,
-  HeartPulse as HeartPulseIcon,
-  HeartOff as HeartOffIcon,
-  Brain as BrainIcon,
-  EyeOff as EyeOffIcon,
-  Ear as EarIcon,
-  Nose as NoseIcon,
-  Mouth as MouthIcon,
-  Tooth as ToothIcon,
-  Bone as BoneIcon,
-  Muscle as MuscleIcon
+  PowerOff,
+  History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+  RadialLinearScale
+} from 'chart.js';
+import { Line, Bar, Pie, Doughnut, Radar, PolarArea } from 'react-chartjs-2';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  RadialLinearScale,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
+
 import EntitiesTable from '@/app/financial-tracker/components/EntitiesTable';
 import CreateEntityModal from '@/app/financial-tracker/components/CreateEntityModal';
 import EditEntityModal from '@/app/financial-tracker/components/EditEntityModal';
@@ -317,35 +229,29 @@ import { ConnectionStatus } from '@/app/financial-tracker/components/shared/Conn
 import { useLocalStorage } from '@/app/financial-tracker/hooks/useLocalStorage';
 import { useDebounce } from '@/app/financial-tracker/hooks/useDebounce';
 import { useInView } from 'react-intersection-observer';
-import { CSVLink } from 'react-csv';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
-import { format, formatDistance, formatRelative, subDays, differenceInDays } from 'date-fns';
+import { format, formatDistance, formatRelative, subDays, differenceInDays, differenceInHours, differenceInMinutes, subWeeks, subMonths, subYears, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, formatDate } from 'date-fns';
 
-interface Entity {
-  _id: string;
-  module: 're' | 'expense';
-  entityKey: string;
-  name: string;
-  description?: string;
-  isEnabled: boolean;
-  enableApproval: boolean;
-  branchId?: string;
-  createdBy: {
-    _id: string;
-    fullName: string;
-    email: string;
-  };
-  updatedBy: {
-    _id: string;
-    fullName: string;
-    email: string;
-  };
-  createdAt: string;
-  updatedAt: string;
-}
+// Import Modal Components
+import BulkEditModal from './components/modals/BulkEditModal';
+import ShareModal from './components/modals/ShareModal';
+import ExportModal from './components/modals/ExportModal';
+import ImportModal from './components/modals/ImportModal';
+import CloneModal from './components/modals/CloneModal';
+import ArchiveModal from './components/modals/ArchiveModal';
+import AnalyticsModal from './components/modals/AnalyticsModal';
+import SettingsModal from './components/modals/SettingsModal';
+import KeyboardShortcutsModal from './components/modals/KeyboardShortcutsModal';
+import TourModal from './components/modals/TourModal';
+import FeedbackModal from './components/modals/FeedbackModal';
+
+
+import { Entity } from '@/app/financial-tracker/types/entity.types';
+
+
 
 interface QuickFilter {
   id: string;
@@ -367,6 +273,22 @@ interface ViewPreset {
   };
 }
 
+interface AnalyticsData {
+  daily: { date: string; count: number }[];
+  weekly: { week: string; count: number }[];
+  monthly: { month: string; count: number }[];
+  moduleDistribution: { module: string; count: number }[];
+  statusDistribution: { status: string; count: number }[];
+  approvalDistribution: { approved: boolean; count: number }[];
+  activityHeatmap: { hour: number; day: number; count: number }[];
+  trends: {
+    growth: number;
+    active: number;
+    pending: number;
+    archived: number;
+  };
+}
+
 const getToken = (): string => {
   if (typeof document === 'undefined') return '';
   const match = document.cookie.match(/token=([^;]+)/);
@@ -383,39 +305,59 @@ const pageVariants = {
 const statsCardVariants = {
   initial: { scale: 0.9, opacity: 0 },
   animate: { scale: 1, opacity: 1, transition: { duration: 0.3 } },
-  hover: { scale: 1.05, y: -5, transition: { duration: 0.2 } }
+  hover: { scale: 1.02, y: -3, transition: { duration: 0.2 } }
 };
 
 const filterChipVariants = {
   initial: { scale: 0.8, opacity: 0 },
   animate: { scale: 1, opacity: 1 },
-  hover: { scale: 1.1 },
+  hover: { scale: 1.05 },
   tap: { scale: 0.95 }
 };
 
 export default function EntitiesPage() {
-  // State Management
+  // ============================================
+  // STATE MANAGEMENT
+  // ============================================
+
+  // Core Data
   const [entities, setEntities] = useState<Entity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+
+  // Search & Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedModule, setSelectedModule] = useState<'all' | 're' | 'expense'>('all');
   const [showInactive, setShowInactive] = useState(false);
-  const [viewMode, setViewMode] = useState<'table' | 'cards' | 'kanban' | 'gallery'>('table');
   const [selectedQuickFilter, setSelectedQuickFilter] = useState<string>('all');
   const [selectedPreset, setSelectedPreset] = useState<string>('default');
+
+  // Sorting
   const [sortBy, setSortBy] = useState<string>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Selection
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
+  const [selectedEntities, setSelectedEntities] = useState<Entity[]>([]);
   const [bulkActionMode, setBulkActionMode] = useState(false);
+
+  // UI State
+  const [viewMode, setViewMode] = useState<'table' | 'cards' | 'kanban' | 'gallery'>('table');
   const [theme, setTheme] = useLocalStorage<'light' | 'dark' | 'system'>('theme', 'system');
   const [compactMode, setCompactMode] = useLocalStorage('compactMode', false);
   const [recentSearches, setRecentSearches] = useLocalStorage<string[]>('recentSearches', []);
   const [favorites, setFavorites] = useLocalStorage<string[]>('favoriteEntities', []);
   const [showFilters, setShowFilters] = useState(true);
   const [showStats, setShowStats] = useState(true);
-  const [showCharts, setShowCharts] = useState(false);
-  
-  // Modal states
+  const [showCharts, setShowCharts] = useState(true);
+
+  // Zoom & View Preferences
+  const [zoomLevel, setZoomLevel] = useLocalStorage('zoomLevel', 1);
+  const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage('sidebarCollapsed', false);
+  const [chartDensity, setChartDensity] = useLocalStorage<'compact' | 'comfortable' | 'luxury'>('chartDensity', 'comfortable');
+
+  // Modal States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -425,27 +367,27 @@ export default function EntitiesPage() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isCloneModalOpen, setIsCloneModalOpen] = useState(false);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isAnalyticsModalOpen, setIsAnalyticsModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isKeyboardShortcutsModalOpen, setIsKeyboardShortcutsModalOpen] = useState(false);
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
-  
-  const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
-  const [selectedEntities, setSelectedEntities] = useState<Entity[]>([]);
 
   // Hooks
-  const debouncedSearch = useDebounce(searchTerm, 300);
+  const [debouncedSearch, debouncedControls] = useDebounce(searchTerm, 300);
   const { ref: loadMoreRef, inView } = useInView();
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
+  // ============================================
+  // MEMOIZED VALUES
+  // ============================================
+
   // Quick Filters
   const quickFilters: QuickFilter[] = useMemo(() => [
     { id: 'all', label: 'All', icon: LayoutDashboard, color: 'blue', filter: () => true },
-    { id: 're', label: 'RE Only', icon: DollarSign, color: 'blue', filter: (e) => e.module === 're' },
+    { id: 're', label: 'RE Only', icon: DollarSign, color: 'blue', filter: (e: any) => e.module === 're' },
     { id: 'expense', label: 'Expense Only', icon: CreditCard, color: 'green', filter: (e) => e.module === 'expense' },
     { id: 'active', label: 'Active', icon: Zap, color: 'green', filter: (e) => e.isEnabled },
     { id: 'inactive', label: 'Inactive', icon: PowerOff, color: 'gray', filter: (e) => !e.isEnabled },
@@ -464,33 +406,324 @@ export default function EntitiesPage() {
     { id: 'newest-first', name: 'Newest First', icon: Calendar, config: { module: 'all', showInactive: true, sortBy: 'createdAt', sortOrder: 'desc' } },
   ], []);
 
-  // Fetch entities with advanced features
+  // Filtered Entities
+  const filteredEntities = useMemo(() => {
+    return entities.filter(entity => {
+      if (!entity) return false;
+
+      const searchLower = (searchTerm || '').toLowerCase();
+      const name = (entity.name || '').toLowerCase();
+      const entityKey = (entity.entityKey || '').toLowerCase();
+      const description = (entity.description || '').toLowerCase();
+      const createdBy = (entity.createdBy?.fullName || '').toLowerCase();
+      const updatedBy = (entity.updatedBy?.fullName || '').toLowerCase();
+      const tags = entity.metadata?.tags?.join(' ').toLowerCase() || '';
+
+      return name.includes(searchLower) ||
+        entityKey.includes(searchLower) ||
+        description.includes(searchLower) ||
+        createdBy.includes(searchLower) ||
+        updatedBy.includes(searchLower) ||
+        tags.includes(searchLower);
+    });
+  }, [entities, searchTerm]);
+
+  // Stats with Trends
+  const stats = useMemo(() => {
+    const now = new Date();
+    const lastWeek = subWeeks(now, 1);
+    const lastMonth = subMonths(now, 1);
+
+    const current = {
+      total: filteredEntities.length,
+      re: filteredEntities.filter(e => e?.module === 're').length,
+      expense: filteredEntities.filter(e => e?.module === 'expense').length,
+      approval: filteredEntities.filter(e => e?.enableApproval).length,
+      disabled: filteredEntities.filter(e => !e?.isEnabled).length,
+      favorites: filteredEntities.filter(e => favorites.includes(e._id)).length,
+    };
+
+    const previous = {
+      total: entities.filter(e => new Date(e.createdAt) < lastWeek).length,
+      re: entities.filter(e => e?.module === 're' && new Date(e.createdAt) < lastWeek).length,
+      expense: entities.filter(e => e?.module === 'expense' && new Date(e.createdAt) < lastWeek).length,
+      approval: entities.filter(e => e?.enableApproval && new Date(e.createdAt) < lastWeek).length,
+    };
+
+    const trends = {
+      total: current.total - previous.total,
+      re: current.re - previous.re,
+      expense: current.expense - previous.expense,
+      approval: current.approval - previous.approval,
+      growth: previous.total ? ((current.total - previous.total) / previous.total) * 100 : 0,
+    };
+
+    return { current, trends };
+  }, [filteredEntities, entities, favorites]);
+
+  // ============================================
+  // ANALYTICS DATA GENERATION
+  // ============================================
+
+  const generateAnalyticsData = useCallback((): AnalyticsData => {
+    const now = new Date();
+
+    // Daily data for last 30 days
+    const daily = eachDayOfInterval({
+      start: subDays(now, 29),
+      end: now
+    }).map(date => ({
+      date: format(date, 'MMM dd'),
+      count: Math.floor(Math.random() * 20) + 5 // Replace with actual data
+    }));
+
+    // Weekly data for last 12 weeks
+    const weekly = eachWeekOfInterval({
+      start: subWeeks(now, 11),
+      end: now
+    }).map(week => ({
+      week: `Week ${format(week, 'w')}`,
+      count: Math.floor(Math.random() * 50) + 20
+    }));
+
+    // Monthly data for last 12 months
+    const monthly = eachMonthOfInterval({
+      start: subMonths(now, 11),
+      end: now
+    }).map(month => ({
+      month: format(month, 'MMM yyyy'),
+      count: Math.floor(Math.random() * 100) + 50
+    }));
+
+    // Distribution data
+    const moduleDistribution = [
+      { module: 'RE', count: stats.current.re },
+      { module: 'Expense', count: stats.current.expense }
+    ];
+
+    const statusDistribution = [
+      { status: 'Active', count: stats.current.total - stats.current.disabled },
+      { status: 'Inactive', count: stats.current.disabled }
+    ];
+
+    const approvalDistribution = [
+      { approved: true, count: stats.current.approval },
+      { approved: false, count: stats.current.total - stats.current.approval }
+    ];
+
+    // Activity heatmap (24h x 7d)
+    const activityHeatmap = [];
+    for (let day = 0; day < 7; day++) {
+      for (let hour = 0; hour < 24; hour++) {
+        activityHeatmap.push({
+          hour,
+          day,
+          count: Math.floor(Math.random() * 50)
+        });
+      }
+    }
+
+    return {
+      daily,
+      weekly,
+      monthly,
+      moduleDistribution,
+      statusDistribution,
+      approvalDistribution,
+      activityHeatmap,
+      trends: {
+        growth: stats.trends.growth,
+        active: stats.current.total - stats.current.disabled,
+        pending: stats.current.approval,
+        archived: stats.current.disabled
+      }
+    };
+  }, [stats]);
+
+  // ============================================
+  // CHART CONFIGURATIONS
+  // ============================================
+
+  const lineChartData = {
+    labels: analyticsData?.daily.map(d => d.date) || [],
+    datasets: [
+      {
+        label: 'Entity Creation',
+        data: analyticsData?.daily.map(d => d.count) || [],
+        borderColor: 'rgb(139, 92, 246)',
+        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: 'rgb(139, 92, 246)',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+      }
+    ]
+  };
+
+  const barChartData = {
+    labels: analyticsData?.monthly.map(m => m.month) || [],
+    datasets: [
+      {
+        label: 'Monthly Growth',
+        data: analyticsData?.monthly.map(m => m.count) || [],
+        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+        borderRadius: 8,
+        barPercentage: 0.7,
+        categoryPercentage: 0.8,
+      }
+    ]
+  };
+
+  const pieChartData = {
+    labels: analyticsData?.moduleDistribution.map(d => d.module) || [],
+    datasets: [
+      {
+        data: analyticsData?.moduleDistribution.map(d => d.count) || [],
+        backgroundColor: [
+          'rgba(59, 130, 246, 0.8)',
+          'rgba(16, 185, 129, 0.8)',
+        ],
+        borderColor: [
+          'rgb(59, 130, 246)',
+          'rgb(16, 185, 129)',
+        ],
+        borderWidth: 2,
+      }
+    ]
+  };
+
+  const doughnutChartData = {
+    labels: analyticsData?.statusDistribution.map(d => d.status) || [],
+    datasets: [
+      {
+        data: analyticsData?.statusDistribution.map(d => d.count) || [],
+        backgroundColor: [
+          'rgba(16, 185, 129, 0.8)',
+          'rgba(107, 114, 128, 0.8)',
+        ],
+        borderColor: [
+          'rgb(16, 185, 129)',
+          'rgb(107, 114, 128)',
+        ],
+        borderWidth: 2,
+      }
+    ]
+  };
+
+  const radarChartData = {
+    labels: ['Active', 'Pending', 'Approved', 'Archived', 'Draft', 'Review'],
+    datasets: [
+      {
+        label: 'Current',
+        data: [65, 59, 90, 81, 56, 55],
+        backgroundColor: 'rgba(139, 92, 246, 0.2)',
+        borderColor: 'rgb(139, 92, 246)',
+        pointBackgroundColor: 'rgb(139, 92, 246)',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: 'rgb(139, 92, 246)',
+      },
+      {
+        label: 'Previous',
+        data: [45, 49, 70, 61, 46, 45],
+        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+        borderColor: 'rgb(59, 130, 246)',
+        pointBackgroundColor: 'rgb(59, 130, 246)',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: 'rgb(59, 130, 246)',
+      }
+    ]
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top' as const,
+        labels: {
+          usePointStyle: true,
+          boxWidth: 6,
+          font: {
+            size: 11,
+            family: 'Inter, sans-serif'
+          }
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleFont: { size: 12, family: 'Inter, sans-serif' },
+        bodyFont: { size: 11, family: 'Inter, sans-serif' },
+        padding: 8,
+        cornerRadius: 4,
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(0, 0, 0, 0.05)',
+        },
+        ticks: {
+          font: { size: 10, family: 'Inter, sans-serif' }
+        }
+      },
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          font: { size: 10, family: 'Inter, sans-serif' },
+          maxRotation: 45,
+          minRotation: 45
+        }
+      }
+    }
+  };
+
+  // ============================================
+  // API CALLS
+  // ============================================
+
   const fetchEntities = useCallback(async (loadMore = false) => {
     try {
       if (!loadMore) setIsLoading(true);
-      
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '50',
-        sortBy,
-        sortOrder,
-        ...(selectedModule !== 'all' && { module: selectedModule }),
-        ...(debouncedSearch && { search: debouncedSearch }),
-        ...(selectedQuickFilter !== 'all' && { filter: selectedQuickFilter }),
-      });
-      
+
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', '50');
+      params.append('sortBy', sortBy);
+      params.append('sortOrder', sortOrder);
+
+      if (selectedModule !== 'all') {
+        params.append('module', selectedModule);
+      }
+
+      if (debouncedSearch) {
+        params.append('search', debouncedSearch);
+      }
+
+      if (selectedQuickFilter !== 'all') {
+        params.append('filter', selectedQuickFilter);
+      }
+
       const token = getToken();
-      
+
       const response = await fetch(`/financial-tracker/api/financial-tracker/entities?${params.toString()}`, {
         headers: { 'Authorization': token }
       });
 
       if (!response.ok) throw new Error('Failed to fetch entities');
-      
+
       const data = await response.json();
-      
+
       let newEntities = (data.entities || []).filter((e: any) => e != null);
-      
+
       if (!showInactive) {
         newEntities = newEntities.filter((e: Entity) => e.isEnabled === true);
       }
@@ -502,18 +735,18 @@ export default function EntitiesPage() {
       }
 
       // Sort entities
-      newEntities.sort((a, b) => {
+      newEntities.sort((a: any, b: any) => {
         let aVal = a[sortBy as keyof Entity];
         let bVal = b[sortBy as keyof Entity];
-        
+
         if (sortBy === 'createdAt' || sortBy === 'updatedAt') {
           aVal = new Date(aVal as string).getTime();
           bVal = new Date(bVal as string).getTime();
         }
-        
+
         if (typeof aVal === 'string') aVal = aVal.toLowerCase();
         if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-        
+
         if (sortOrder === 'asc') {
           return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
         } else {
@@ -523,20 +756,24 @@ export default function EntitiesPage() {
 
       setEntities(loadMore ? [...entities, ...newEntities] : newEntities);
       setHasMore(newEntities.length === 50);
-      
-      // Add to recent searches if search term exists
+
+      // Update analytics
+      setAnalyticsData(generateAnalyticsData());
+
+      // Add to recent searches
       if (debouncedSearch && !recentSearches.includes(debouncedSearch)) {
         setRecentSearches([debouncedSearch, ...recentSearches.slice(0, 9)]);
       }
-      
+
     } catch (error) {
       toast.error('Failed to load entities');
       console.error(error);
     } finally {
       setIsLoading(false);
     }
-  }, [selectedModule, showInactive, debouncedSearch, selectedQuickFilter, sortBy, sortOrder, page, entities, recentSearches, setRecentSearches, quickFilters]);
+  }, [selectedModule, showInactive, debouncedSearch, selectedQuickFilter, sortBy, sortOrder, page, entities, recentSearches, setRecentSearches, quickFilters, generateAnalyticsData]);
 
+  // Initial fetch
   useEffect(() => {
     fetchEntities();
   }, [selectedModule, showInactive, debouncedSearch, selectedQuickFilter, sortBy, sortOrder]);
@@ -549,31 +786,9 @@ export default function EntitiesPage() {
     }
   }, [inView, hasMore, isLoading, fetchEntities]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        switch(e.key) {
-          case 'n': e.preventDefault(); setIsCreateModalOpen(true); break;
-          case 'f': e.preventDefault(); document.getElementById('search-input')?.focus(); break;
-          case 'e': e.preventDefault(); setViewMode('table'); break;
-          case 'c': e.preventDefault(); setViewMode('cards'); break;
-          case 'k': e.preventDefault(); setViewMode('kanban'); break;
-          case 'g': e.preventDefault(); setViewMode('gallery'); break;
-          case 'r': e.preventDefault(); fetchEntities(); break;
-          case 's': e.preventDefault(); setShowFilters(!showFilters); break;
-          case 'h': e.preventDefault(); setIsKeyboardShortcutsModalOpen(true); break;
-          case 'b': e.preventDefault(); setBulkActionMode(!bulkActionMode); break;
-          case 'a': e.preventDefault(); if (e.shiftKey) selectAll(); break;
-          case 'd': e.preventDefault(); if (e.shiftKey) deselectAll(); break;
-          case 'x': e.preventDefault(); exportData(); break;
-        }
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [fetchEntities, showFilters, bulkActionMode]);
+  // ============================================
+  // HANDLERS
+  // ============================================
 
   // Selection handlers
   const toggleRowSelection = (id: string) => {
@@ -610,7 +825,7 @@ export default function EntitiesPage() {
           headers: { 'Authorization': token }
         })
       );
-      
+
       await Promise.all(promises);
       toast.success(`${selectedRows.size} entities ${enable ? 'activated' : 'deactivated'}`);
       fetchEntities();
@@ -623,7 +838,7 @@ export default function EntitiesPage() {
 
   const bulkDelete = async () => {
     if (!confirm(`Are you sure you want to delete ${selectedRows.size} entities?`)) return;
-    
+
     try {
       const token = getToken();
       const promises = Array.from(selectedRows).map(id =>
@@ -632,7 +847,7 @@ export default function EntitiesPage() {
           headers: { 'Authorization': token }
         })
       );
-      
+
       await Promise.all(promises);
       toast.success(`${selectedRows.size} entities deleted`);
       fetchEntities();
@@ -646,18 +861,18 @@ export default function EntitiesPage() {
   // Export functionality
   const exportData = async (format: 'excel' | 'csv' | 'pdf' | 'json' | 'xml' | 'html' = 'excel') => {
     try {
-      const dataToExport = selectedRows.size > 0 
+      const dataToExport = selectedRows.size > 0
         ? entities.filter(e => selectedRows.has(e._id))
         : filteredEntities;
 
-      switch(format) {
+      switch (format) {
         case 'excel':
           const ws = XLSX.utils.json_to_sheet(dataToExport);
           const wb = XLSX.utils.book_new();
           XLSX.utils.book_append_sheet(wb, ws, 'Entities');
           XLSX.writeFile(wb, `entities-${new Date().toISOString()}.xlsx`);
           break;
-          
+
         case 'csv':
           const csvData = dataToExport.map(e => ({
             Name: e.name,
@@ -665,12 +880,15 @@ export default function EntitiesPage() {
             Module: e.module,
             Status: e.isEnabled ? 'Active' : 'Inactive',
             Approval: e.enableApproval ? 'Yes' : 'No',
-            Created: format(new Date(e.createdAt), 'PPP'),
-            Updated: format(new Date(e.updatedAt), 'PPP')
+            Created: formatDate(new Date(e.createdAt), 'PPP'),
+            Updated: formatDate(new Date(e.updatedAt), 'PPP')
           }));
-          // Use CSVLink component
+          const ws_csv = XLSX.utils.json_to_sheet(csvData);
+          const csv = XLSX.utils.sheet_to_csv(ws_csv);
+          const blob = new Blob([csv], { type: 'text/csv' });
+          saveAs(blob, `entities-${new Date().toISOString()}.csv`);
           break;
-          
+
         case 'pdf':
           const doc = new jsPDF();
           doc.text('Entities Report', 14, 15);
@@ -687,36 +905,41 @@ export default function EntitiesPage() {
           });
           doc.save(`entities-${new Date().toISOString()}.pdf`);
           break;
-          
+
         case 'json':
           const jsonStr = JSON.stringify(dataToExport, null, 2);
-          const blob = new Blob([jsonStr], { type: 'application/json' });
-          saveAs(blob, `entities-${new Date().toISOString()}.json`);
+          const jsonBlob = new Blob([jsonStr], { type: 'application/json' });
+          saveAs(jsonBlob, `entities-${new Date().toISOString()}.json`);
+          break;
+
+        case 'xml':
+          // Generate XML
+          break;
+
+        case 'html':
+          // Generate HTML
           break;
       }
-      
+
       toast.success(`Exported ${dataToExport.length} entities`);
     } catch (error) {
       toast.error('Export failed');
     }
   };
 
-  // Handle create
+  // CRUD handlers
   const handleCreate = () => setIsCreateModalOpen(true);
 
-  // Handle edit
   const handleEdit = (entity: Entity) => {
     setSelectedEntity(entity);
     setIsEditModalOpen(true);
   };
 
-  // Handle view
   const handleView = (entity: Entity) => {
     setSelectedEntity(entity);
     setIsViewModalOpen(true);
   };
 
-  // Handle toggle status
   const handleToggleStatus = async (entityId: string, currentStatus: boolean) => {
     try {
       const token = getToken();
@@ -726,7 +949,7 @@ export default function EntitiesPage() {
       });
 
       if (!response.ok) throw new Error('Failed to toggle entity');
-      
+
       toast.success(`Entity ${currentStatus ? 'deactivated' : 'activated'} successfully`);
       fetchEntities();
     } catch (error) {
@@ -734,7 +957,6 @@ export default function EntitiesPage() {
     }
   };
 
-  // Handle delete
   const handleDelete = async (entityId: string) => {
     if (!confirm('Are you sure you want to delete this entity?')) return;
 
@@ -746,7 +968,7 @@ export default function EntitiesPage() {
       });
 
       if (!response.ok) throw new Error('Failed to delete entity');
-      
+
       toast.success('Entity deleted successfully');
       fetchEntities();
     } catch (error) {
@@ -754,7 +976,6 @@ export default function EntitiesPage() {
     }
   };
 
-  // Handle clone
   const handleClone = async (entity: Entity) => {
     try {
       const token = getToken();
@@ -764,7 +985,7 @@ export default function EntitiesPage() {
       });
 
       if (!response.ok) throw new Error('Failed to clone entity');
-      
+
       toast.success('Entity cloned successfully');
       fetchEntities();
     } catch (error) {
@@ -772,7 +993,6 @@ export default function EntitiesPage() {
     }
   };
 
-  // Handle archive
   const handleArchive = async (entityId: string) => {
     try {
       const token = getToken();
@@ -782,7 +1002,7 @@ export default function EntitiesPage() {
       });
 
       if (!response.ok) throw new Error('Failed to archive entity');
-      
+
       toast.success('Entity archived successfully');
       fetchEntities();
     } catch (error) {
@@ -790,18 +1010,17 @@ export default function EntitiesPage() {
     }
   };
 
-  // Toggle favorite
   const toggleFavorite = (entityId: string) => {
-    setFavorites(prev => {
+    setFavorites((prev: any) => {
       if (prev.includes(entityId)) {
-        return prev.filter(id => id !== entityId);
+        return prev.filter((id: any) => id !== entityId);
       } else {
         return [...prev, entityId];
       }
     });
   };
 
-  // Apply preset
+  // Preset handler
   const applyPreset = (preset: ViewPreset) => {
     setSelectedPreset(preset.id);
     setSelectedModule(preset.config.module);
@@ -811,74 +1030,23 @@ export default function EntitiesPage() {
     toast.success(`Applied preset: ${preset.name}`);
   };
 
-  // Filter entities with advanced search
-  const filteredEntities = useMemo(() => {
-    return entities.filter(entity => {
-      if (!entity) return false;
-      
-      const searchLower = (searchTerm || '').toLowerCase();
-      const name = (entity.name || '').toLowerCase();
-      const entityKey = (entity.entityKey || '').toLowerCase();
-      const description = (entity.description || '').toLowerCase();
-      const createdBy = (entity.createdBy?.fullName || '').toLowerCase();
-      const updatedBy = (entity.updatedBy?.fullName || '').toLowerCase();
-      
-      return name.includes(searchLower) ||
-             entityKey.includes(searchLower) ||
-             description.includes(searchLower) ||
-             createdBy.includes(searchLower) ||
-             updatedBy.includes(searchLower);
-    });
-  }, [entities, searchTerm]);
+  // Zoom handlers
+  const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 0.1, 1.5));
+  const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 0.1, 0.7));
+  const handleZoomReset = () => setZoomLevel(1);
 
-  // Calculate stats with trends
-  const stats = useMemo(() => {
-    const now = new Date();
-    const lastWeek = subDays(now, 7);
-    
-    const current = {
-      total: filteredEntities.length,
-      re: filteredEntities.filter(e => e?.module === 're').length,
-      expense: filteredEntities.filter(e => e?.module === 'expense').length,
-      approval: filteredEntities.filter(e => e?.enableApproval).length,
-      disabled: filteredEntities.filter(e => !e?.isEnabled).length,
-      favorites: filteredEntities.filter(e => favorites.includes(e._id)).length,
-    };
-    
-    const previous = {
-      total: entities.filter(e => new Date(e.createdAt) < lastWeek).length,
-      re: entities.filter(e => e?.module === 're' && new Date(e.createdAt) < lastWeek).length,
-      expense: entities.filter(e => e?.module === 'expense' && new Date(e.createdAt) < lastWeek).length,
-      approval: entities.filter(e => e?.enableApproval && new Date(e.createdAt) < lastWeek).length,
-    };
-    
-    const trends = {
-      total: current.total - previous.total,
-      re: current.re - previous.re,
-      expense: current.expense - previous.expense,
-      approval: current.approval - previous.approval,
-    };
-    
-    return { current, trends };
-  }, [filteredEntities, entities, favorites]);
-
-  // Get module icon
-  const getModuleIcon = (module: string) => {
-    return module === 're' ? DollarSign : CreditCard;
-  };
-
-  // Get module color
-  const getModuleColor = (module: string) => {
-    return module === 're' ? 'blue' : 'green';
-  };
+  // ============================================
+  // RENDER
+  // ============================================
 
   return (
-    <motion.div 
+    <motion.div
       className={`min-h-screen ${theme === 'dark' ? 'dark' : ''}`}
       initial="initial"
       animate="animate"
       exit="exit"
       variants={pageVariants}
+      style={{ zoom: zoomLevel }}
     >
       <style jsx global>{`
         :root {
@@ -906,7 +1074,7 @@ export default function EntitiesPage() {
         }
         
         * {
-          transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+          transition: background-color 0.2s, border-color 0.2s, color 0.2s;
         }
         
         ::-webkit-scrollbar {
@@ -929,40 +1097,40 @@ export default function EntitiesPage() {
         }
       `}</style>
 
-      {/* Header with Glassmorphism */}
-      <div className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-800 shadow-lg">
-        <div className="px-6 py-4">
-          {/* Top Bar */}
+      {/* Header with Glassmorphism - Optimized Size */}
+      <div className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-800 shadow-sm">
+        <div className="px-4 py-2">
+          {/* Top Bar - Compact */}
           <div className="flex items-center justify-between">
-            <motion.div 
-              className="flex items-center space-x-3"
+            <motion.div
+              className="flex items-center space-x-2"
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: 0.1 }}
             >
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg blur opacity-75 animate-pulse"></div>
-                <div className="relative p-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg">
-                  <LayoutDashboard className="h-6 w-6 text-white" />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg blur opacity-50 animate-pulse"></div>
+                <div className="relative p-1.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg">
+                  <LayoutDashboard className="h-5 w-5 text-white" />
                 </div>
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent">
+                <h1 className="text-lg font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent">
                   Entity Management
                 </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
-                  <span>Configure and manage system entities</span>
-                  <span className="mx-2">•</span>
+                <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center">
+                  <span>Configure entities</span>
+                  <span className="mx-1">•</span>
                   <span className="flex items-center">
-                    <Zap className="h-3 w-3 mr-1 text-yellow-500" />
+                    <Zap className="h-2.5 w-2.5 mr-0.5 text-yellow-500" />
                     {filteredEntities.length} active
                   </span>
                 </p>
               </div>
             </motion.div>
 
-            <motion.div 
-              className="flex items-center space-x-3"
+            <motion.div
+              className="flex items-center space-x-2"
               initial={{ x: 20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: 0.1 }}
@@ -970,77 +1138,102 @@ export default function EntitiesPage() {
               {/* Connection Status */}
               <ConnectionStatus module="admin" entity="entities" />
 
+              {/* Zoom Controls */}
+              <div className="flex items-center space-x-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+                <button
+                  onClick={handleZoomOut}
+                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                  title="Zoom out"
+                >
+                  <ZoomOut className="h-3.5 w-3.5" />
+                </button>
+                <span className="text-xs px-1">{Math.round(zoomLevel * 100)}%</span>
+                <button
+                  onClick={handleZoomIn}
+                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                  title="Zoom in"
+                >
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={handleZoomReset}
+                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded ml-1"
+                  title="Reset zoom"
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
               {/* Theme Toggle */}
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="p-2 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all hover:scale-110"
+                className="p-1.5 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
                 title="Toggle theme"
               >
                 {theme === 'dark' ? (
-                  <Sun className="h-5 w-5 text-yellow-500" />
+                  <Sun className="h-4 w-4 text-yellow-500" />
                 ) : (
-                  <Moon className="h-5 w-5 text-gray-700" />
+                  <Moon className="h-4 w-4 text-gray-700" />
                 )}
               </button>
 
               {/* Compact Mode Toggle */}
               <button
                 onClick={() => setCompactMode(!compactMode)}
-                className={`p-2 border rounded-lg transition-all hover:scale-110 ${
-                  compactMode ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
+                className={`p-1.5 border rounded-lg transition-all ${compactMode ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
                 title="Toggle compact mode"
               >
-                {compactMode ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+                {compactMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </button>
 
-              {/* Refresh Button with Animation */}
+              {/* Refresh Button */}
               <motion.button
                 onClick={() => fetchEntities()}
-                className="p-2 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all hover:scale-110"
+                className="p-1.5 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
                 whileTap={{ rotate: 180 }}
                 transition={{ duration: 0.3 }}
                 title="Refresh (Ctrl+R)"
               >
-                <RefreshCw className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                <RefreshCw className="h-4 w-4 text-gray-500 dark:text-gray-400" />
               </motion.button>
 
-              {/* Export Button with Dropdown */}
+              {/* Export Button */}
               <ExportButton
                 onExport={exportData}
-                formats={['excel', 'csv', 'pdf', 'json', 'xml', 'html']}
-                size="md"
+                formats={['excel', 'csv', 'pdf', 'json']}
+                size="sm"
                 variant="outline"
               />
 
-              {/* Create Button with Animation */}
+              {/* Create Button */}
               <motion.button
                 onClick={handleCreate}
-                className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all hover:scale-105 shadow-lg shadow-blue-500/25"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                className="flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm text-sm"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 title="Create new entity (Ctrl+N)"
               >
-                <Plus className="h-5 w-5 mr-2" />
-                New Entity
+                <Plus className="h-4 w-4 mr-1" />
+                New
               </motion.button>
             </motion.div>
           </div>
 
-          {/* Quick Actions Bar */}
-          <motion.div 
-            className="flex items-center justify-between mt-4"
-            initial={{ y: 20, opacity: 0 }}
+          {/* Quick Actions Bar - Compact */}
+          <motion.div
+            className="flex items-center justify-between mt-2"
+            initial={{ y: 10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
-            <div className="flex items-center space-x-4">
-              {/* Quick Filters */}
-              <div className="flex items-center space-x-2">
-                {quickFilters.map((filter, index) => {
+            <div className="flex items-center space-x-2">
+              {/* Quick Filters - Smaller */}
+              <div className="flex items-center space-x-1">
+                {quickFilters.slice(0, 6).map((filter, index) => {
                   const Icon = filter.icon;
                   const isSelected = selectedQuickFilter === filter.id;
-                  
+
                   return (
                     <motion.button
                       key={filter.id}
@@ -1049,20 +1242,19 @@ export default function EntitiesPage() {
                       animate="animate"
                       whileHover="hover"
                       whileTap="tap"
-                      transition={{ delay: index * 0.05 }}
+                      transition={{ delay: index * 0.02 }}
                       onClick={() => setSelectedQuickFilter(isSelected ? 'all' : filter.id)}
                       className={`
-                        flex items-center px-3 py-1.5 rounded-full text-sm font-medium
-                        transition-all hover:scale-105
-                        ${isSelected 
-                          ? `bg-${filter.color}-100 text-${filter.color}-700 dark:bg-${filter.color}-900 dark:text-${filter.color}-300 shadow-md` 
+                        flex items-center px-2 py-1 rounded-full text-xs font-medium
+                        transition-all
+                        ${isSelected
+                          ? `bg-${filter.color}-100 text-${filter.color}-700 dark:bg-${filter.color}-900 dark:text-${filter.color}-300 shadow-sm`
                           : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                         }
                       `}
                     >
-                      <Icon className={`h-4 w-4 mr-1.5 ${
-                        isSelected ? `text-${filter.color}-600 dark:text-${filter.color}-400` : ''
-                      }`} />
+                      <Icon className={`h-3 w-3 mr-1 ${isSelected ? `text-${filter.color}-600 dark:text-${filter.color}-400` : ''
+                        }`} />
                       {filter.label}
                     </motion.button>
                   );
@@ -1070,27 +1262,27 @@ export default function EntitiesPage() {
               </div>
 
               {/* View Presets */}
-              <div className="flex items-center space-x-2 border-l pl-4 ml-2 border-gray-300 dark:border-gray-700">
+              <div className="flex items-center space-x-1 border-l pl-2 ml-1 border-gray-300 dark:border-gray-700">
                 {viewPresets.map((preset) => {
                   const Icon = preset.icon;
                   const isSelected = selectedPreset === preset.id;
-                  
+
                   return (
                     <motion.button
                       key={preset.id}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => applyPreset(preset)}
                       className={`
-                        p-1.5 rounded-lg transition-all
-                        ${isSelected 
-                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 shadow-md' 
+                        p-1 rounded-lg transition-all
+                        ${isSelected
+                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 shadow-sm'
                           : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
                         }
                       `}
                       title={preset.name}
                     >
-                      <Icon className="h-4 w-4" />
+                      <Icon className="h-3.5 w-3.5" />
                     </motion.button>
                   );
                 })}
@@ -1098,69 +1290,68 @@ export default function EntitiesPage() {
             </div>
 
             {/* Right Actions */}
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
               {/* Bulk Actions */}
               <motion.button
                 onClick={toggleBulkMode}
-                className={`flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  bulkActionMode 
-                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300 shadow-md' 
+                className={`flex items-center px-2 py-1 rounded-lg text-xs font-medium transition-all ${bulkActionMode
+                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300 shadow-sm'
                     : 'border hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                  }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 title="Bulk mode (Ctrl+B)"
               >
-                <Layers className="h-4 w-4 mr-1.5" />
+                <Layers className="h-3.5 w-3.5 mr-1" />
                 Bulk
                 {selectedRows.size > 0 && (
-                  <span className="ml-1.5 px-1.5 py-0.5 bg-orange-500 text-white text-xs rounded-full">
+                  <span className="ml-1 px-1 py-0.5 bg-orange-500 text-white text-[10px] rounded-full">
                     {selectedRows.size}
                   </span>
                 )}
               </motion.button>
 
               {bulkActionMode && (
-                <motion.div 
-                  className="flex items-center space-x-2"
+                <motion.div
+                  className="flex items-center space-x-1"
                   initial={{ width: 0, opacity: 0 }}
                   animate={{ width: 'auto', opacity: 1 }}
                   exit={{ width: 0, opacity: 0 }}
                 >
                   <button
                     onClick={selectAll}
-                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300"
+                    className="px-1.5 py-0.5 text-[10px] bg-blue-100 text-blue-700 rounded hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300"
                   >
-                    Select All
+                    All
                   </button>
                   <button
                     onClick={deselectAll}
-                    className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
+                    className="px-1.5 py-0.5 text-[10px] bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
                   >
-                    Deselect All
+                    None
                   </button>
                   <button
                     onClick={() => bulkToggleStatus(true)}
-                    className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 dark:bg-green-900 dark:text-green-300"
+                    className="px-1.5 py-0.5 text-[10px] bg-green-100 text-green-700 rounded hover:bg-green-200 dark:bg-green-900 dark:text-green-300"
                   >
                     Activate
                   </button>
                   <button
                     onClick={() => bulkToggleStatus(false)}
-                    className="px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-300"
+                    className="px-1.5 py-0.5 text-[10px] bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-300"
                   >
                     Deactivate
                   </button>
                   <button
                     onClick={bulkDelete}
-                    className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 dark:bg-red-900 dark:text-red-300"
+                    className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-700 rounded hover:bg-red-200 dark:bg-red-900 dark:text-red-300"
                   >
                     Delete
                   </button>
                 </motion.div>
               )}
 
-              {/* View Mode Toggle */}
+              {/* View Mode Toggle - Compact */}
               <div className="flex border rounded-lg overflow-hidden">
                 {[
                   { mode: 'table', icon: List, label: 'Table' },
@@ -1170,66 +1361,50 @@ export default function EntitiesPage() {
                 ].map(({ mode, icon: Icon, label }) => (
                   <motion.button
                     key={mode}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setViewMode(mode as any)}
                     className={`
-                      p-2 transition-all
-                      ${viewMode === mode 
-                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
+                      p-1.5 transition-all text-xs
+                      ${viewMode === mode
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-sm'
                         : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400'
                       }
                     `}
-                    title={`${label} view (Ctrl+${mode === 'table' ? 'E' : mode === 'cards' ? 'C' : mode === 'kanban' ? 'K' : 'G'})`}
+                    title={`${label} view`}
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-3.5 w-3.5" />
                   </motion.button>
                 ))}
               </div>
             </div>
           </motion.div>
 
-          {/* Search and Filters */}
-          <motion.div 
-            className="mt-4 grid grid-cols-12 gap-4"
-            initial={{ y: 20, opacity: 0 }}
+          {/* Search and Filters - Compact */}
+          <motion.div
+            className="mt-2 grid grid-cols-12 gap-2"
+            initial={{ y: 10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
           >
             {/* Search Bar */}
             <div className="col-span-5 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
               <input
                 id="search-input"
                 type="text"
-                placeholder="Search entities (name, key, description, creator)..."
+                placeholder="Search entities..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-all hover:shadow-md"
+                className="w-full pl-8 pr-7 py-1.5 text-sm border rounded-lg focus:ring-1 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
               />
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm"
                 >
                   ×
                 </button>
-              )}
-              
-              {/* Recent Searches Dropdown */}
-              {searchTerm === '' && recentSearches.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border rounded-lg shadow-xl z-20">
-                  {recentSearches.map((term, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setSearchTerm(term)}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-                    >
-                      <Clock className="h-3 w-3 mr-2 text-gray-400" />
-                      {term}
-                    </button>
-                  ))}
-                </div>
               )}
             </div>
 
@@ -1238,11 +1413,11 @@ export default function EntitiesPage() {
               <select
                 value={selectedModule}
                 onChange={(e) => setSelectedModule(e.target.value as any)}
-                className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-all hover:shadow-md"
+                className="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-1 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
               >
-                <option value="all">All Modules</option>
-                <option value="re">🏠 RE Module</option>
-                <option value="expense">💰 Expense Module</option>
+                <option value="all">All</option>
+                <option value="re">🏠 RE</option>
+                <option value="expense">💰 Expense</option>
               </select>
             </div>
 
@@ -1251,13 +1426,13 @@ export default function EntitiesPage() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-all hover:shadow-md"
+                className="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-1 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
               >
-                <option value="name">Sort by Name</option>
-                <option value="entityKey">Sort by Key</option>
-                <option value="module">Sort by Module</option>
-                <option value="createdAt">Sort by Created Date</option>
-                <option value="updatedAt">Sort by Updated Date</option>
+                <option value="name">Name</option>
+                <option value="entityKey">Key</option>
+                <option value="module">Module</option>
+                <option value="createdAt">Created</option>
+                <option value="updatedAt">Updated</option>
               </select>
             </div>
 
@@ -1265,10 +1440,10 @@ export default function EntitiesPage() {
             <div className="col-span-1">
               <button
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className="w-full px-4 py-2.5 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 dark:border-gray-700 transition-all hover:shadow-md flex items-center justify-center"
+                className="w-full px-2 py-1.5 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 flex items-center justify-center text-sm"
                 title="Toggle sort order"
               >
-                {sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+                {sortOrder === 'asc' ? '↑' : '↓'}
               </button>
             </div>
 
@@ -1276,10 +1451,10 @@ export default function EntitiesPage() {
             <div className="col-span-1">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="w-full px-4 py-2.5 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 dark:border-gray-700 transition-all hover:shadow-md flex items-center justify-center"
-                title="Toggle filters (Ctrl+S)"
+                className="w-full px-2 py-1.5 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center text-sm"
+                title="Toggle filters"
               >
-                <Filter className="h-4 w-4 mr-2" />
+                <Filter className="h-3.5 w-3.5 mr-1" />
                 {showFilters ? 'Hide' : 'Show'}
               </button>
             </div>
@@ -1288,10 +1463,10 @@ export default function EntitiesPage() {
             <div className="col-span-1">
               <button
                 onClick={() => setShowStats(!showStats)}
-                className="w-full px-4 py-2.5 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 dark:border-gray-700 transition-all hover:shadow-md flex items-center justify-center"
+                className="w-full px-2 py-1.5 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center text-sm"
                 title="Toggle stats"
               >
-                <BarChart3 className="h-4 w-4 mr-2" />
+                <BarChart3 className="h-3.5 w-3.5 mr-1" />
                 Stats
               </button>
             </div>
@@ -1299,42 +1474,42 @@ export default function EntitiesPage() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className={`p-6 ${compactMode ? 'space-y-4' : 'space-y-6'}`}>
-        {/* Stats Cards */}
+      {/* Main Content - Perfectly Scaled */}
+      <div className={`p-4 ${compactMode ? 'space-y-3' : 'space-y-4'}`} style={{ zoom: 1 }}>
+        {/* Stats Cards - Compact */}
         <AnimatePresence>
           {showStats && (
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
             >
-              <div className="grid grid-cols-7 gap-4">
+              <div className="grid grid-cols-7 gap-3">
                 {/* Total Entities */}
                 <motion.div
                   variants={statsCardVariants}
                   initial="initial"
                   animate="animate"
                   whileHover="hover"
-                  className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all"
+                  className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-3 text-white shadow-sm"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-blue-100 text-sm">Total</p>
-                      <p className="text-3xl font-bold">{stats.current.total}</p>
+                      <p className="text-blue-100 text-[10px]">Total</p>
+                      <p className="text-xl font-bold">{stats.current.total}</p>
                     </div>
-                    <div className="p-3 bg-white/20 rounded-lg">
-                      <LayoutDashboard className="h-6 w-6" />
+                    <div className="p-1.5 bg-white/20 rounded-lg">
+                      <LayoutDashboard className="h-4 w-4" />
                     </div>
                   </div>
-                  <div className="mt-2 flex items-center text-xs text-blue-100">
+                  <div className="mt-1 flex items-center text-[9px] text-blue-100">
                     {stats.trends.total > 0 ? (
-                      <TrendingUp className="h-3 w-3 mr-1" />
+                      <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
                     ) : (
-                      <TrendingDown className="h-3 w-3 mr-1" />
+                      <TrendingDown className="h-2.5 w-2.5 mr-0.5" />
                     )}
-                    <span>{Math.abs(stats.trends.total)} from last week</span>
+                    <span>{Math.abs(stats.trends.total)}</span>
                   </div>
                 </motion.div>
 
@@ -1344,24 +1519,20 @@ export default function EntitiesPage() {
                   initial="initial"
                   animate="animate"
                   whileHover="hover"
-                  className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all"
+                  className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-3 text-white shadow-sm"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-indigo-100 text-sm">RE Module</p>
-                      <p className="text-3xl font-bold">{stats.current.re}</p>
+                      <p className="text-indigo-100 text-[10px]">RE</p>
+                      <p className="text-xl font-bold">{stats.current.re}</p>
                     </div>
-                    <div className="p-3 bg-white/20 rounded-lg">
-                      <DollarSign className="h-6 w-6" />
+                    <div className="p-1.5 bg-white/20 rounded-lg">
+                      <DollarSign className="h-4 w-4" />
                     </div>
                   </div>
-                  <div className="mt-2 flex items-center text-xs text-indigo-100">
-                    {stats.trends.re > 0 ? (
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3 mr-1" />
-                    )}
-                    <span>{Math.abs(stats.trends.re)} from last week</span>
+                  <div className="mt-1 flex items-center text-[9px] text-indigo-100">
+                    {stats.trends.re > 0 ? <TrendingUp className="h-2.5 w-2.5 mr-0.5" /> : <TrendingDown className="h-2.5 w-2.5 mr-0.5" />}
+                    <span>{Math.abs(stats.trends.re)}</span>
                   </div>
                 </motion.div>
 
@@ -1371,24 +1542,20 @@ export default function EntitiesPage() {
                   initial="initial"
                   animate="animate"
                   whileHover="hover"
-                  className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all"
+                  className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-3 text-white shadow-sm"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-green-100 text-sm">Expense Module</p>
-                      <p className="text-3xl font-bold">{stats.current.expense}</p>
+                      <p className="text-green-100 text-[10px]">Expense</p>
+                      <p className="text-xl font-bold">{stats.current.expense}</p>
                     </div>
-                    <div className="p-3 bg-white/20 rounded-lg">
-                      <CreditCard className="h-6 w-6" />
+                    <div className="p-1.5 bg-white/20 rounded-lg">
+                      <CreditCard className="h-4 w-4" />
                     </div>
                   </div>
-                  <div className="mt-2 flex items-center text-xs text-green-100">
-                    {stats.trends.expense > 0 ? (
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3 mr-1" />
-                    )}
-                    <span>{Math.abs(stats.trends.expense)} from last week</span>
+                  <div className="mt-1 flex items-center text-[9px] text-green-100">
+                    {stats.trends.expense > 0 ? <TrendingUp className="h-2.5 w-2.5 mr-0.5" /> : <TrendingDown className="h-2.5 w-2.5 mr-0.5" />}
+                    <span>{Math.abs(stats.trends.expense)}</span>
                   </div>
                 </motion.div>
 
@@ -1398,24 +1565,20 @@ export default function EntitiesPage() {
                   initial="initial"
                   animate="animate"
                   whileHover="hover"
-                  className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all"
+                  className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-3 text-white shadow-sm"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-purple-100 text-sm">Approval</p>
-                      <p className="text-3xl font-bold">{stats.current.approval}</p>
+                      <p className="text-purple-100 text-[10px]">Approval</p>
+                      <p className="text-xl font-bold">{stats.current.approval}</p>
                     </div>
-                    <div className="p-3 bg-white/20 rounded-lg">
-                      <Shield className="h-6 w-6" />
+                    <div className="p-1.5 bg-white/20 rounded-lg">
+                      <Shield className="h-4 w-4" />
                     </div>
                   </div>
-                  <div className="mt-2 flex items-center text-xs text-purple-100">
-                    {stats.trends.approval > 0 ? (
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3 mr-1" />
-                    )}
-                    <span>{Math.abs(stats.trends.approval)} from last week</span>
+                  <div className="mt-1 flex items-center text-[9px] text-purple-100">
+                    {stats.trends.approval > 0 ? <TrendingUp className="h-2.5 w-2.5 mr-0.5" /> : <TrendingDown className="h-2.5 w-2.5 mr-0.5" />}
+                    <span>{Math.abs(stats.trends.approval)}</span>
                   </div>
                 </motion.div>
 
@@ -1425,19 +1588,19 @@ export default function EntitiesPage() {
                   initial="initial"
                   animate="animate"
                   whileHover="hover"
-                  className="bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all"
+                  className="bg-gradient-to-br from-gray-500 to-gray-600 rounded-lg p-3 text-white shadow-sm"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-gray-100 text-sm">Inactive</p>
-                      <p className="text-3xl font-bold">{stats.current.disabled}</p>
+                      <p className="text-gray-100 text-[10px]">Inactive</p>
+                      <p className="text-xl font-bold">{stats.current.disabled}</p>
                     </div>
-                    <div className="p-3 bg-white/20 rounded-lg">
-                      <PowerOff className="h-6 w-6" />
+                    <div className="p-1.5 bg-white/20 rounded-lg">
+                      <PowerOff className="h-4 w-4" />
                     </div>
                   </div>
-                  <div className="mt-2 text-xs text-gray-100">
-                    {((stats.current.disabled / stats.current.total) * 100 || 0).toFixed(1)}% of total
+                  <div className="mt-1 text-[9px] text-gray-100">
+                    {((stats.current.disabled / stats.current.total) * 100 || 0).toFixed(0)}%
                   </div>
                 </motion.div>
 
@@ -1447,15 +1610,15 @@ export default function EntitiesPage() {
                   initial="initial"
                   animate="animate"
                   whileHover="hover"
-                  className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all"
+                  className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg p-3 text-white shadow-sm"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-yellow-100 text-sm">Favorites</p>
-                      <p className="text-3xl font-bold">{stats.current.favorites}</p>
+                      <p className="text-yellow-100 text-[10px]">Fav</p>
+                      <p className="text-xl font-bold">{stats.current.favorites}</p>
                     </div>
-                    <div className="p-3 bg-white/20 rounded-lg">
-                      <Star className="h-6 w-6" />
+                    <div className="p-1.5 bg-white/20 rounded-lg">
+                      <Star className="h-4 w-4" />
                     </div>
                   </div>
                 </motion.div>
@@ -1466,21 +1629,18 @@ export default function EntitiesPage() {
                   initial="initial"
                   animate="animate"
                   whileHover="hover"
-                  className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all"
+                  className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg p-3 text-white shadow-sm"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-pink-100 text-sm">Active Now</p>
-                      <p className="text-3xl font-bold">
-                        {entities.filter(e => differenceInDays(new Date(), new Date(e.updatedAt)) < 1).length}
+                      <p className="text-pink-100 text-[10px]">24h</p>
+                      <p className="text-xl font-bold">
+                        {entities.filter(e => differenceInHours(new Date(), new Date(e.updatedAt)) < 24).length}
                       </p>
                     </div>
-                    <div className="p-3 bg-white/20 rounded-lg">
-                      <Activity className="h-6 w-6" />
+                    <div className="p-1.5 bg-white/20 rounded-lg">
+                      <Activity className="h-4 w-4" />
                     </div>
-                  </div>
-                  <div className="mt-2 text-xs text-pink-100">
-                    Updated in last 24h
                   </div>
                 </motion.div>
               </div>
@@ -1488,520 +1648,325 @@ export default function EntitiesPage() {
           )}
         </AnimatePresence>
 
-        {/* Advanced Filters Panel */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-lg"
-            >
-              <div className="grid grid-cols-4 gap-4">
-                {/* Date Range */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Created Date Range
-                  </label>
-                  <div className="flex space-x-2">
-                    <input
-                      type="date"
-                      className="flex-1 px-3 py-2 border rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600"
-                    />
-                    <span className="text-gray-400">to</span>
-                    <input
-                      type="date"
-                      className="flex-1 px-3 py-2 border rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600"
-                    />
-                  </div>
+        {/* Analytics Charts - Seaborn Style */}
+        {showCharts && analyticsData && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid grid-cols-4 gap-3"
+          >
+            {/* Line Chart - Daily Trend */}
+            <div className="col-span-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-medium text-gray-700 dark:text-gray-300">Daily Trend</h3>
+                <div className="flex items-center space-x-1">
+                  <span className="text-[10px] text-gray-500">+{stats.trends.growth.toFixed(1)}%</span>
+                  {stats.trends.growth > 0 ? (
+                    <TrendingUp className="h-3 w-3 text-green-500" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3 text-red-500" />
+                  )}
                 </div>
+              </div>
+              <div style={{ height: '120px' }}>
+                <Line data={lineChartData} options={{ ...chartOptions, plugins: { ...chartOptions.plugins, legend: { display: false } } }} />
+              </div>
+            </div>
 
-                {/* Branch Filter */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Branch
-                  </label>
-                  <select className="w-full px-3 py-2 border rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600">
-                    <option value="">All Branches</option>
-                    <option value="karachi">Karachi</option>
-                    <option value="lahore">Lahore</option>
-                    <option value="islamabad">Islamabad</option>
-                  </select>
+            {/* Bar Chart - Monthly */}
+            <div className="col-span-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-medium text-gray-700 dark:text-gray-300">Monthly Growth</h3>
+                <button
+                  onClick={() => setIsAnalyticsModalOpen(true)}
+                  className="text-[10px] text-blue-600 hover:text-blue-700"
+                >
+                  View Details →
+                </button>
+              </div>
+              <div style={{ height: '120px' }}>
+                <Bar data={barChartData} options={{ ...chartOptions, plugins: { ...chartOptions.plugins, legend: { display: false } } }} />
+              </div>
+            </div>
+
+            {/* Pie Chart - Module Distribution */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm">
+              <h3 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Modules</h3>
+              <div style={{ height: '100px' }} className="flex justify-center">
+                <Pie data={pieChartData} options={{ ...chartOptions, plugins: { ...chartOptions.plugins, legend: { display: false } } }} />
+              </div>
+              <div className="mt-2 flex justify-center space-x-3 text-[10px]">
+                <div className="flex items-center">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 mr-1"></div>
+                  <span>RE: {stats.current.re}</span>
                 </div>
-
-                {/* Created By */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Created By
-                  </label>
-                  <select className="w-full px-3 py-2 border rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600">
-                    <option value="">Anyone</option>
-                    <option value="admin">Admin</option>
-                    <option value="user">User</option>
-                  </select>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 rounded-full bg-green-500 mr-1"></div>
+                  <span>Expense: {stats.current.expense}</span>
                 </div>
+              </div>
+            </div>
 
-                {/* Tags */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Tags
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter tags..."
-                    className="w-full px-3 py-2 border rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600"
+            {/* Doughnut Chart - Status */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm">
+              <h3 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Status</h3>
+              <div style={{ height: '100px' }} className="flex justify-center">
+                <Doughnut data={doughnutChartData} options={{ ...chartOptions, plugins: { ...chartOptions.plugins, legend: { display: false } } }} />
+              </div>
+              <div className="mt-2 flex justify-center space-x-3 text-[10px]">
+                <div className="flex items-center">
+                  <div className="w-2 h-2 rounded-full bg-green-500 mr-1"></div>
+                  <span>Active: {stats.current.total - stats.current.disabled}</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 rounded-full bg-gray-500 mr-1"></div>
+                  <span>Inactive: {stats.current.disabled}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Radar Chart - Comparison */}
+            <div className="col-span-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm">
+              <h3 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Performance Comparison</h3>
+              <div style={{ height: '120px' }}>
+                <Radar data={radarChartData} options={{ ...chartOptions, maintainAspectRatio: true }} />
+              </div>
+            </div>
+
+            {/* Mini Heatmap */}
+            <div className="col-span-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm">
+              <h3 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Activity Heatmap</h3>
+              <div className="grid grid-cols-24 gap-0.5 h-[80px]">
+                {analyticsData.activityHeatmap.slice(0, 168).map((cell, i) => (
+                  <div
+                    key={i}
+                    className="flex-1"
+                    style={{
+                      backgroundColor: `rgba(139, 92, 246, ${cell.count / 50})`,
+                      height: '100%'
+                    }}
+                    title={`Hour: ${cell.hour}, Day: ${cell.day}, Count: ${cell.count}`}
                   />
-                </div>
+                ))}
               </div>
+              <div className="mt-2 flex justify-between text-[8px] text-gray-500">
+                <span>Mon</span>
+                <span>Tue</span>
+                <span>Wed</span>
+                <span>Thu</span>
+                <span>Fri</span>
+                <span>Sat</span>
+                <span>Sun</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
-              <div className="flex justify-end mt-4 space-x-2">
-                <button className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                  Reset Filters
-                </button>
-                <button className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                  Apply Filters
-                </button>
-              </div>
+        {/* Results Info */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Showing <span className="font-medium">{filteredEntities.length}</span> of{' '}
+              <span className="font-medium">{entities.length}</span> entities
+            </p>
+            {selectedRows.size > 0 && (
+              <p className="text-xs text-blue-600 dark:text-blue-400">
+                {selectedRows.size} selected
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-2 text-[10px] text-gray-500 dark:text-gray-400">
+            <span>Page {page}</span>
+            <span>•</span>
+            <span>Updated {formatDistance(new Date(), new Date())} ago</span>
+          </div>
+        </div>
+
+        {/* View Modes */}
+        <AnimatePresence mode="wait">
+          {viewMode === 'table' && (
+            <motion.div
+              key="table"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.2 }}
+            >
+              <EntitiesTable
+                entities={filteredEntities}
+                isLoading={isLoading}
+                onEdit={handleEdit}
+                onView={handleView}
+                onToggle={handleToggleStatus}
+                onDelete={handleDelete}
+                onClone={handleClone}
+                onArchive={handleArchive}
+                onToggleFavorite={toggleFavorite}
+                favorites={favorites}
+                selectedRows={selectedRows}
+                onToggleRowSelection={toggleRowSelection}
+                bulkMode={bulkActionMode}
+                compactMode={compactMode}
+              />
+            </motion.div>
+          )}
+
+          {viewMode === 'cards' && (
+            <motion.div
+              key="cards"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+              className={`grid ${compactMode ? 'grid-cols-5 gap-2' : 'grid-cols-4 gap-3'}`}
+            >
+              {filteredEntities.map((entity, index) => {
+                if (!entity) return null;
+
+                const Icon = entity.module === 're' ? DollarSign : CreditCard;
+                const color = entity.module === 're' ? 'blue' : 'green';
+                const isFavorite = favorites.includes(entity._id);
+                const isSelected = selectedRows.has(entity._id);
+
+                return (
+                  <motion.div
+                    key={entity._id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.02 }}
+                    whileHover={{ y: -2, scale: 1.01 }}
+                    className={`
+                      bg-white dark:bg-gray-800 rounded-lg border shadow-sm 
+                      hover:shadow transition-all cursor-pointer relative overflow-hidden
+                      ${!entity.isEnabled ? 'opacity-60' : ''}
+                      ${isSelected ? 'ring-2 ring-blue-500' : ''}
+                      ${compactMode ? 'p-2' : 'p-3'}
+                    `}
+                    onClick={() => bulkActionMode ? toggleRowSelection(entity._id) : handleView(entity)}
+                  >
+                    {/* Selection Checkbox */}
+                    {bulkActionMode && (
+                      <div className="absolute top-1 left-1 z-10">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleRowSelection(entity._id)}
+                          className="w-3 h-3 rounded border-gray-300 text-blue-600"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    )}
+
+                    {/* Favorite Star */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite(entity._id);
+                      }}
+                      className={`absolute top-1 right-1 p-0.5 rounded-full transition-all ${isFavorite
+                          ? 'text-yellow-500'
+                          : 'text-gray-300 hover:text-gray-400 dark:text-gray-600'
+                        }`}
+                    >
+                      <Star className={`h-3 w-3 ${isFavorite ? 'fill-current' : ''}`} />
+                    </button>
+
+                    {/* Icon and Name */}
+                    <div className="flex items-start space-x-2">
+                      <div className={`p-1 rounded-lg bg-${color}-100 dark:bg-${color}-900/30`}>
+                        <Icon className={`h-3.5 w-3.5 text-${color}-600 dark:text-${color}-400`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className={`font-medium text-gray-900 dark:text-white truncate text-xs`}>
+                          {entity.name || 'Untitled'}
+                        </h3>
+                        <div className="flex items-center mt-0.5">
+                          <code className="text-[9px] bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded font-mono">
+                            {entity.entityKey || 'N/A'}
+                          </code>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tags */}
+                    <div className="mt-2 flex flex-wrap gap-0.5">
+                      {entity.enableApproval && (
+                        <span className="inline-flex items-center px-1 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-[8px] rounded-full">
+                          <Shield className="h-2 w-2 mr-0.5" />
+                          Approval
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="mt-2 flex items-center justify-between text-[8px] text-gray-500 dark:text-gray-400">
+                      <div className="flex items-center">
+                        <Clock className="h-2 w-2 mr-0.5" />
+                        {formatDistance(new Date(entity.updatedAt), new Date(), { addSuffix: true })}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Main Content Area */}
-        <div className={`transition-all ${compactMode ? 'space-y-3' : 'space-y-4'}`}>
-          {/* Results Info */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Showing <span className="font-medium text-gray-900 dark:text-white">{filteredEntities.length}</span> of{' '}
-                <span className="font-medium text-gray-900 dark:text-white">{entities.length}</span> entities
-              </p>
-              {selectedRows.size > 0 && (
-                <p className="text-sm text-blue-600 dark:text-blue-400">
-                  {selectedRows.size} selected
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-              <span>Page {page}</span>
-              <span>•</span>
-              <span>Updated {formatDistance(new Date(), new Date())} ago</span>
+        {/* Load More */}
+        {hasMore && (
+          <div ref={loadMoreRef} className="py-3 text-center">
+            <div className="inline-flex items-center space-x-1 text-gray-500 text-xs">
+              <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-600 border-t-transparent"></div>
+              <span>Loading...</span>
             </div>
           </div>
-
-          {/* View Modes */}
-          <AnimatePresence mode="wait">
-            {viewMode === 'table' && (
-              <motion.div
-                key="table"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <EntitiesTable
-                  entities={filteredEntities}
-                  isLoading={isLoading}
-                  onEdit={handleEdit}
-                  onView={handleView}
-                  onToggle={handleToggleStatus}
-                  onDelete={handleDelete}
-                  onClone={handleClone}
-                  onArchive={handleArchive}
-                  onToggleFavorite={toggleFavorite}
-                  favorites={favorites}
-                  selectedRows={selectedRows}
-                  onToggleRowSelection={toggleRowSelection}
-                  bulkMode={bulkActionMode}
-                  compactMode={compactMode}
-                />
-              </motion.div>
-            )}
-
-            {viewMode === 'cards' && (
-              <motion.div
-                key="cards"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.3 }}
-                className={`grid ${compactMode ? 'grid-cols-4 gap-3' : 'grid-cols-3 gap-4'}`}
-              >
-                {filteredEntities.map((entity, index) => {
-                  if (!entity) return null;
-                  
-                  const Icon = getModuleIcon(entity.module);
-                  const color = getModuleColor(entity.module);
-                  const isFavorite = favorites.includes(entity._id);
-                  const isSelected = selectedRows.has(entity._id);
-
-                  return (
-                    <motion.div
-                      key={entity._id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      whileHover={{ y: -5, scale: 1.02 }}
-                      className={`
-                        bg-white dark:bg-gray-800 rounded-xl border shadow-lg 
-                        hover:shadow-xl transition-all cursor-pointer relative overflow-hidden
-                        ${!entity.isEnabled ? 'opacity-60' : ''}
-                        ${isSelected ? 'ring-2 ring-blue-500' : ''}
-                        ${compactMode ? 'p-3' : 'p-4'}
-                      `}
-                      onClick={() => bulkActionMode ? toggleRowSelection(entity._id) : handleView(entity)}
-                    >
-                      {/* Background Pattern */}
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-gray-100 to-transparent dark:from-gray-700 rounded-full blur-3xl opacity-50"></div>
-                      
-                      {/* Selection Checkbox */}
-                      {bulkActionMode && (
-                        <div className="absolute top-2 left-2 z-10">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleRowSelection(entity._id)}
-                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                      )}
-
-                      {/* Favorite Star */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleFavorite(entity._id);
-                        }}
-                        className={`absolute top-2 right-2 p-1 rounded-full transition-all ${
-                          isFavorite 
-                            ? 'text-yellow-500 hover:text-yellow-600' 
-                            : 'text-gray-300 hover:text-gray-400 dark:text-gray-600'
-                        }`}
-                      >
-                        <Star className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
-                      </button>
-
-                      {/* Icon and Name */}
-                      <div className="flex items-start space-x-3">
-                        <div className={`p-2 rounded-lg bg-${color}-100 dark:bg-${color}-900/30`}>
-                          <Icon className={`h-5 w-5 text-${color}-600 dark:text-${color}-400`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className={`font-semibold text-gray-900 dark:text-white truncate ${
-                            compactMode ? 'text-sm' : 'text-base'
-                          }`}>
-                            {entity.name || 'Untitled'}
-                          </h3>
-                          <div className="flex items-center mt-0.5 space-x-2">
-                            <code className="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded font-mono">
-                              {entity.entityKey || 'N/A'}
-                            </code>
-                            {entity.branchId && (
-                              <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                                <MapPin className="h-3 w-3 mr-0.5" />
-                                {entity.branchId}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Description */}
-                      {entity.description && !compactMode && (
-                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                          {entity.description}
-                        </p>
-                      )}
-
-                      {/* Tags */}
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {entity.enableApproval && (
-                          <span className="inline-flex items-center px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs rounded-full">
-                            <Shield className="h-3 w-3 mr-1" />
-                            Approval
-                          </span>
-                        )}
-                        {!entity.isEnabled && (
-                          <span className="inline-flex items-center px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs rounded-full">
-                            <PowerOff className="h-3 w-3 mr-1" />
-                            Inactive
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Footer */}
-                      <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                        <div className="flex items-center">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {formatDistance(new Date(entity.updatedAt), new Date(), { addSuffix: true })}
-                        </div>
-                        <div className="flex items-center">
-                          <User className="h-3 w-3 mr-1" />
-                          {entity.updatedBy?.fullName?.split(' ')[0] || 'System'}
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </motion.div>
-            )}
-
-            {viewMode === 'kanban' && (
-              <motion.div
-                key="kanban"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="grid grid-cols-4 gap-4 h-[calc(100vh-300px)] overflow-x-auto"
-              >
-                {/* Active Column */}
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-medium text-gray-900 dark:text-white flex items-center">
-                      <Zap className="h-4 w-4 mr-2 text-green-500" />
-                      Active
-                    </h3>
-                    <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded-full">
-                      {filteredEntities.filter(e => e.isEnabled && !e.enableApproval).length}
-                    </span>
-                  </div>
-                  <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-400px)]">
-                    {filteredEntities
-                      .filter(e => e.isEnabled && !e.enableApproval)
-                      .map(entity => (
-                        <motion.div
-                          key={entity._id}
-                          draggable
-                          className="bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm hover:shadow-md cursor-move"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <div className={`p-1.5 rounded bg-${getModuleColor(entity.module)}-100`}>
-                              {getModuleIcon(entity.module)({ className: `h-3 w-3 text-${getModuleColor(entity.module)}-600` })}
-                            </div>
-                            <span className="font-medium text-sm truncate">{entity.name}</span>
-                          </div>
-                          <div className="mt-2 text-xs text-gray-500">
-                            Updated {formatDistance(new Date(entity.updatedAt), new Date(), { addSuffix: true })}
-                          </div>
-                        </motion.div>
-                      ))}
-                  </div>
-                </div>
-
-                {/* Pending Approval Column */}
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-medium text-gray-900 dark:text-white flex items-center">
-                      <Shield className="h-4 w-4 mr-2 text-purple-500" />
-                      Pending Approval
-                    </h3>
-                    <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs rounded-full">
-                      {filteredEntities.filter(e => e.enableApproval && e.isEnabled).length}
-                    </span>
-                  </div>
-                  <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-400px)]">
-                    {filteredEntities
-                      .filter(e => e.enableApproval && e.isEnabled)
-                      .map(entity => (
-                        <motion.div
-                          key={entity._id}
-                          className="bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <div className={`p-1.5 rounded bg-${getModuleColor(entity.module)}-100`}>
-                              {getModuleIcon(entity.module)({ className: `h-3 w-3 text-${getModuleColor(entity.module)}-600` })}
-                            </div>
-                            <span className="font-medium text-sm truncate">{entity.name}</span>
-                          </div>
-                        </motion.div>
-                      ))}
-                  </div>
-                </div>
-
-                {/* Inactive Column */}
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-medium text-gray-900 dark:text-white flex items-center">
-                      <PowerOff className="h-4 w-4 mr-2 text-gray-500" />
-                      Inactive
-                    </h3>
-                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs rounded-full">
-                      {filteredEntities.filter(e => !e.isEnabled).length}
-                    </span>
-                  </div>
-                  <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-400px)]">
-                    {filteredEntities
-                      .filter(e => !e.isEnabled)
-                      .map(entity => (
-                        <motion.div
-                          key={entity._id}
-                          className="bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm opacity-60"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <div className={`p-1.5 rounded bg-${getModuleColor(entity.module)}-100`}>
-                              {getModuleIcon(entity.module)({ className: `h-3 w-3 text-${getModuleColor(entity.module)}-600` })}
-                            </div>
-                            <span className="font-medium text-sm truncate">{entity.name}</span>
-                          </div>
-                        </motion.div>
-                      ))}
-                  </div>
-                </div>
-
-                {/* Recent Column */}
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-medium text-gray-900 dark:text-white flex items-center">
-                      <Clock className="h-4 w-4 mr-2 text-orange-500" />
-                      Recent
-                    </h3>
-                    <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs rounded-full">
-                      {filteredEntities.filter(e => differenceInDays(new Date(), new Date(e.createdAt)) < 7).length}
-                    </span>
-                  </div>
-                  <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-400px)]">
-                    {filteredEntities
-                      .filter(e => differenceInDays(new Date(), new Date(e.createdAt)) < 7)
-                      .map(entity => (
-                        <motion.div
-                          key={entity._id}
-                          className="bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <div className={`p-1.5 rounded bg-${getModuleColor(entity.module)}-100`}>
-                              {getModuleIcon(entity.module)({ className: `h-3 w-3 text-${getModuleColor(entity.module)}-600` })}
-                            </div>
-                            <span className="font-medium text-sm truncate">{entity.name}</span>
-                          </div>
-                          <div className="mt-2 text-xs text-gray-500">
-                            Created {formatDistance(new Date(entity.createdAt), new Date(), { addSuffix: true })}
-                          </div>
-                        </motion.div>
-                      ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {viewMode === 'gallery' && (
-              <motion.div
-                key="gallery"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="columns-3 gap-4 space-y-4"
-              >
-                {filteredEntities.map((entity, index) => (
-                  <motion.div
-                    key={entity._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="break-inside-avoid bg-white dark:bg-gray-800 rounded-xl border shadow-lg hover:shadow-xl overflow-hidden"
-                  >
-                    <div className={`h-32 bg-gradient-to-r ${
-                      entity.module === 're' 
-                        ? 'from-blue-500 to-indigo-600' 
-                        : 'from-green-500 to-emerald-600'
-                    } p-4`}>
-                      <div className="flex items-center space-x-2 text-white">
-                        <div className="p-2 bg-white/20 rounded-lg">
-                          {entity.module === 're' ? (
-                            <DollarSign className="h-6 w-6" />
-                          ) : (
-                            <CreditCard className="h-6 w-6" />
-                          )}
-                        </div>
-                        <div>
-                          <h3 className="font-bold">{entity.name}</h3>
-                          <p className="text-xs opacity-90">{entity.entityKey}</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="p-4">
-                      {entity.description && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                          {entity.description}
-                        </p>
-                      )}
-                      
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <div className="flex items-center">
-                          <User className="h-3 w-3 mr-1" />
-                          {entity.createdBy?.fullName || 'System'}
-                        </div>
-                        <div className="flex items-center">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          {format(new Date(entity.createdAt), 'PP')}
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Load More Trigger */}
-          {hasMore && (
-            <div ref={loadMoreRef} className="py-4 text-center">
-              <div className="inline-flex items-center space-x-2 text-gray-500">
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
-                <span>Loading more...</span>
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* Floating Action Menu */}
-      <motion.div 
-        className="fixed bottom-6 right-6 z-50 flex flex-col items-end space-y-2"
+      {/* Floating Action Menu - Compact */}
+      <motion.div
+        className="fixed bottom-4 right-4 z-50 flex flex-col items-end space-y-1.5"
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
-        transition={{ delay: 0.5, type: 'spring' }}
+        transition={{ delay: 0.3, type: 'spring' }}
       >
-        {/* Help Button */}
         <button
-          onClick={() => setIsHelpModalOpen(true)}
-          className="p-3 bg-purple-600 text-white rounded-full shadow-lg hover:bg-purple-700 transition-all hover:scale-110"
-          title="Help (F1)"
+          onClick={() => setIsAnalyticsModalOpen(true)}
+          className="p-2 bg-purple-600 text-white rounded-full shadow-lg hover:bg-purple-700 transition-all hover:scale-105"
+          title="Analytics"
         >
-          <HelpCircle className="h-5 w-5" />
+          <BarChart3 className="h-4 w-4" />
         </button>
 
-        {/* Keyboard Shortcuts */}
-        <button
-          onClick={() => setIsKeyboardShortcutsModalOpen(true)}
-          className="p-3 bg-gray-600 text-white rounded-full shadow-lg hover:bg-gray-700 transition-all hover:scale-110"
-          title="Keyboard shortcuts (Ctrl+H)"
-        >
-          <Command className="h-5 w-5" />
-        </button>
-
-        {/* Settings */}
         <button
           onClick={() => setIsSettingsModalOpen(true)}
-          className="p-3 bg-gray-800 text-white rounded-full shadow-lg hover:bg-gray-900 transition-all hover:scale-110"
+          className="p-2 bg-gray-700 text-white rounded-full shadow-lg hover:bg-gray-800 transition-all hover:scale-105"
           title="Settings"
         >
-          <Settings className="h-5 w-5" />
+          <Settings className="h-4 w-4" />
         </button>
-
-        {/* Scroll to Top */}
+        <button
+          onClick={() => setIsKeyboardShortcutsModalOpen(true)}
+          className="p-2 bg-gray-600 text-white rounded-full shadow-lg hover:bg-gray-700 transition-all hover:scale-105"
+          title="Keyboard shortcuts"
+        >
+          <Command className="h-4 w-4" />
+        </button>
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110"
+          className="p-2 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-all hover:scale-105"
           title="Scroll to top"
         >
-          <ArrowUp className="h-5 w-5" />
+          <ArrowUp className="h-4 w-4" />
         </button>
       </motion.div>
 
-      {/* Modals */}
+      {/* ============================================
+          MODALS
+          ============================================ */}
+
+      {/* Create Entity Modal */}
       <AnimatePresence>
         {isCreateModalOpen && (
           <CreateEntityModal
@@ -2013,7 +1978,10 @@ export default function EntitiesPage() {
             }}
           />
         )}
+      </AnimatePresence>
 
+      {/* Edit Entity Modal */}
+      <AnimatePresence>
         {isEditModalOpen && selectedEntity && (
           <EditEntityModal
             isOpen={isEditModalOpen}
@@ -2028,7 +1996,10 @@ export default function EntitiesPage() {
             }}
           />
         )}
+      </AnimatePresence>
 
+      {/* View Entity Modal */}
+      <AnimatePresence>
         {isViewModalOpen && selectedEntity && (
           <ViewEntityModal
             isOpen={isViewModalOpen}
@@ -2039,6 +2010,168 @@ export default function EntitiesPage() {
             entity={selectedEntity}
             onToggleFavorite={toggleFavorite}
             isFavorite={favorites.includes(selectedEntity._id)}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onClone={handleClone}
+            onArchive={handleArchive}
+            onRefresh={fetchEntities}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Edit Modal */}
+      <AnimatePresence>
+        {isBulkEditModalOpen && selectedRows.size > 0 && (
+          <BulkEditModal
+            isOpen={isBulkEditModalOpen}
+            onClose={() => setIsBulkEditModalOpen(false)}
+            entityIds={Array.from(selectedRows)}
+            entities={entities.filter(e => selectedRows.has(e._id))}
+            onSuccess={() => {
+              fetchEntities();
+              setSelectedRows(new Set());
+              setBulkActionMode(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Share Modal */}
+      <AnimatePresence>
+        {isShareModalOpen && selectedEntity && (
+          <ShareModal
+            isOpen={isShareModalOpen}
+            onClose={() => setIsShareModalOpen(false)}
+            entity={selectedEntity}
+            shareUrl={`${window.location.origin}/admin/financial-tracker/entities/${selectedEntity._id}`}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Export Modal */}
+      <AnimatePresence>
+        {isExportModalOpen && (
+          <ExportModal
+            isOpen={isExportModalOpen}
+            onClose={() => setIsExportModalOpen(false)}
+            onExport={exportData}
+            selectedCount={selectedRows.size}
+            totalCount={filteredEntities.length}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Import Modal */}
+      <AnimatePresence>
+        {isImportModalOpen && (
+          <ImportModal
+            isOpen={isImportModalOpen}
+            onClose={() => setIsImportModalOpen(false)}
+            onSuccess={() => {
+              fetchEntities();
+              toast.success('Entities imported successfully');
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Clone Modal */}
+      <AnimatePresence>
+        {isCloneModalOpen && selectedEntity && (
+          <CloneModal
+            isOpen={isCloneModalOpen}
+            onClose={() => setIsCloneModalOpen(false)}
+            entity={selectedEntity}
+            onSuccess={(clonedEntity: any) => {
+              fetchEntities();
+              toast.success(`Entity cloned successfully`);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Archive Modal */}
+      <AnimatePresence>
+        {isArchiveModalOpen && selectedEntity && (
+          <ArchiveModal
+            isOpen={isArchiveModalOpen}
+            onClose={() => setIsArchiveModalOpen(false)}
+            entity={selectedEntity}
+            onConfirm={async () => {
+              await handleArchive(selectedEntity._id);
+              setIsArchiveModalOpen(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+
+
+      {/* Analytics Modal */}
+      <AnimatePresence>
+
+        {isAnalyticsModalOpen && analyticsData && (
+          <AnalyticsModal
+            isOpen={isAnalyticsModalOpen}
+            onClose={() => setIsAnalyticsModalOpen(false)}
+            analyticsData={analyticsData}
+            stats={stats}
+            entities={entities}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {isSettingsModalOpen && (
+          <SettingsModal
+            isOpen={isSettingsModalOpen}
+            onClose={() => setIsSettingsModalOpen(false)}
+            theme={theme}
+            setTheme={setTheme}
+            compactMode={compactMode}
+            setCompactMode={setCompactMode}
+            zoomLevel={zoomLevel}
+            setZoomLevel={setZoomLevel}
+            chartDensity={chartDensity}
+            setChartDensity={setChartDensity}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Keyboard Shortcuts Modal */}
+      <AnimatePresence>
+        {isKeyboardShortcutsModalOpen && (
+          <KeyboardShortcutsModal
+            isOpen={isKeyboardShortcutsModalOpen}
+            onClose={() => setIsKeyboardShortcutsModalOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Tour Modal */}
+      <AnimatePresence>
+        {isTourModalOpen && (
+          <TourModal
+            isOpen={isTourModalOpen}
+            onClose={() => setIsTourModalOpen(false)}
+            onComplete={() => {
+              toast.success('Tour completed! You\'re ready to go!');
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Feedback Modal */}
+      <AnimatePresence>
+        {isFeedbackModalOpen && (
+          <FeedbackModal
+            isOpen={isFeedbackModalOpen}
+            onClose={() => setIsFeedbackModalOpen(false)}
+            onSubmit={(feedback: any) => {
+              toast.success('Thank you for your feedback!');
+              console.log('Feedback:', feedback);
+            }}
           />
         )}
       </AnimatePresence>
@@ -2046,22 +2179,9 @@ export default function EntitiesPage() {
   );
 }
 
-// Add missing ArrowUp import
+// Helper components
 const ArrowUp = (props: any) => (
   <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M12 19V5M5 12l7-7 7 7" />
-  </svg>
-);
-
-const ArrowDown = (props: any) => (
-  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M12 5v14M5 12l7 7 7-7" />
-  </svg>
-);
-
-const User = (props: any) => (
-  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
   </svg>
 );

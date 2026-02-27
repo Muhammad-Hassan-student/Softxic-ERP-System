@@ -22,6 +22,11 @@ interface StorageOptions<T> {
   maxSize?: number;
 }
 
+// Overload for simple usage (just defaultValue)
+interface SimpleStorageOptions<T> {
+  defaultValue: T;
+}
+
 interface StorageValue<T> {
   value: T;
   timestamp: number;
@@ -86,13 +91,29 @@ const DEFAULT_OPTIONS = {
 const STORAGE_PREFIX = 'financial_tracker';
 
 // ============================================
-// MAIN HOOK
+// MAIN HOOK WITH OVERLOADS
 // ============================================
 
 export function useLocalStorage<T>(
   key: string,
+  defaultValue: T
+): [T, (value: T | ((val: T) => T)) => void, StorageControls<T>];
+
+export function useLocalStorage<T>(
+  key: string,
   options: StorageOptions<T>
+): [T, (value: T | ((val: T) => T)) => void, StorageControls<T>];
+
+export function useLocalStorage<T>(
+  key: string,
+  defaultValueOrOptions: T | StorageOptions<T>
 ): [T, (value: T | ((val: T) => T)) => void, StorageControls<T>] {
+  
+  // Normalize arguments
+  const options: StorageOptions<T> = typeof defaultValueOrOptions === 'object' && !Array.isArray(defaultValueOrOptions)
+    ? defaultValueOrOptions as StorageOptions<T>
+    : { defaultValue: defaultValueOrOptions as T };
+
   const {
     defaultValue,
     prefix = DEFAULT_OPTIONS.prefix,

@@ -1,10 +1,9 @@
 // src/app/admin/financial-tracker/entities/components/ViewEntityModal.tsx
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, useRef, Activity } from 'react';
-
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { format, formatDistance, formatRelative, differenceInDays, differenceInHours, differenceInMinutes } from 'date-fns';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { format, formatDistance, subDays, subWeeks, subMonths } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -20,10 +19,7 @@ import {
   LineElement,
   Filler
 } from 'chart.js';
-import { Bar, Pie, Line, Doughnut, Radar, PolarArea, Bubble, Scatter } from 'react-chartjs-2';
-import { ActivityIcon, AlertCircle, Archive, ArrowDown, ArrowUp, BarChart3, Calendar, ChevronDown, ChevronUp, Clock, Code, CommandIcon, Copy, CreditCard, DollarSign, Download, Edit, ExternalLink, Eye, File, FileArchive, FileAudio, FileCode, FileImage, FileJson, FileSpreadsheet, FileText, FileVideo, Flag, GitBranch, GitCommit, HdIcon, Heart, History, Info, Mail, MapPin, Maximize2, MessageSquare, Minimize2, Paperclip, Power, PowerOff, Printer, QrCode, RefreshCw, Search, Send, Settings, Share2, ShieldCheck, ShieldOff, Star, Tag, Trash2, TrendingDown, TrendingUp, TrendingUpDownIcon, Upload, X } from 'lucide-react';
-import User from '@/models/User';
-import { Command } from 'ioredis';
+import { Bar, Pie, Line, Doughnut, Radar, PolarArea } from 'react-chartjs-2';
 
 // Register ChartJS components
 ChartJS.register(
@@ -39,152 +35,31 @@ ChartJS.register(
   Filler
 );
 
+// Icons
+import {
+  X, User, Calendar, Clock, Power, PowerOff, DollarSign, CreditCard, Eye,
+  Activity, History, Tag, Mail, Copy, Star, Edit, Trash2, Archive, Share2,
+  Download, Printer, MapPin, Shield, ShieldCheck, ShieldOff, Flag, Heart,
+  MessageSquare, Paperclip, GitBranch, Settings, RefreshCw, ChevronUp,
+  ChevronDown, Maximize2, Minimize2, ExternalLink, Upload, Send, Search,
+  File, FileText, FileSpreadsheet, FileJson, FileCode, FileImage, FileVideo,
+  FileAudio, FileArchive, QrCode, AlertCircle, Info, BarChart3, TrendingUp,
+  TrendingDown, ArrowUp, ArrowDown, Command, GitCommit, ActivityIcon, Code
+} from 'lucide-react';
+
+// Import shared types
+import { 
+  Entity, 
+  Comment as CommentType, 
+  Attachment as AttachmentType,
+  ActivityLog,
+  RelatedEntity,
+  AuditEntry
+} from '@/app/financial-tracker/types/entity.types';
+
 // ============================================
-// INTERFACES & TYPES
+// INTERFACES
 // ============================================
-
-interface Entity {
-  _id: string;
-  module: 're' | 'expense';
-  entityKey: string;
-  name: string;
-  description?: string;
-  isEnabled: boolean;
-  enableApproval: boolean;
-  branchId?: string;
-  createdBy: { 
-    _id: string;
-    fullName: string; 
-    email: string;
-    avatar?: string;
-    role?: string;
-    department?: string;
-    phone?: string;
-    location?: string;
-  };
-  updatedBy: { 
-    _id: string;
-    fullName: string; 
-    email: string;
-    avatar?: string;
-    role?: string;
-    department?: string;
-    phone?: string;
-    location?: string;
-  };
-  createdAt: string;
-  updatedAt: string;
-  metadata?: {
-    version?: number;
-    tags?: string[];
-    category?: string;
-    priority?: 'low' | 'medium' | 'high' | 'critical';
-    status?: 'draft' | 'published' | 'archived' | 'deleted';
-    views?: number;
-    likes?: number;
-    shares?: number;
-    comments?: Comment[];
-    attachments?: Attachment[];
-    customFields?: Record<string, any>;
-    relations?: {
-      parent?: string[];
-      children?: string[];
-      references?: string[];
-      dependencies?: string[];
-    };
-    analytics?: {
-      daily?: { date: string; count: number }[];
-      weekly?: { week: string; count: number }[];
-      monthly?: { month: string; count: number }[];
-      yearly?: { year: string; count: number }[];
-    };
-    permissions?: {
-      read?: string[];
-      write?: string[];
-      delete?: string[];
-      admin?: string[];
-    };
-    settings?: Record<string, any>;
-  };
-}
-
-interface Comment {
-  _id: string;
-  userId: { 
-    _id: string;
-    fullName: string; 
-    email: string; 
-    avatar?: string;
-    role?: string;
-  };
-  content: string;
-  createdAt: string;
-  updatedAt?: string;
-  likes: number;
-  likedBy?: string[];
-  replies?: Comment[];
-  isEdited?: boolean;
-  isPinned?: boolean;
-  isResolved?: boolean;
-  attachments?: Attachment[];
-}
-
-interface Attachment {
-  _id: string;
-  name: string;
-  type: string;
-  size: number;
-  url: string;
-  thumbnail?: string;
-  uploadedBy: {
-    _id: string;
-    fullName: string;
-    email: string;
-  };
-  uploadedAt: string;
-  description?: string;
-  tags?: string[];
-  downloads?: number;
-  views?: number;
-}
-
-interface ActivityLog {
-  _id: string;
-  userId: { 
-    _id: string;
-    fullName: string; 
-    email: string;
-    avatar?: string;
-    role?: string;
-  };
-  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'TOGGLE' | 'APPROVE' | 'REJECT' | 'ARCHIVE' | 'RESTORE' | 'VIEW' | 'EXPORT' | 'SHARE' | 'COMMENT' | 'ATTACH' | 'TAG' | 'CLONE' | 'MERGE' | 'IMPORT' | 'EXPORT' | 'PRINT' | 'DOWNLOAD';
-  changes?: Array<{ 
-    field: string; 
-    oldValue: any; 
-    newValue: any;
-    type?: 'string' | 'number' | 'boolean' | 'array' | 'object';
-    path?: string[];
-  }>;
-  timestamp: string;
-  ip?: string;
-  userAgent?: string;
-  location?: string;
-  device?: string;
-  browser?: string;
-  os?: string;
-  metadata?: Record<string, any>;
-}
-
-interface RelatedEntity {
-  _id: string;
-  name: string;
-  module: 're' | 'expense';
-  entityKey: string;
-  relationship: 'parent' | 'child' | 'reference' | 'dependency' | 'related' | 'version' | 'copy' | 'template';
-  direction?: 'incoming' | 'outgoing' | 'bidirectional';
-  strength?: 'weak' | 'strong' | 'required' | 'optional';
-  metadata?: Record<string, any>;
-}
 
 interface MetricData {
   label: string;
@@ -194,17 +69,8 @@ interface MetricData {
   color: string;
   icon?: React.ElementType;
   format?: 'number' | 'currency' | 'percentage' | 'time';
-  history?: { date: string; value: number }[];
-}
-
-interface AuditEntry {
-  _id: string;
-  timestamp: string;
-  userId: { fullName: string; email: string };
-  action: string;
-  details: string;
-  ip: string;
-  userAgent: string;
+  data?: number[];
+  labels?: string[];
 }
 
 interface ViewEntityModalProps {
@@ -258,14 +124,24 @@ export default function ViewEntityModal({
   // STATE MANAGEMENT
   // ============================================
 
-  const [activeTab, setActiveTab] = useState<'details' | 'activity' | 'metrics' | 'comments' | 'attachments' | 'related' | 'audit' | 'settings' | 'analytics' | 'versions' | 'permissions' | 'history'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'activity' | 'metrics' | 'comments' | 'attachments' | 'related' | 'audit' | 'settings' | 'analytics' | 'versions'>('details');
+  
+  // Data states
   const [activities, setActivities] = useState<ActivityLog[]>([]);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [comments, setComments] = useState<CommentType[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentType[]>([]);
   const [relatedEntities, setRelatedEntities] = useState<RelatedEntity[]>([]);
   const [metrics, setMetrics] = useState<MetricData[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
   const [versions, setVersions] = useState<any[]>([]);
+  
+  // Analytics data
+  const [viewsData, setViewsData] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
+  const [engagementData, setEngagementData] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
+  const [moduleDistribution, setModuleDistribution] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
+  const [statusDistribution, setStatusDistribution] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
+  
+  // Loading states
   const [loading, setLoading] = useState({
     activities: false,
     comments: false,
@@ -273,9 +149,11 @@ export default function ViewEntityModal({
     related: false,
     metrics: false,
     audit: false,
-    versions: false
+    versions: false,
+    analytics: false
   });
-  
+
+  // UI States
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [editingComment, setEditingComment] = useState<string | null>(null);
@@ -285,38 +163,253 @@ export default function ViewEntityModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [showCloneConfirm, setShowCloneConfirm] = useState(false);
-  const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
+  const [selectedAttachment, setSelectedAttachment] = useState<AttachmentType | null>(null);
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['info', 'metadata', 'relations']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['info', 'metadata']));
+  
+  // Filters & Search
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'size' | 'type'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  
+  // Chart controls
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie' | 'doughnut' | 'radar' | 'polar'>('bar');
   const [dateRange, setDateRange] = useState<'day' | 'week' | 'month' | 'year' | 'all'>('month');
 
+  // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // ============================================
-  // EFFECTS
+  // API HELPER
   // ============================================
 
+  const getToken = (): string => {
+    const match = document.cookie.match(/token=([^;]+)/);
+    return match ? match[1] : '';
+  };
+
+  const apiFetch = async <T,>(
+    endpoint: string, 
+    options?: RequestInit
+  ): Promise<T> => {
+    // Cancel previous request if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
+    
+    try {
+      const token = getToken();
+      const response = await fetch(`/financial-tracker/api/financial-tracker${endpoint}`, {
+        ...options,
+        signal: abortControllerRef.current.signal,
+        headers: {
+          'Authorization': token,
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'API request failed');
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request cancelled');
+        return {} as T;
+      }
+      throw error;
+    }
+  };
+
+  // ============================================
+  // DATA FETCHING
+  // ============================================
+
+  const fetchActivities = useCallback(async () => {
+    setLoading(prev => ({ ...prev, activities: true }));
+    try {
+      const data = await apiFetch<{ logs: ActivityLog[] }>(
+        `/activity-logs?entity=entities&recordId=${entity._id}&limit=50`
+      );
+      setActivities(data.logs || []);
+    } catch (error) {
+      console.error('Failed to fetch activities:', error);
+      toast.error('Failed to load activities');
+    } finally {
+      setLoading(prev => ({ ...prev, activities: false }));
+    }
+  }, [entity._id]);
+
+  const fetchComments = useCallback(async () => {
+    setLoading(prev => ({ ...prev, comments: true }));
+    try {
+      const data = await apiFetch<{ comments: CommentType[] }>(
+        `/comments?entityId=${entity._id}`
+      );
+      setComments(data.comments || []);
+    } catch (error) {
+      console.error('Failed to fetch comments:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, comments: false }));
+    }
+  }, [entity._id]);
+
+  const fetchAttachments = useCallback(async () => {
+    setLoading(prev => ({ ...prev, attachments: true }));
+    try {
+      const data = await apiFetch<{ attachments: AttachmentType[] }>(
+        `/attachments?entityId=${entity._id}`
+      );
+      setAttachments(data.attachments || []);
+    } catch (error) {
+      console.error('Failed to fetch attachments:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, attachments: false }));
+    }
+  }, [entity._id]);
+
+  const fetchRelatedEntities = useCallback(async () => {
+    setLoading(prev => ({ ...prev, related: true }));
+    try {
+      const data = await apiFetch<{ related: RelatedEntity[] }>(
+        `/entities/${entity._id}/related`
+      );
+      setRelatedEntities(data.related || []);
+    } catch (error) {
+      console.error('Failed to fetch related entities:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, related: false }));
+    }
+  }, [entity._id]);
+
+  const fetchMetrics = useCallback(async () => {
+    setLoading(prev => ({ ...prev, metrics: true }));
+    try {
+      const data = await apiFetch<{ metrics: MetricData[] }>(
+        `/entities/${entity._id}/metrics?range=${dateRange}`
+      );
+      setMetrics(data.metrics || []);
+    } catch (error) {
+      console.error('Failed to fetch metrics:', error);
+      // Fallback to empty array
+      setMetrics([]);
+    } finally {
+      setLoading(prev => ({ ...prev, metrics: false }));
+    }
+  }, [entity._id, dateRange]);
+
+  const fetchAuditLogs = useCallback(async () => {
+    setLoading(prev => ({ ...prev, audit: true }));
+    try {
+      const data = await apiFetch<{ logs: AuditEntry[] }>(
+        `/audit?entityId=${entity._id}&limit=50`
+      );
+      setAuditLogs(data.logs || []);
+    } catch (error) {
+      console.error('Failed to fetch audit logs:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, audit: false }));
+    }
+  }, [entity._id]);
+
+  const fetchVersions = useCallback(async () => {
+    setLoading(prev => ({ ...prev, versions: true }));
+    try {
+      const data = await apiFetch<{ versions: any[] }>(
+        `/entities/${entity._id}/versions`
+      );
+      setVersions(data.versions || []);
+    } catch (error) {
+      console.error('Failed to fetch versions:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, versions: false }));
+    }
+  }, [entity._id]);
+
+  const fetchAnalytics = useCallback(async () => {
+    setLoading(prev => ({ ...prev, analytics: true }));
+    try {
+      const [views, engagement, modules, status] = await Promise.all([
+        apiFetch<{ labels: string[]; data: number[] }>(`/analytics/views?entityId=${entity._id}&range=${dateRange}`),
+        apiFetch<{ labels: string[]; data: number[] }>(`/analytics/engagement?entityId=${entity._id}&range=${dateRange}`),
+        apiFetch<{ labels: string[]; data: number[] }>(`/analytics/modules?entityId=${entity._id}`),
+        apiFetch<{ labels: string[]; data: number[] }>(`/analytics/status?entityId=${entity._id}`)
+      ]);
+      
+      setViewsData(views);
+      setEngagementData(engagement);
+      setModuleDistribution(modules);
+      setStatusDistribution(status);
+    } catch (error) {
+      console.error('Failed to fetch analytics:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, analytics: false }));
+    }
+  }, [entity._id, dateRange]);
+
+  const fetchData = useCallback(async () => {
+    switch (activeTab) {
+      case 'activity':
+        await fetchActivities();
+        break;
+      case 'comments':
+        await fetchComments();
+        break;
+      case 'attachments':
+        await fetchAttachments();
+        break;
+      case 'related':
+        await fetchRelatedEntities();
+        break;
+      case 'metrics':
+        await fetchMetrics();
+        break;
+      case 'audit':
+        await fetchAuditLogs();
+        break;
+      case 'versions':
+        await fetchVersions();
+        break;
+      case 'analytics':
+        await fetchAnalytics();
+        break;
+    }
+  }, [activeTab, fetchActivities, fetchComments, fetchAttachments, fetchRelatedEntities, fetchMetrics, fetchAuditLogs, fetchVersions, fetchAnalytics]);
+
+  // Initial data fetch
   useEffect(() => {
     if (isOpen && entity) {
       fetchData();
     }
-  }, [isOpen, entity, activeTab, dateRange]);
+    
+    // Cleanup on unmount
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [isOpen, entity, activeTab, dateRange, fetchData]);
+
+  // ============================================
+  // KEYBOARD SHORTCUTS
+  // ============================================
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
-      
-      switch(e.key) {
+
+      switch (e.key) {
         case 'Escape':
           onClose();
           break;
@@ -380,13 +473,13 @@ export default function ViewEntityModal({
           }
           break;
         case 'd':
-          if (e.ctrlKey || e.metaKey && e.shiftKey) {
+          if (e.ctrlKey && e.shiftKey) {
             e.preventDefault();
             setShowDeleteConfirm(true);
           }
           break;
         case 'c':
-          if (e.ctrlKey || e.metaKey && e.shiftKey) {
+          if (e.ctrlKey && e.shiftKey) {
             e.preventDefault();
             setShowCloneConfirm(true);
           }
@@ -397,175 +490,6 @@ export default function ViewEntityModal({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, fullscreen, onClose, onEdit, onPrint, entity]);
-
-  // ============================================
-  // DATA FETCHING
-  // ============================================
-
-  const getToken = (): string => {
-    const match = document.cookie.match(/token=([^;]+)/);
-    return match ? match[1] : '';
-  };
-
-  const fetchData = async () => {
-    switch(activeTab) {
-      case 'activity':
-        await fetchActivities();
-        break;
-      case 'comments':
-        await fetchComments();
-        break;
-      case 'attachments':
-        await fetchAttachments();
-        break;
-      case 'related':
-        await fetchRelatedEntities();
-        break;
-      case 'metrics':
-        await fetchMetrics();
-        break;
-      case 'audit':
-        await fetchAuditLogs();
-        break;
-      case 'versions':
-        await fetchVersions();
-        break;
-    }
-  };
-
-  const fetchActivities = async () => {
-    setLoading(prev => ({ ...prev, activities: true }));
-    try {
-      const token = getToken();
-      const response = await fetch(`/financial-tracker/api/financial-tracker/activity-logs?entity=entities&recordId=${entity._id}&limit=100&sort=${sortOrder}`, {
-        headers: { 'Authorization': token }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setActivities(data.logs || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch activities:', error);
-      toast.error('Failed to load activities');
-    } finally {
-      setLoading(prev => ({ ...prev, activities: false }));
-    }
-  };
-
-  const fetchComments = async () => {
-    setLoading(prev => ({ ...prev, comments: true }));
-    try {
-      const token = getToken();
-      const response = await fetch(`/financial-tracker/api/financial-tracker/comments?entityId=${entity._id}&sort=${sortOrder}`, {
-        headers: { 'Authorization': token }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setComments(data.comments || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch comments:', error);
-    } finally {
-      setLoading(prev => ({ ...prev, comments: false }));
-    }
-  };
-
-  const fetchAttachments = async () => {
-    setLoading(prev => ({ ...prev, attachments: true }));
-    try {
-      const token = getToken();
-      const response = await fetch(`/financial-tracker/api/financial-tracker/attachments?entityId=${entity._id}&sort=${sortBy}&order=${sortOrder}`, {
-        headers: { 'Authorization': token }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setAttachments(data.attachments || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch attachments:', error);
-    } finally {
-      setLoading(prev => ({ ...prev, attachments: false }));
-    }
-  };
-
-  const fetchRelatedEntities = async () => {
-    setLoading(prev => ({ ...prev, related: true }));
-    try {
-      const token = getToken();
-      const response = await fetch(`/financial-tracker/api/financial-tracker/entities/${entity._id}/related`, {
-        headers: { 'Authorization': token }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setRelatedEntities(data.related || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch related entities:', error);
-    } finally {
-      setLoading(prev => ({ ...prev, related: false }));
-    }
-  };
-
-  const fetchMetrics = async () => {
-    setLoading(prev => ({ ...prev, metrics: true }));
-    try {
-      const token = getToken();
-      const response = await fetch(`/financial-tracker/api/financial-tracker/entities/${entity._id}/metrics?range=${dateRange}`, {
-        headers: { 'Authorization': token }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setMetrics(data.metrics || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch metrics:', error);
-    } finally {
-      setLoading(prev => ({ ...prev, metrics: false }));
-    }
-  };
-
-  const fetchAuditLogs = async () => {
-    setLoading(prev => ({ ...prev, audit: true }));
-    try {
-      const token = getToken();
-      const response = await fetch(`/financial-tracker/api/financial-tracker/audit?entityId=${entity._id}&limit=100`, {
-        headers: { 'Authorization': token }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setAuditLogs(data.logs || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch audit logs:', error);
-    } finally {
-      setLoading(prev => ({ ...prev, audit: false }));
-    }
-  };
-
-  const fetchVersions = async () => {
-    setLoading(prev => ({ ...prev, versions: true }));
-    try {
-      const token = getToken();
-      const response = await fetch(`/financial-tracker/api/financial-tracker/entities/${entity._id}/versions`, {
-        headers: { 'Authorization': token }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setVersions(data.versions || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch versions:', error);
-    } finally {
-      setLoading(prev => ({ ...prev, versions: false }));
-    }
-  };
 
   // ============================================
   // HANDLERS
@@ -579,8 +503,7 @@ export default function ViewEntityModal({
       setNewComment('');
       await fetchComments();
       toast.success('Comment added successfully');
-      
-      // Focus back on comment input
+
       setTimeout(() => {
         commentInputRef.current?.focus();
       }, 100);
@@ -602,27 +525,6 @@ export default function ViewEntityModal({
     }
   };
 
-  const handleEditComment = async (commentId: string, newContent: string) => {
-    // Implement edit comment logic
-    setEditingComment(null);
-  };
-
-  const handleDeleteComment = async (commentId: string) => {
-    // Implement delete comment logic
-  };
-
-  const handleLikeComment = async (commentId: string) => {
-    // Implement like comment logic
-  };
-
-  const handlePinComment = async (commentId: string) => {
-    // Implement pin comment logic
-  };
-
-  const handleResolveComment = async (commentId: string) => {
-    // Implement resolve comment logic
-  };
-
   const handleUploadAttachment = async (files: FileList | null) => {
     if (!files || !onAttach) return;
 
@@ -635,15 +537,11 @@ export default function ViewEntityModal({
         toast.error(`Failed to upload: ${file.name}`);
       }
     }
-    
+
     await fetchAttachments();
   };
 
-  const handleDeleteAttachment = async (attachmentId: string) => {
-    // Implement delete attachment logic
-  };
-
-  const handleDownloadAttachment = async (attachment: Attachment) => {
+  const handleDownloadAttachment = async (attachment: AttachmentType) => {
     try {
       const response = await fetch(attachment.url);
       const blob = await response.blob();
@@ -661,13 +559,13 @@ export default function ViewEntityModal({
     }
   };
 
-  const handlePreviewAttachment = (attachment: Attachment) => {
+  const handlePreviewAttachment = (attachment: AttachmentType) => {
     setSelectedAttachment(attachment);
   };
 
   const handleDelete = async () => {
     if (!onDelete) return;
-    
+
     try {
       await onDelete(entity._id);
       toast.success('Entity deleted successfully');
@@ -679,7 +577,7 @@ export default function ViewEntityModal({
 
   const handleArchive = async () => {
     if (!onArchive) return;
-    
+
     try {
       await onArchive(entity._id);
       toast.success('Entity archived successfully');
@@ -691,7 +589,7 @@ export default function ViewEntityModal({
 
   const handleClone = async () => {
     if (!onClone) return;
-    
+
     try {
       await onClone(entity);
       toast.success('Entity cloned successfully');
@@ -713,16 +611,13 @@ export default function ViewEntityModal({
     if (onExport) {
       onExport(entity, format);
     } else {
-      // Default export logic
-      const dataStr = JSON.stringify(entity, null, 2);
-      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-      const exportFileDefaultName = `${entity.entityKey}-${new Date().toISOString()}.${format}`;
-      
-      const linkElement = document.createElement('a');
-      linkElement.setAttribute('href', dataUri);
-      linkElement.setAttribute('download', exportFileDefaultName);
-      linkElement.click();
-      toast.success(`Entity exported as ${format.toUpperCase()}`);
+      apiFetch(`/entities/${entity._id}/export?format=${format}`, {
+        method: 'POST'
+      }).then(() => {
+        toast.success(`Exported as ${format.toUpperCase()}`);
+      }).catch(() => {
+        toast.error('Export failed');
+      });
     }
     setShowExportDialog(false);
   };
@@ -733,8 +628,8 @@ export default function ViewEntityModal({
   };
 
   const handleTagClick = (tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) 
+    setSelectedTags(prev =>
+      prev.includes(tag)
         ? prev.filter(t => t !== tag)
         : [...prev, tag]
     );
@@ -758,8 +653,8 @@ export default function ViewEntityModal({
 
   const moduleIcon = entity.module === 're' ? DollarSign : CreditCard;
   const moduleColor = entity.module === 're' ? 'blue' : 'green';
-  const moduleGradient = entity.module === 're' 
-    ? 'from-blue-600 to-indigo-700' 
+  const moduleGradient = entity.module === 're'
+    ? 'from-blue-600 to-indigo-700'
     : 'from-green-600 to-emerald-700';
 
   const statusColor = entity.isEnabled ? 'green' : 'gray';
@@ -799,7 +694,7 @@ export default function ViewEntityModal({
 
   const filteredAttachments = useMemo(() => {
     return attachments
-      .filter(att => 
+      .filter(att =>
         att.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         att.type.toLowerCase().includes(searchTerm.toLowerCase())
       )
@@ -824,39 +719,47 @@ export default function ViewEntityModal({
       });
   }, [attachments, searchTerm, filterType, sortBy, sortOrder]);
 
-  const chartData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-    datasets: [
-      {
-        label: 'Usage',
-        data: [65, 59, 80, 81, 56, 55],
-        backgroundColor: 'rgba(139, 92, 246, 0.5)',
-        borderColor: 'rgb(139, 92, 246)',
-        borderWidth: 1,
-        fill: true,
-      },
-      {
-        label: 'Growth',
-        data: [28, 48, 40, 19, 86, 27],
-        backgroundColor: 'rgba(59, 130, 246, 0.5)',
-        borderColor: 'rgb(59, 130, 246)',
-        borderWidth: 1,
-        fill: true,
-      }
-    ]
-  };
+  // Chart data generators
+  const getChartData = useCallback((data: { labels: string[]; data: number[] }) => ({
+    labels: data.labels,
+    datasets: [{
+      data: data.data,
+      backgroundColor: [
+        'rgba(59, 130, 246, 0.8)',
+        'rgba(16, 185, 129, 0.8)',
+        'rgba(139, 92, 246, 0.8)',
+        'rgba(245, 158, 11, 0.8)',
+        'rgba(239, 68, 68, 0.8)',
+        'rgba(107, 114, 128, 0.8)',
+      ],
+      borderColor: [
+        'rgb(59, 130, 246)',
+        'rgb(16, 185, 129)',
+        'rgb(139, 92, 246)',
+        'rgb(245, 158, 11)',
+        'rgb(239, 68, 68)',
+        'rgb(107, 114, 128)',
+      ],
+      borderWidth: 1,
+    }]
+  }), []);
 
-  const pieChartData = {
-    labels: ['Active', 'Inactive', 'Pending'],
-    datasets: [
-      {
-        data: [300, 50, 100],
-        backgroundColor: ['#10B981', '#6B7280', '#F59E0B'],
-        borderColor: ['#059669', '#4B5563', '#D97706'],
-        borderWidth: 1,
-      }
-    ]
-  };
+  const getLineChartData = useCallback((data: { labels: string[]; data: number[] }) => ({
+    labels: data.labels,
+    datasets: [{
+      label: 'Value',
+      data: data.data,
+      borderColor: 'rgb(139, 92, 246)',
+      backgroundColor: 'rgba(139, 92, 246, 0.1)',
+      tension: 0.4,
+      fill: true,
+      pointBackgroundColor: 'rgb(139, 92, 246)',
+      pointBorderColor: '#fff',
+      pointBorderWidth: 2,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+    }]
+  }), []);
 
   const chartOptions = {
     responsive: true,
@@ -919,20 +822,19 @@ export default function ViewEntityModal({
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <button
               onClick={() => onToggleFavorite?.(entity._id)}
-              className={`p-2 rounded-lg transition-all hover:scale-110 ${
-                isFavorite 
-                  ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/30' 
+              className={`p-2 rounded-lg transition-all hover:scale-110 ${isFavorite
+                  ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/30'
                   : 'text-gray-400 hover:text-yellow-500 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
+                }`}
               title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             >
               <Star className={`h-5 w-5 ${isFavorite ? 'fill-current' : ''}`} />
             </button>
-            
+
             <button
               onClick={() => setShowQRCode(true)}
               className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
@@ -954,7 +856,7 @@ export default function ViewEntityModal({
             {React.createElement(statusIcon, { className: "h-3 w-3 mr-1" })}
             {statusText}
           </span>
-          
+
           <span className={`inline-flex items-center px-3 py-1 bg-${approvalColor}-100 dark:bg-${approvalColor}-900/30 text-${approvalColor}-700 dark:text-${approvalColor}-300 text-sm rounded-full`}>
             {React.createElement(approvalIcon, { className: "h-3 w-3 mr-1" })}
             {approvalText}
@@ -971,9 +873,8 @@ export default function ViewEntityModal({
             <button
               key={tag}
               onClick={() => handleTagClick(tag)}
-              className={`inline-flex items-center px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ${
-                selectedTags.includes(tag) ? 'ring-2 ring-blue-500' : ''
-              }`}
+              className={`inline-flex items-center px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ${selectedTags.includes(tag) ? 'ring-2 ring-blue-500' : ''
+                }`}
             >
               <Tag className="h-3 w-3 mr-1" />
               {tag}
@@ -1002,7 +903,7 @@ export default function ViewEntityModal({
               <Copy className="h-3 w-3" />
             </button>
           </div>
-          
+
           <div className="flex items-center space-x-3">
             {entity.createdBy.avatar ? (
               <img
@@ -1023,7 +924,7 @@ export default function ViewEntityModal({
               )}
             </div>
           </div>
-          
+
           <div className="mt-3 flex items-center text-xs text-gray-400">
             <Calendar className="h-3 w-3 mr-1" />
             {format(new Date(entity.createdAt), 'PPP')}
@@ -1050,7 +951,7 @@ export default function ViewEntityModal({
               <Copy className="h-3 w-3" />
             </button>
           </div>
-          
+
           <div className="flex items-center space-x-3">
             {entity.updatedBy.avatar ? (
               <img
@@ -1071,7 +972,7 @@ export default function ViewEntityModal({
               )}
             </div>
           </div>
-          
+
           <div className="mt-3 flex items-center text-xs text-gray-400">
             <Calendar className="h-3 w-3 mr-1" />
             {format(new Date(entity.updatedAt), 'PPP')}
@@ -1121,7 +1022,7 @@ export default function ViewEntityModal({
                     </button>
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="text-xs text-gray-500 dark:text-gray-400">Version</label>
                   <div className="flex items-center mt-1">
@@ -1140,7 +1041,7 @@ export default function ViewEntityModal({
                 </div>
               </div>
 
-              {entity.metadata?.customFields && (
+              {entity.metadata?.customFields && Object.keys(entity.metadata.customFields).length > 0 && (
                 <div className="mt-4">
                   <label className="text-xs text-gray-500 dark:text-gray-400">Custom Fields</label>
                   <div className="mt-2 grid grid-cols-2 gap-3">
@@ -1157,87 +1058,20 @@ export default function ViewEntityModal({
           )}
         </AnimatePresence>
       </motion.div>
-
-      {/* Relations */}
-      {entity.metadata?.relations && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="font-medium text-gray-900 dark:text-white">Relations</h4>
-            <button
-              onClick={() => toggleSection('relations')}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              {expandedSections.has('relations') ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-          </div>
-
-          <AnimatePresence>
-            {expandedSections.has('relations') && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="space-y-3"
-              >
-                {entity.metadata.relations.parent && entity.metadata.relations.parent.length > 0 && (
-                  <div>
-                    <label className="text-xs text-gray-500 dark:text-gray-400">Parent Entities</label>
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      {entity.metadata.relations.parent.map(id => (
-                        <span key={id} className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded-full">
-                          {id.slice(-8)}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {entity.metadata.relations.children && entity.metadata.relations.children.length > 0 && (
-                  <div>
-                    <label className="text-xs text-gray-500 dark:text-gray-400">Child Entities</label>
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      {entity.metadata.relations.children.map(id => (
-                        <span key={id} className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded-full">
-                          {id.slice(-8)}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      )}
     </div>
   );
 
   const renderActivityTab = () => (
     <div className="space-y-4">
-      {/* Activity Controls */}
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-gray-900 dark:text-white">Recent Activities</h3>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
-            className="p-1 text-gray-400 hover:text-gray-600 rounded"
-            title="Toggle sort order"
-          >
-            {sortOrder === 'desc' ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
-          </button>
-          <button
-            onClick={fetchActivities}
-            className="p-1 text-gray-400 hover:text-gray-600 rounded"
-            title="Refresh"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </button>
-        </div>
+        <button
+          onClick={fetchActivities}
+          className="p-1 text-gray-400 hover:text-gray-600 rounded"
+          title="Refresh"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
       </div>
 
       {loading.activities ? (
@@ -1260,9 +1094,8 @@ export default function ViewEntityModal({
               transition={{ delay: index * 0.05 }}
               className="relative pl-6 pb-3 border-l-2 border-gray-200 dark:border-gray-700 last:border-0"
             >
-              {/* Timeline dot */}
               <div className="absolute -left-2 top-0 w-4 h-4 rounded-full bg-white dark:bg-gray-800 border-2 border-purple-500"></div>
-              
+
               <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 hover:shadow-sm transition-shadow">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-2">
@@ -1288,7 +1121,7 @@ export default function ViewEntityModal({
                     {log.action}
                   </span>
                 </div>
-                
+
                 {log.changes && log.changes.length > 0 && (
                   <div className="mt-2 space-y-1">
                     {log.changes.map((change, i) => (
@@ -1304,14 +1137,6 @@ export default function ViewEntityModal({
                     ))}
                   </div>
                 )}
-
-                {(log.ip || log.location) && (
-                  <div className="mt-2 flex items-center space-x-3 text-xs text-gray-400">
-                    {log.ip && <span>IP: {log.ip}</span>}
-                    {log.location && <span>• {log.location}</span>}
-                    {log.device && <span>• {log.device}</span>}
-                  </div>
-                )}
               </div>
             </motion.div>
           ))}
@@ -1322,7 +1147,6 @@ export default function ViewEntityModal({
 
   const renderMetricsTab = () => (
     <div className="space-y-6">
-      {/* Metrics Controls */}
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-gray-900 dark:text-white">Performance Metrics</h3>
         <div className="flex items-center space-x-2">
@@ -1337,91 +1161,103 @@ export default function ViewEntityModal({
             <option value="year">Last Year</option>
             <option value="all">All Time</option>
           </select>
-          
-          <select
-            value={chartType}
-            onChange={(e) => setChartType(e.target.value as any)}
-            className="px-3 py-1 text-sm border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+
+          <button
+            onClick={fetchMetrics}
+            className="p-1 text-gray-400 hover:text-gray-600 rounded"
+            title="Refresh"
           >
-            <option value="bar">Bar Chart</option>
-            <option value="line">Line Chart</option>
-            <option value="pie">Pie Chart</option>
-            <option value="doughnut">Doughnut Chart</option>
-            <option value="radar">Radar Chart</option>
-            <option value="polar">Polar Area</option>
-          </select>
+            <RefreshCw className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-3 gap-4">
-        {metrics.map((metric, index) => {
-          const Icon = metric.icon || Activity;
-          const trendColor = metric.trend === 'up' ? 'text-green-600' : metric.trend === 'down' ? 'text-red-600' : 'text-gray-600';
-          const TrendIcon = metric.trend === 'up' ? TrendingUp : metric.trend === 'down' ? TrendingDown : Activity;
+      {loading.metrics ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-3 border-purple-600 border-t-transparent mx-auto"></div>
+          <p className="text-sm text-gray-500 mt-3">Loading metrics...</p>
+        </div>
+      ) : metrics.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+          <BarChart3 className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+          <p className="text-gray-500 dark:text-gray-400">No metrics available</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            {metrics.map((metric, index) => {
+              const Icon = metric.icon || Activity;
+              const trendColor = metric.trend === 'up' ? 'text-green-600' : metric.trend === 'down' ? 'text-red-600' : 'text-gray-600';
 
-          return (
+              return (
+                <motion.div
+                  key={metric.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ scale: 1.02 }}
+                  className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 cursor-pointer transition-all ${selectedMetric === metric.label ? 'ring-2 ring-purple-500' : ''
+                    }`}
+                  onClick={() => setSelectedMetric(selectedMetric === metric.label ? null : metric.label)}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className={`p-2 rounded-lg bg-${metric.color}-100 dark:bg-${metric.color}-900/30`}>
+                      <Icon className={`h-4 w-4 text-${metric.color}-600 dark:text-${metric.color}-400`} />
+                    </div>
+                    <div className={`flex items-center ${trendColor}`}>
+                      {metric.trend === 'up' ? (
+                        <TrendingUp className="h-3 w-3 mr-1" />
+                      ) : metric.trend === 'down' ? (
+                        <TrendingDown className="h-3 w-3 mr-1" />
+                      ) : (
+                        <Activity className="h-3 w-3 mr-1" />
+                      )}
+                      <span className="text-xs">{metric.change > 0 ? '+' : ''}{metric.change}%</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{metric.label}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {metric.format === 'currency' && '$'}
+                    {metric.value.toLocaleString()}
+                    {metric.format === 'percentage' && '%'}
+                  </p>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {metrics.some(m => m.data && m.labels) && (
             <motion.div
-              key={metric.label}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ scale: 1.05 }}
-              className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 cursor-pointer transition-all ${
-                selectedMetric === metric.label ? 'ring-2 ring-purple-500' : ''
-              }`}
-              onClick={() => setSelectedMetric(selectedMetric === metric.label ? null : metric.label)}
+              transition={{ delay: 0.3 }}
+              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4"
+              style={{ height: 400 }}
             >
-              <div className="flex items-center justify-between mb-2">
-                <div className={`p-2 rounded-lg bg-${metric.color}-100 dark:bg-${metric.color}-900/30`}>
-                  <Icon className={`h-4 w-4 text-${metric.color}-600 dark:text-${metric.color}-400`} />
-                </div>
-                <div className={`flex items-center ${trendColor}`}>
-                  <TrendingUpDownIcon className="h-3 w-3 mr-1" />
-                  <span className="text-xs">{metric.change > 0 ? '+' : ''}{metric.change}%</span>
-                </div>
-              </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{metric.label}</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {metric.format === 'currency' && '$'}
-                {metric.value.toLocaleString()}
-                {metric.format === 'percentage' && '%'}
-              </p>
+              {chartType === 'pie' || chartType === 'doughnut' ? (
+                chartType === 'pie' ? (
+                  <Pie data={getChartData({ labels: metrics[0]?.labels || [], data: metrics[0]?.data || [] })} options={chartOptions} />
+                ) : (
+                  <Doughnut data={getChartData({ labels: metrics[0]?.labels || [], data: metrics[0]?.data || [] })} options={chartOptions} />
+                )
+              ) : chartType === 'radar' ? (
+                <Radar data={getChartData({ labels: metrics[0]?.labels || [], data: metrics[0]?.data || [] })} options={chartOptions} />
+              ) : chartType === 'polar' ? (
+                <PolarArea data={getChartData({ labels: metrics[0]?.labels || [], data: metrics[0]?.data || [] })} options={chartOptions} />
+              ) : chartType === 'line' ? (
+                <Line data={getLineChartData({ labels: metrics[0]?.labels || [], data: metrics[0]?.data || [] })} options={chartOptions} />
+              ) : (
+                <Bar data={getChartData({ labels: metrics[0]?.labels || [], data: metrics[0]?.data || [] })} options={chartOptions} />
+              )}
             </motion.div>
-          );
-        })}
-      </div>
-
-      {/* Chart */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4"
-        style={{ height: 400 }}
-      >
-        {chartType === 'pie' || chartType === 'doughnut' ? (
-          chartType === 'pie' ? (
-            <Pie data={pieChartData} options={chartOptions} />
-          ) : (
-            <Doughnut data={pieChartData} options={chartOptions} />
-          )
-        ) : chartType === 'radar' ? (
-          <Radar data={chartData} options={chartOptions} />
-        ) : chartType === 'polar' ? (
-          <PolarArea data={pieChartData} options={chartOptions} />
-        ) : chartType === 'line' ? (
-          <Line data={chartData} options={chartOptions} />
-        ) : (
-          <Bar data={chartData} options={chartOptions} />
-        )}
-      </motion.div>
+          )}
+        </>
+      )}
     </div>
   );
 
   const renderCommentsTab = () => (
     <div className="space-y-4">
-      {/* New Comment Input */}
       <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
         <textarea
           ref={commentInputRef}
@@ -1439,12 +1275,12 @@ export default function ViewEntityModal({
         />
         <div className="flex items-center justify-between mt-2">
           <span className="text-xs text-gray-500 dark:text-gray-400">
-            {newComment.length} characters • Markdown supported
+            {newComment.length} characters
           </span>
           <button
             onClick={handleAddComment}
             disabled={!newComment.trim()}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center"
           >
             <Send className="h-4 w-4 mr-2" />
             Post Comment
@@ -1452,7 +1288,6 @@ export default function ViewEntityModal({
         </div>
       </div>
 
-      {/* Comments List */}
       {loading.comments ? (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-3 border-purple-600 border-t-transparent mx-auto"></div>
@@ -1461,7 +1296,7 @@ export default function ViewEntityModal({
       ) : comments.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
           <MessageSquare className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-          <p className="text-gray-500 dark:text-gray-400">No comments yet. Be the first to comment!</p>
+          <p className="text-gray-500 dark:text-gray-400">No comments yet</p>
         </div>
       ) : (
         <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
@@ -1489,24 +1324,8 @@ export default function ViewEntityModal({
                     <p className="font-medium text-gray-900 dark:text-white">{comment.userId.fullName}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {formatDistance(new Date(comment.createdAt), new Date(), { addSuffix: true })}
-                      {comment.isEdited && ' • edited'}
                     </p>
                   </div>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  {comment.isPinned && (
-                    <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 text-xs rounded-full">
-                      Pinned
-                    </span>
-                  )}
-                  <button
-                    onClick={() => handleLikeComment(comment._id)}
-                    className="flex items-center space-x-1 text-gray-400 hover:text-red-500"
-                  >
-                    <Heart className={`h-4 w-4 ${comment.likedBy?.includes('current-user') ? 'fill-red-500 text-red-500' : ''}`} />
-                    <span className="text-xs">{comment.likes}</span>
-                  </button>
                 </div>
               </div>
 
@@ -1514,7 +1333,6 @@ export default function ViewEntityModal({
                 {comment.content}
               </div>
 
-              {/* Comment Actions */}
               <div className="mt-3 flex items-center space-x-4 text-xs text-gray-500">
                 <button
                   onClick={() => setReplyingTo(comment._id)}
@@ -1522,45 +1340,10 @@ export default function ViewEntityModal({
                 >
                   Reply
                 </button>
-                <button
-                  onClick={() => handlePinComment(comment._id)}
-                  className="hover:text-yellow-600"
-                >
-                  Pin
-                </button>
-                <button
-                  onClick={() => handleResolveComment(comment._id)}
-                  className="hover:text-green-600"
-                >
-                  Resolve
-                </button>
               </div>
 
-              {/* Replies */}
-              {comment.replies && comment.replies.length > 0 && (
-                <div className="mt-4 ml-8 space-y-3">
-                  {comment.replies.map((reply) => (
-                    <div key={reply._id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
-                            <User className="h-3 w-3 text-gray-500" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">{reply.userId.fullName}</p>
-                            <p className="text-xs text-gray-500">{formatDistance(new Date(reply.createdAt), new Date(), { addSuffix: true })}</p>
-                          </div>
-                        </div>
-                      </div>
-                      <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{reply.content}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Reply Input */}
               {replyingTo === comment._id && (
-                <div className="mt-4 ml-8">
+                <div className="mt-4">
                   <textarea
                     placeholder="Write a reply..."
                     className="w-full px-3 py-2 text-sm border rounded-lg resize-none dark:bg-gray-700 dark:border-gray-600"
@@ -1602,7 +1385,6 @@ export default function ViewEntityModal({
 
   const renderAttachmentsTab = () => (
     <div className="space-y-4">
-      {/* Attachment Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <div className="relative">
@@ -1626,7 +1408,6 @@ export default function ViewEntityModal({
             <option value="video/">Videos</option>
             <option value="audio/">Audio</option>
             <option value="application/pdf">PDFs</option>
-            <option value="application/vnd.openxmlformats-officedocument">Documents</option>
           </select>
 
           <select
@@ -1659,7 +1440,6 @@ export default function ViewEntityModal({
         </div>
       </div>
 
-      {/* Attachments Grid */}
       {loading.attachments ? (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-3 border-purple-600 border-t-transparent mx-auto"></div>
@@ -1696,7 +1476,7 @@ export default function ViewEntityModal({
                       <FileIcon className="h-8 w-8 text-gray-400" />
                     </div>
                   )}
-                  
+
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900 dark:text-white truncate" title={attachment.name}>
                       {attachment.name}
@@ -1722,16 +1502,6 @@ export default function ViewEntityModal({
                         >
                           <Download className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteAttachment(attachment._id);
-                          }}
-                          className="p-1 text-gray-400 hover:text-red-600 rounded"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -1739,55 +1509,6 @@ export default function ViewEntityModal({
               </motion.div>
             );
           })}
-        </div>
-      )}
-
-      {/* Attachment Preview Modal */}
-      {selectedAttachment && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-auto">
-            <div className="p-4 border-b flex items-center justify-between">
-              <h3 className="font-medium">{selectedAttachment.name}</h3>
-              <button
-                onClick={() => setSelectedAttachment(null)}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="p-4">
-              {selectedAttachment.type.startsWith('image/') ? (
-                <img
-                  src={selectedAttachment.url}
-                  alt={selectedAttachment.name}
-                  className="max-w-full h-auto"
-                />
-              ) : selectedAttachment.type.startsWith('video/') ? (
-                <video
-                  src={selectedAttachment.url}
-                  controls
-                  className="w-full"
-                />
-              ) : selectedAttachment.type.startsWith('audio/') ? (
-                <audio
-                  src={selectedAttachment.url}
-                  controls
-                  className="w-full"
-                />
-              ) : (
-                <div className="text-center py-12">
-                  <File className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">Preview not available for this file type</p>
-                  <button
-                    onClick={() => handleDownloadAttachment(selectedAttachment)}
-                    className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                  >
-                    Download File
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       )}
     </div>
@@ -1818,9 +1539,8 @@ export default function ViewEntityModal({
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${
-                    related.module === 're' ? 'bg-blue-100' : 'bg-green-100'
-                  }`}>
+                  <div className={`p-2 rounded-lg ${related.module === 're' ? 'bg-blue-100' : 'bg-green-100'
+                    }`}>
                     {related.module === 're' ? (
                       <DollarSign className="h-4 w-4 text-blue-600" />
                     ) : (
@@ -1833,11 +1553,10 @@ export default function ViewEntityModal({
                       <code className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
                         {related.entityKey}
                       </code>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        related.relationship === 'parent' ? 'bg-blue-100 text-blue-700' :
-                        related.relationship === 'child' ? 'bg-green-100 text-green-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${related.relationship === 'parent' ? 'bg-blue-100 text-blue-700' :
+                          related.relationship === 'child' ? 'bg-green-100 text-green-700' :
+                            'bg-gray-100 text-gray-700'
+                        }`}>
                         {related.relationship}
                       </span>
                     </div>
@@ -1902,56 +1621,91 @@ export default function ViewEntityModal({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-gray-900 dark:text-white">Analytics</h3>
-        <select
-          value={dateRange}
-          onChange={(e) => setDateRange(e.target.value as any)}
-          className="px-3 py-1 text-sm border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-        >
-          <option value="day">Daily</option>
-          <option value="week">Weekly</option>
-          <option value="month">Monthly</option>
-          <option value="year">Yearly</option>
-        </select>
+        <div className="flex items-center space-x-2">
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value as any)}
+            className="px-3 py-1 text-sm border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+          >
+            <option value="day">Daily</option>
+            <option value="week">Weekly</option>
+            <option value="month">Monthly</option>
+            <option value="year">Yearly</option>
+          </select>
+          <button
+            onClick={fetchAnalytics}
+            className="p-1 text-gray-400 hover:text-gray-600 rounded"
+            title="Refresh"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Views Over Time</h4>
-          <div style={{ height: 200 }}>
-            <Line data={chartData} options={chartOptions} />
+      {loading.analytics ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-3 border-purple-600 border-t-transparent mx-auto"></div>
+          <p className="text-sm text-gray-500 mt-3">Loading analytics...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          {/* Views Chart */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Views Over Time</h4>
+            <div style={{ height: 200 }}>
+              {viewsData.labels && viewsData.labels.length > 0 ? (
+                <Line data={getLineChartData(viewsData)} options={chartOptions} />
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-400">
+                  No views data available
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Engagement Chart */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Engagement</h4>
+            <div style={{ height: 200 }}>
+              {engagementData.labels && engagementData.labels.length > 0 ? (
+                <Bar data={getChartData(engagementData)} options={chartOptions} />
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-400">
+                  No engagement data available
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Module Distribution */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Module Distribution</h4>
+            <div style={{ height: 200 }}>
+              {moduleDistribution.labels && moduleDistribution.labels.length > 0 ? (
+                <Pie data={getChartData(moduleDistribution)} options={chartOptions} />
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-400">
+                  No module data available
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Status Distribution */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Status Distribution</h4>
+            <div style={{ height: 200 }}>
+              {statusDistribution.labels && statusDistribution.labels.length > 0 ? (
+                <Doughnut data={getChartData(statusDistribution)} options={chartOptions} />
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-400">
+                  No status data available
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Engagement</h4>
-          <div style={{ height: 200 }}>
-            <Bar data={chartData} options={chartOptions} />
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-4 gap-4">
-        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500">Total Views</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">1,234</p>
-          <p className="text-xs text-green-600">+12%</p>
-        </div>
-        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500">Unique Visitors</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">892</p>
-          <p className="text-xs text-green-600">+8%</p>
-        </div>
-        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500">Avg. Time</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">4m 32s</p>
-          <p className="text-xs text-red-600">-2%</p>
-        </div>
-        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500">Bounce Rate</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">32%</p>
-          <p className="text-xs text-green-600">-5%</p>
-        </div>
-      </div>
+      )}
     </div>
   );
 
@@ -1971,7 +1725,7 @@ export default function ViewEntityModal({
         </div>
       ) : (
         <div className="space-y-2">
-          {versions.map((version, index) => (
+          {versions.map((version) => (
             <div
               key={version._id}
               className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4"
@@ -1984,7 +1738,7 @@ export default function ViewEntityModal({
                   <div>
                     <p className="font-medium">Version {version.number}</p>
                     <p className="text-xs text-gray-500">
-                      {format(new Date(version.createdAt), 'PPP p')} by {version.createdBy.fullName}
+                      {format(new Date(version.createdAt), 'PPP p')} by {version.createdBy?.fullName}
                     </p>
                   </div>
                 </div>
@@ -2019,29 +1773,11 @@ export default function ViewEntityModal({
               <p className="text-sm text-gray-500">Receive updates about this entity</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
-            </label>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Public Access</p>
-              <p className="text-sm text-gray-500">Allow public viewing</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
-            </label>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Auto-archive</p>
-              <p className="text-sm text-gray-500">Automatically archive after 30 days</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" />
+              <input 
+                type="checkbox" 
+                className="sr-only peer" 
+                defaultChecked={entity.metadata?.settings?.notifications ?? true}
+              />
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
             </label>
           </div>
@@ -2053,18 +1789,24 @@ export default function ViewEntityModal({
         <div className="space-y-3">
           <div>
             <label className="text-sm text-gray-600">Read Access</label>
-            <select className="w-full mt-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
-              <option>Everyone</option>
-              <option>Admins Only</option>
-              <option>Specific Users</option>
+            <select 
+              className="w-full mt-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+              defaultValue={entity.metadata?.permissions?.read?.[0] || 'everyone'}
+            >
+              <option value="everyone">Everyone</option>
+              <option value="admins">Admins Only</option>
+              <option value="specific">Specific Users</option>
             </select>
           </div>
           <div>
             <label className="text-sm text-gray-600">Write Access</label>
-            <select className="w-full mt-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
-              <option>Admins Only</option>
-              <option>Specific Users</option>
-              <option>No One</option>
+            <select 
+              className="w-full mt-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+              defaultValue={entity.metadata?.permissions?.write?.[0] || 'admins'}
+            >
+              <option value="admins">Admins Only</option>
+              <option value="specific">Specific Users</option>
+              <option value="none">No One</option>
             </select>
           </div>
         </div>
@@ -2172,7 +1914,13 @@ export default function ViewEntityModal({
 
                 {/* Refresh */}
                 <button
-                  onClick={onRefresh}
+                  onClick={() => {
+                    if (onRefresh) {
+                      onRefresh();
+                    } else {
+                      fetchData();
+                    }
+                  }}
                   className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-lg"
                   title="Refresh"
                 >
@@ -2190,7 +1938,7 @@ export default function ViewEntityModal({
               </div>
             </div>
 
-            {/* Quick Stats Bar */}
+            {/* Quick Stats Bar - Dynamic from entity metadata */}
             <div className="grid grid-cols-4 gap-4 mt-4">
               <div className="bg-white/10 rounded-lg p-2">
                 <div className="text-xs text-white/70">Created</div>
@@ -2210,14 +1958,14 @@ export default function ViewEntityModal({
                 <div className="text-xs text-white/70">Views</div>
                 <div className="text-sm text-white font-medium flex items-center">
                   <Eye className="h-3 w-3 mr-1" />
-                  {entity.metadata?.views || 0}
+                  {entity.metadata?.views?.toLocaleString() || 0}
                 </div>
               </div>
               <div className="bg-white/10 rounded-lg p-2">
                 <div className="text-xs text-white/70">Likes</div>
                 <div className="text-sm text-white font-medium flex items-center">
                   <Heart className="h-3 w-3 mr-1" />
-                  {entity.metadata?.likes || 0}
+                  {entity.metadata?.likes?.toLocaleString() || 0}
                 </div>
               </div>
             </div>
@@ -2240,7 +1988,7 @@ export default function ViewEntityModal({
               ].map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
-                
+
                 return (
                   <button
                     key={tab.id}
@@ -2254,7 +2002,7 @@ export default function ViewEntityModal({
                     `}
                     title={tab.shortcut}
                   >
-                    <HdIcon className={`h-4 w-4 ${isActive ? 'text-purple-600' : ''}`} />
+                    <Icon className={`h-4 w-4 ${isActive ? 'text-purple-600' : ''}`} />
                     <span>{tab.label}</span>
                   </button>
                 );
@@ -2290,10 +2038,10 @@ export default function ViewEntityModal({
           <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 rounded-b-2xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2 text-xs text-gray-500">
-                <CommandIcon className="h-3 w-3" />
+                <Command className="h-3 w-3" />
                 <span>Alt+1-9 to switch tabs • Ctrl+E to edit • Ctrl+S to share</span>
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => onEdit?.(entity)}
@@ -2374,7 +2122,7 @@ export default function ViewEntityModal({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-gray-600">Share Link</label>
@@ -2396,24 +2144,6 @@ export default function ViewEntityModal({
                   </button>
                 </div>
               </div>
-
-              <div>
-                <label className="text-sm text-gray-600">Share via</label>
-                <div className="grid grid-cols-4 gap-2 mt-2">
-                  <button className="p-3 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200">
-                    <Mail className="h-5 w-5 mx-auto" />
-                  </button>
-                  <button className="p-3 bg-green-100 text-green-600 rounded-lg hover:bg-green-200">
-                    <MessageSquare className="h-5 w-5 mx-auto" />
-                  </button>
-                  <button className="p-3 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200">
-                    <Send className="h-5 w-5 mx-auto" />
-                  </button>
-                  <button className="p-3 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200">
-                    <Printer className="h-5 w-5 mx-auto" />
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -2432,7 +2162,7 @@ export default function ViewEntityModal({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
+
             <div className="space-y-2">
               {['JSON', 'CSV', 'PDF', 'Excel'].map((format) => (
                 <button
