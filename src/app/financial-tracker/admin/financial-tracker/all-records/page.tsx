@@ -331,80 +331,91 @@ export default function AllRecordsPage() {
     avgAmount: 0
   });
 
-  // ==================== API CALLS ====================
-  const fetchRecords = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-        sortField,
-        sortOrder
-      });
-      
-      if (filters.module !== 'all') params.append('module', filters.module);
-      if (filters.entity) params.append('entity', filters.entity);
-      if (filters.status) params.append('status', filters.status);
-      if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
-      if (filters.dateTo) params.append('dateTo', filters.dateTo);
-      if (filters.createdBy) params.append('createdBy', filters.createdBy);
-      if (filters.minAmount) params.append('minAmount', filters.minAmount);
-      if (filters.maxAmount) params.append('maxAmount', filters.maxAmount);
-      if (filters.search) params.append('search', filters.search);
-      if (filters.tags.length) params.append('tags', filters.tags.join(','));
-      if (filters.priority.length) params.append('priority', filters.priority.join(','));
-      if (filters.starred !== null) params.append('starred', filters.starred.toString());
-      if (filters.archived !== null) params.append('archived', filters.archived.toString());
-
-      const response = await fetch(`/financial-tracker/api/financial-tracker/records?${params}`, {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/login?reason=session-expired');
-          return;
-        }
-        throw new Error('Failed to fetch records');
-      }
-
-      const data = await response.json();
-      setRecords(data.records || []);
-      setTotalCount(data.total || 0);
-      
-      // Calculate stats
-      const recordsList = data.records || [];
-      const totalAmount = recordsList.reduce((acc: number, r: DataRecord) => 
-        acc + (r.data.amount || r.data.total || 0), 0);
-      
-      setStats({
-        total: data.total || 0,
-        re: data.stats?.re || recordsList.filter((r: DataRecord) => r.module === 're').length,
-        expense: data.stats?.expense || recordsList.filter((r: DataRecord) => r.module === 'expense').length,
-        draft: data.stats?.draft || recordsList.filter((r: DataRecord) => r.status === 'draft').length,
-        submitted: data.stats?.submitted || recordsList.filter((r: DataRecord) => r.status === 'submitted').length,
-        approved: data.stats?.approved || recordsList.filter((r: DataRecord) => r.status === 'approved').length,
-        rejected: data.stats?.rejected || recordsList.filter((r: DataRecord) => r.status === 'rejected').length,
-        today: data.stats?.today || 0,
-        week: data.stats?.week || 0,
-        month: data.stats?.month || 0,
-        starred: recordsList.filter((r: DataRecord) => r.starred).length,
-        archived: recordsList.filter((r: DataRecord) => r.archived).length,
-        totalAmount,
-        avgAmount: recordsList.length ? totalAmount / recordsList.length : 0
-      });
-
-    } catch (error) {
-      console.error('Error fetching records:', error);
-      toast.error('Failed to load records');
-    } finally {
-      setIsLoading(false);
+ const fetchRecords = useCallback(async () => {
+  try {
+    setIsLoading(true);
+    
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      sortField,
+      sortOrder
+    });
+    
+    // ✅ FIX: Always send filters, even for 'all' module
+    if (filters.module !== 'all') {
+      params.append('module', filters.module);
     }
-  }, [page, limit, sortField, sortOrder, filters, router]);
+    // Don't send module='all' - API will handle it
+    
+    if (filters.entity) params.append('entity', filters.entity);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
+    if (filters.dateTo) params.append('dateTo', filters.dateTo);
+    if (filters.createdBy) params.append('createdBy', filters.createdBy);
+    if (filters.minAmount) params.append('minAmount', filters.minAmount);
+    if (filters.maxAmount) params.append('maxAmount', filters.maxAmount);
+    if (filters.search) params.append('search', filters.search);
+    if (filters.tags.length) params.append('tags', filters.tags.join(','));
+    if (filters.priority.length) params.append('priority', filters.priority.join(','));
+    if (filters.starred !== null) params.append('starred', filters.starred.toString());
+    if (filters.archived !== null) params.append('archived', filters.archived.toString());
+
+    console.log('📡 Fetching records with params:', params.toString());
+
+    const response = await fetch(`/financial-tracker/api/financial-tracker/records?${params}`, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        router.push('/login?reason=session-expired');
+        return;
+      }
+      
+      const errorData = await response.json();
+      console.error('❌ API Error:', errorData);
+      throw new Error(errorData.error || 'Failed to fetch records');
+    }
+
+    const data = await response.json();
+    console.log('✅ Records fetched:', data.records?.length || 0);
+    
+    setRecords(data.records || []);
+    setTotalCount(data.total || 0);
+    
+    // Calculate stats
+    const recordsList = data.records || [];
+    const totalAmount = recordsList.reduce((acc: number, r: DataRecord) => 
+      acc + (r.data.amount || r.data.total || 0), 0);
+    
+    setStats({
+      total: data.total || 0,
+      re: data.stats?.re || recordsList.filter((r: DataRecord) => r.module === 're').length,
+      expense: data.stats?.expense || recordsList.filter((r: DataRecord) => r.module === 'expense').length,
+      draft: data.stats?.draft || recordsList.filter((r: DataRecord) => r.status === 'draft').length,
+      submitted: data.stats?.submitted || recordsList.filter((r: DataRecord) => r.status === 'submitted').length,
+      approved: data.stats?.approved || recordsList.filter((r: DataRecord) => r.status === 'approved').length,
+      rejected: data.stats?.rejected || recordsList.filter((r: DataRecord) => r.status === 'rejected').length,
+      today: data.stats?.today || 0,
+      week: data.stats?.week || 0,
+      month: data.stats?.month || 0,
+      starred: recordsList.filter((r: DataRecord) => r.starred).length,
+      archived: recordsList.filter((r: DataRecord) => r.archived).length,
+      totalAmount,
+      avgAmount: recordsList.length ? totalAmount / recordsList.length : 0
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching records:', error);
+    toast.error('Failed to load records');
+  } finally {
+    setIsLoading(false);
+  }
+}, [page, limit, sortField, sortOrder, filters, router]);
 
   const fetchEntities = useCallback(async () => {
     try {
